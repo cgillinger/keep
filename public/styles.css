@@ -358,6 +358,16 @@ main {
   word-break: break-word;
 }
 
+.note-card a {
+  color: #1a73e8;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.note-card a:hover {
+  text-decoration: underline;
+}
+
 .note-card .checklist {
   list-style: none;
 }

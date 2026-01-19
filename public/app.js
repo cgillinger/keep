@@ -371,13 +371,13 @@ function renderNotes() {
           ${items.map(item => `
             <li class="${item.checked ? 'checked' : ''}">
               <input type="checkbox" ${item.checked ? 'checked' : ''} disabled>
-              <span>${escapeHtml(item.text)}</span>
+              <span>${linkify(item.text)}</span>
             </li>
           `).join('')}
         </ul>
       `;
     } else {
-      contentHtml = `<p>${escapeHtml(note.content)}</p>`;
+      contentHtml = `<p>${linkify(note.content)}</p>`;
     }
 
     // Render images
@@ -1079,6 +1079,33 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// Convert URLs in text to clickable links
+function linkify(text) {
+  if (typeof text !== 'string') return '';
+
+  // First escape HTML to prevent XSS
+  let escaped = escapeHtml(text);
+
+  // Regex to match URLs
+  // Matches: http://..., https://..., www....
+  const urlRegex = /(?:(?:https?:\/\/)|(?:www\.))[^\s<>]+/gi;
+
+  // Replace URLs with clickable links
+  escaped = escaped.replace(urlRegex, (url) => {
+    // Add protocol if missing (for www. links)
+    let href = url;
+    if (url.startsWith('www.')) {
+      href = 'https://' + url;
+    }
+
+    // Security: target="_blank" opens in new tab
+    // rel="noopener noreferrer" prevents tab-nabbing and tracking
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+  });
+
+  return escaped;
 }
 
 // Enter key handling
