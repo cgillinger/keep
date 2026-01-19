@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Keep Clone - Familjeanteckningar</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Login/Register Screen -->
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-container">
+      <h1>Keep Clone</h1>
+      <p class="subtitle">Din privata familjeanteckning</p>
+
+      <div id="login-form" class="auth-form">
+        <h2>Logga in</h2>
+        <input type="text" id="login-username" placeholder="Användarnamn" autocomplete="username">
+        <input type="password" id="login-password" placeholder="Lösenord" autocomplete="current-password">
+        <button onclick="login()">Logga in</button>
+        <p class="auth-switch">
+          Ny användare? <a href="#" onclick="showRegister()">Registrera dig</a>
+        </p>
+      </div>
+
+      <div id="register-form" class="auth-form" style="display: none;">
+        <h2>Registrera</h2>
+        <input type="text" id="register-username" placeholder="Användarnamn" autocomplete="username">
+        <input type="password" id="register-password" placeholder="Lösenord" autocomplete="new-password">
+        <input type="password" id="register-password-confirm" placeholder="Bekräfta lösenord" autocomplete="new-password">
+        <button onclick="register()">Registrera</button>
+        <p class="auth-switch">
+          Har redan ett konto? <a href="#" onclick="showLogin()">Logga in</a>
+        </p>
+      </div>
+
+      <div id="auth-error" class="error-message"></div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="app" style="display: none;">
+    <!-- Header -->
+    <header>
+      <div class="header-content">
+        <h1>Keep Clone</h1>
+        <div class="header-actions">
+          <input type="text" id="search-input" placeholder="Sök anteckningar..." onkeyup="searchNotes()">
+          <button class="btn-secondary" onclick="toggleArchived()">
+            <span id="archive-toggle-text">Visa arkiv</span>
+          </button>
+          <span id="user-info"></span>
+          <button class="btn-secondary" onclick="logout()">Logga ut</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+      <!-- New Note Form -->
+      <div class="new-note-container">
+        <div class="new-note-form" id="new-note-form">
+          <input type="text" id="new-note-title" placeholder="Titel">
+          <textarea id="new-note-content" placeholder="Skriv en anteckning..." rows="3"></textarea>
+
+          <!-- Checklist Container -->
+          <div id="checklist-container" style="display: none;">
+            <div id="checklist-items"></div>
+            <button class="btn-text" onclick="addChecklistItem()">+ Lägg till punkt</button>
+          </div>
+
+          <div class="note-form-actions">
+            <div class="note-options">
+              <button class="btn-icon" onclick="toggleChecklist()" title="Checklista">
+                <span id="checklist-toggle">☐</span>
+              </button>
+              <div class="color-picker">
+                <button class="btn-icon" title="Färg">🎨</button>
+                <div class="color-options">
+                  <button class="color-btn" data-color="#ffffff" style="background: #ffffff"></button>
+                  <button class="color-btn" data-color="#f28b82" style="background: #f28b82"></button>
+                  <button class="color-btn" data-color="#fbbc04" style="background: #fbbc04"></button>
+                  <button class="color-btn" data-color="#fff475" style="background: #fff475"></button>
+                  <button class="color-btn" data-color="#ccff90" style="background: #ccff90"></button>
+                  <button class="color-btn" data-color="#a7ffeb" style="background: #a7ffeb"></button>
+                  <button class="color-btn" data-color="#cbf0f8" style="background: #cbf0f8"></button>
+                  <button class="color-btn" data-color="#aecbfa" style="background: #aecbfa"></button>
+                  <button class="color-btn" data-color="#d7aefb" style="background: #d7aefb"></button>
+                  <button class="color-btn" data-color="#fdcfe8" style="background: #fdcfe8"></button>
+                  <button class="color-btn" data-color="#e6c9a8" style="background: #e6c9a8"></button>
+                  <button class="color-btn" data-color="#e8eaed" style="background: #e8eaed"></button>
+                </div>
+              </div>
+            </div>
+            <button class="btn-primary" onclick="saveNote()">Spara</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes Grid -->
+      <div class="notes-container" id="notes-container">
+        <div class="notes-grid" id="notes-grid">
+          <!-- Notes will be inserted here -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Edit Note Modal -->
+  <div id="edit-modal" class="modal" onclick="closeEditModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="note-edit-form">
+        <input type="text" id="edit-note-title" placeholder="Titel">
+        <textarea id="edit-note-content" placeholder="Skriv en anteckning..." rows="6"></textarea>
+
+        <!-- Edit Checklist Container -->
+        <div id="edit-checklist-container" style="display: none;">
+          <div id="edit-checklist-items"></div>
+          <button class="btn-text" onclick="addEditChecklistItem()">+ Lägg till punkt</button>
+        </div>
+
+        <div class="note-form-actions">
+          <div class="note-options">
+            <button class="btn-icon" onclick="toggleEditChecklist()" title="Checklista">
+              <span id="edit-checklist-toggle">☐</span>
+            </button>
+            <div class="color-picker">
+              <button class="btn-icon" title="Färg">🎨</button>
+              <div class="color-options">
+                <button class="color-btn edit-color-btn" data-color="#ffffff" style="background: #ffffff"></button>
+                <button class="color-btn edit-color-btn" data-color="#f28b82" style="background: #f28b82"></button>
+                <button class="color-btn edit-color-btn" data-color="#fbbc04" style="background: #fbbc04"></button>
+                <button class="color-btn edit-color-btn" data-color="#fff475" style="background: #fff475"></button>
+                <button class="color-btn edit-color-btn" data-color="#ccff90" style="background: #ccff90"></button>
+                <button class="color-btn edit-color-btn" data-color="#a7ffeb" style="background: #a7ffeb"></button>
+                <button class="color-btn edit-color-btn" data-color="#cbf0f8" style="background: #cbf0f8"></button>
+                <button class="color-btn edit-color-btn" data-color="#aecbfa" style="background: #aecbfa"></button>
+                <button class="color-btn edit-color-btn" data-color="#d7aefb" style="background: #d7aefb"></button>
+                <button class="color-btn edit-color-btn" data-color="#fdcfe8" style="background: #fdcfe8"></button>
+                <button class="color-btn edit-color-btn" data-color="#e6c9a8" style="background: #e6c9a8"></button>
+                <button class="color-btn edit-color-btn" data-color="#e8eaed" style="background: #e8eaed"></button>
+              </div>
+            </div>
+            <button class="btn-icon" onclick="toggleArchiveNote()" title="Arkivera">
+              📦
+            </button>
+            <button class="btn-icon" onclick="deleteNote()" title="Ta bort">
+              🗑️
+            </button>
+          </div>
+          <button class="btn-primary" onclick="updateNote()">Uppdatera</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

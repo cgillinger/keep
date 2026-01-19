@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  keep-clone:
+    build: .
+    container_name: keep-clone
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - SESSION_SECRET=${SESSION_SECRET:-change-this-secret-in-production}
+    networks:
+      - keep-network
+
+networks:
+  keep-network:
+    driver: bridge
