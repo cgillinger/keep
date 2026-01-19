@@ -5,8 +5,12 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const WebSocket = require('ws');
 const http = require('http');
+const multer = require('multer');
+const AdmZip = require('adm-zip');
+const fs = require('fs');
 
 const db = require('./database');
+const KeepImportParser = require('./import-parser');
 
 const app = express();
 const server = http.createServer(app);
@@ -293,6 +297,124 @@ app.delete('/api/notes/:id', requireAuth, (req, res) => {
     }
   );
 });
+
+// ===== IMPORT ROUTES =====
+
+// Configure multer for file upload
+const upload = multer({
+  dest: path.join(__dirname, 'data', 'uploads'),
+  limits: {
+    fileSize: 500 * 1024 * 1024 // 500MB max
+  }
+});
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'data', 'uploads');
+const mediaDir = path.join(__dirname, 'data', 'media');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+if (!fs.existsSync(mediaDir)) {
+  fs.mkdirSync(mediaDir, { recursive: true });
+}
+
+app.post('/api/import/keep', requireAuth, upload.single('zipfile'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  const zipPath = req.file.path;
+  const extractPath = path.join(uploadsDir, `extract_${Date.now()}`);
+
+  try {
+    // Extract zip file
+    console.log('Extracting zip file...');
+    const zip = new AdmZip(zipPath);
+    zip.extractAllTo(extractPath, true);
+
+    // Parse notes
+    console.log('Parsing Google Keep data...');
+    const parser = new KeepImportParser(extractPath, req.session.userId, mediaDir);
+    const { notes, stats } = await parser.parse();
+
+    // Import notes to database
+    console.log(`Importing ${notes.length} notes...`);
+    let imported = 0;
+    let failed = 0;
+
+    for (const note of notes) {
+      try {
+        await importNote(note);
+        imported++;
+      } catch (error) {
+        failed++;
+        stats.errors.push({
+          note: note.title || note.source_file,
+          error: error.message
+        });
+      }
+    }
+
+    // Clean up
+    fs.unlinkSync(zipPath);
+    fs.rmSync(extractPath, { recursive: true, force: true });
+
+    // Return report
+    res.json({
+      success: true,
+      imported,
+      failed,
+      stats
+    });
+
+  } catch (error) {
+    // Clean up on error
+    try {
+      if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+      if (fs.existsSync(extractPath)) fs.rmSync(extractPath, { recursive: true, force: true });
+    } catch (cleanupError) {
+      console.error('Cleanup error:', cleanupError);
+    }
+
+    res.status(500).json({
+      error: 'Import failed',
+      message: error.message
+    });
+  }
+});
+
+// Helper function to import a single note
+function importNote(note) {
+  return new Promise((resolve, reject) => {
+    const checklistData = note.is_checklist && note.checklist_items
+      ? JSON.stringify(note.checklist_items)
+      : null;
+
+    db.run(
+      `INSERT INTO notes (user_id, title, content, color, is_checklist, checklist_items, is_archived, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        note.user_id,
+        note.title,
+        note.content,
+        note.color,
+        note.is_checklist,
+        checklistData,
+        note.is_archived,
+        note.created_at,
+        note.updated_at
+      ],
+      function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          // TODO: Handle attachments if needed in the future
+          resolve(this.lastID);
+        }
+      }
+    );
+  });
+}
 
 // Start server
 server.listen(PORT, () => {

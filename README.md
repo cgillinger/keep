@@ -14,8 +14,66 @@ En egen, självhostad klon av Google Keep som du kan köra privat på din hemmas
 - 📦 **Arkivering** - Arkivera gamla anteckningar
 - 👨‍👩‍👧‍👦 **Multi-användare** - Perfekt för familjen (separata konton)
 - 🔄 **Realtidssynk** - Ändringar visas direkt via WebSockets
+- 📥 **Import från Google Keep** - Importera alla dina befintliga anteckningar!
 - 🐳 **Docker-stöd** - Enkel deployment på Linux/Synology
 - 🔒 **Privat & säkert** - All data stannar på din server
+
+## 📥 Importera från Google Keep
+
+Keep Clone har inbyggd import från Google Keep! Så här flyttar du över dina anteckningar:
+
+### Steg 1: Exportera från Google Keep
+
+1. Gå till **[Google Takeout](https://takeout.google.com/)**
+2. Klicka **"Avmarkera alla"**
+3. Scrolla ner och markera endast **"Keep"**
+4. Klicka **"Nästa steg"**
+5. Välj exportformat (rekommenderat: .zip)
+6. Klicka **"Skapa export"**
+7. Vänta på mail från Google (kan ta några minuter till en timme)
+8. Ladda ner zip-filen när den är klar
+
+### Steg 2: Importera till Keep Clone
+
+1. Logga in i din Keep Clone
+2. Klicka på knappen **"📥 Importera från Google Keep"** i headern
+3. Följ instruktionerna i dialogen
+4. Välj din nedladdade Google Takeout zip-fil
+5. Klicka **"Importera"**
+6. Vänta medan importen körs (kan ta en stund för stora exporter)
+7. Klar! Alla dina anteckningar är nu importerade
+
+### Vad importeras?
+
+✅ **Importeras:**
+- Alla anteckningar (text)
+- Titlar
+- Färger (mappas till närliggande färger)
+- Checklistor / att-göra-listor
+- Arkiverade anteckningar
+- Tidsstämplar (skapad/uppdaterad)
+- Bilagor (bilder, ljud)
+
+❌ **Importeras INTE:**
+- Papperskorgen (trash)
+- Etiketter/labels (planerat för framtida version)
+- Delningar (sharees) - metadata sparas men funktionen finns inte än
+- Påminnelser
+
+### Importrapport
+
+Efter importen får du en detaljerad rapport:
+- Antal importerade anteckningar
+- Antal checklistor
+- Antal bilagor
+- Eventuella fel eller varningar (t.ex. saknade bilagor)
+
+### Tips
+
+- 💡 **Kör en testimport först** med ett mindre Google Takeout-export för att se att allt fungerar
+- 🔄 **Du kan importera flera gånger** - dubbletter skapas (ingen automatisk dedupe än)
+- 📦 **Stora exporter** kan ta tid - var tålmodig!
+- 🖼️ **Bilagor** kopieras till serverns media-katalog och bevaras
 
 ## 🚀 Snabbstart med Docker (Rekommenderat)
 

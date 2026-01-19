@@ -46,6 +46,9 @@
         <h1>Keep Clone</h1>
         <div class="header-actions">
           <input type="text" id="search-input" placeholder="Sök anteckningar..." onkeyup="searchNotes()">
+          <button class="btn-secondary" onclick="openImportModal()">
+            📥 Importera från Google Keep
+          </button>
           <button class="btn-secondary" onclick="toggleArchived()">
             <span id="archive-toggle-text">Visa arkiv</span>
           </button>
@@ -150,6 +153,56 @@
           </div>
           <button class="btn-primary" onclick="updateNote()">Uppdatera</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Modal -->
+  <div id="import-modal" class="modal" onclick="closeImportModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 600px;">
+      <h2>Importera från Google Keep</h2>
+
+      <div id="import-instructions" style="margin: 20px 0;">
+        <h3>Så här gör du:</h3>
+        <ol style="line-height: 1.8; margin-left: 20px;">
+          <li>Gå till <a href="https://takeout.google.com/" target="_blank" rel="noopener">Google Takeout</a></li>
+          <li>Klicka "Avmarkera alla"</li>
+          <li>Markera endast "Keep"</li>
+          <li>Klicka "Nästa steg" och ladda ner</li>
+          <li>Ladda upp zip-filen här nedan</li>
+        </ol>
+
+        <div class="import-upload-area">
+          <input type="file" id="import-file-input" accept=".zip" onchange="handleImportFile()" style="display: none;">
+          <button class="btn-primary" onclick="document.getElementById('import-file-input').click()">
+            📁 Välj Google Keep export (.zip)
+          </button>
+          <p id="import-file-name" style="margin-top: 10px; color: #5f6368;"></p>
+        </div>
+      </div>
+
+      <div id="import-progress" style="display: none; margin: 20px 0;">
+        <div style="background: #e8eaed; border-radius: 8px; height: 8px; overflow: hidden;">
+          <div id="import-progress-bar" style="background: #1a73e8; height: 100%; width: 0%; transition: width 0.3s;"></div>
+        </div>
+        <p id="import-status" style="text-align: center; margin-top: 10px; color: #5f6368;"></p>
+      </div>
+
+      <div id="import-results" style="display: none; margin: 20px 0;">
+        <h3>Import klar!</h3>
+        <div id="import-stats" style="background: #f1f3f4; padding: 16px; border-radius: 8px; margin: 12px 0;">
+          <!-- Stats will be inserted here -->
+        </div>
+        <div id="import-errors" style="max-height: 200px; overflow-y: auto; background: #fef7e0; padding: 12px; border-radius: 8px; margin: 12px 0; display: none;">
+          <!-- Errors will be inserted here -->
+        </div>
+      </div>
+
+      <div class="note-form-actions" style="margin-top: 20px;">
+        <button class="btn-secondary" onclick="closeImportModal()">Stäng</button>
+        <button id="import-button" class="btn-primary" onclick="startImport()" disabled>
+          Importera
+        </button>
       </div>
     </div>
   </div>

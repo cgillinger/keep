@@ -536,6 +536,151 @@ function setupColorPickers() {
   });
 }
 
+// ===== IMPORT FUNCTIONS =====
+let selectedImportFile = null;
+
+function openImportModal() {
+  document.getElementById('import-modal').classList.add('active');
+  // Reset state
+  selectedImportFile = null;
+  document.getElementById('import-file-name').textContent = '';
+  document.getElementById('import-button').disabled = true;
+  document.getElementById('import-instructions').style.display = 'block';
+  document.getElementById('import-progress').style.display = 'none';
+  document.getElementById('import-results').style.display = 'none';
+}
+
+function closeImportModal(event) {
+  if (event && event.target.id !== 'import-modal') return;
+  document.getElementById('import-modal').classList.remove('active');
+  selectedImportFile = null;
+}
+
+function handleImportFile() {
+  const fileInput = document.getElementById('import-file-input');
+  const file = fileInput.files[0];
+
+  if (file) {
+    if (!file.name.endsWith('.zip')) {
+      alert('Vänligen välj en .zip fil');
+      return;
+    }
+
+    selectedImportFile = file;
+    document.getElementById('import-file-name').textContent = `Vald fil: ${file.name} (${formatFileSize(file.size)})`;
+    document.getElementById('import-button').disabled = false;
+  }
+}
+
+async function startImport() {
+  if (!selectedImportFile) return;
+
+  // Hide instructions, show progress
+  document.getElementById('import-instructions').style.display = 'none';
+  document.getElementById('import-progress').style.display = 'block';
+  document.getElementById('import-button').disabled = true;
+
+  const formData = new FormData();
+  formData.append('zipfile', selectedImportFile);
+
+  try {
+    // Update progress
+    updateImportProgress(0, 'Laddar upp fil...');
+
+    const xhr = new XMLHttpRequest();
+
+    // Track upload progress
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const percent = (e.loaded / e.total) * 50; // Upload is 50% of total
+        updateImportProgress(percent, 'Laddar upp fil...');
+      }
+    });
+
+    // Handle response
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200) {
+        const result = JSON.parse(xhr.responseText);
+        updateImportProgress(100, 'Import klar!');
+        showImportResults(result);
+        loadNotes(); // Reload notes
+      } else {
+        const error = JSON.parse(xhr.responseText);
+        updateImportProgress(0, 'Fel vid import');
+        alert(`Import misslyckades: ${error.message || error.error}`);
+        document.getElementById('import-instructions').style.display = 'block';
+        document.getElementById('import-progress').style.display = 'none';
+        document.getElementById('import-button').disabled = false;
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      updateImportProgress(0, 'Nätverksfel');
+      alert('Nätverksfel vid import. Försök igen.');
+      document.getElementById('import-instructions').style.display = 'block';
+      document.getElementById('import-progress').style.display = 'none';
+      document.getElementById('import-button').disabled = false;
+    });
+
+    // Start upload
+    xhr.open('POST', '/api/import/keep');
+    xhr.send(formData);
+
+    // Simulate processing progress after upload
+    setTimeout(() => {
+      updateImportProgress(60, 'Extraherar filer...');
+    }, 500);
+    setTimeout(() => {
+      updateImportProgress(80, 'Importerar anteckningar...');
+    }, 1500);
+
+  } catch (error) {
+    console.error('Import error:', error);
+    alert('Ett fel uppstod vid import. Se konsolen för detaljer.');
+    document.getElementById('import-instructions').style.display = 'block';
+    document.getElementById('import-progress').style.display = 'none';
+    document.getElementById('import-button').disabled = false;
+  }
+}
+
+function updateImportProgress(percent, status) {
+  document.getElementById('import-progress-bar').style.width = percent + '%';
+  document.getElementById('import-status').textContent = status;
+}
+
+function showImportResults(result) {
+  document.getElementById('import-progress').style.display = 'none';
+  document.getElementById('import-results').style.display = 'block';
+
+  const stats = result.stats;
+  const statsHtml = `
+    <p><strong>✅ Importerade anteckningar:</strong> ${result.imported}</p>
+    <p><strong>📝 Totalt från Google Keep:</strong> ${stats.totalNotes}</p>
+    <p><strong>☑️ Checklistor:</strong> ${stats.checklistNotes}</p>
+    <p><strong>📎 Bilagor:</strong> ${stats.attachments}</p>
+    ${stats.missingAttachments > 0 ? `<p><strong>⚠️ Saknade bilagor:</strong> ${stats.missingAttachments}</p>` : ''}
+    ${result.failed > 0 ? `<p style="color: #d93025;"><strong>❌ Misslyckades:</strong> ${result.failed}</p>` : ''}
+  `;
+
+  document.getElementById('import-stats').innerHTML = statsHtml;
+
+  // Show errors if any
+  if (stats.errors && stats.errors.length > 0) {
+    const errorsDiv = document.getElementById('import-errors');
+    errorsDiv.style.display = 'block';
+    errorsDiv.innerHTML = '<strong>Varningar/Fel:</strong><ul style="margin: 8px 0 0 20px;">' +
+      stats.errors.slice(0, 10).map(e => `<li>${escapeHtml(e.file || e.note || 'Okänd')}: ${escapeHtml(e.error)}</li>`).join('') +
+      (stats.errors.length > 10 ? `<li>... och ${stats.errors.length - 10} fler</li>` : '') +
+      '</ul>';
+  }
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
 // ===== UTILITY =====
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -553,5 +698,6 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Escape') {
     closeEditModal();
+    closeImportModal();
   }
 });
