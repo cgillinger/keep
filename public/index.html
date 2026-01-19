@@ -25,9 +25,18 @@
 
       <div id="register-form" class="auth-form" style="display: none;">
         <h2>Registrera</h2>
-        <input type="text" id="register-username" placeholder="Användarnamn" autocomplete="username">
+        <input type="text" id="register-username" placeholder="Användarnamn (minst 3 tecken)" autocomplete="username">
         <input type="password" id="register-password" placeholder="Lösenord" autocomplete="new-password">
         <input type="password" id="register-password-confirm" placeholder="Bekräfta lösenord" autocomplete="new-password">
+        <div class="password-requirements">
+          <p style="font-size: 12px; color: #666; margin: 8px 0;">Lösenordskrav:</p>
+          <ul style="font-size: 11px; color: #666; margin: 0; padding-left: 20px;">
+            <li>Minst 12 tecken</li>
+            <li>Minst en stor bokstav (A-Z)</li>
+            <li>Minst en liten bokstav (a-z)</li>
+            <li>Minst en siffra (0-9)</li>
+          </ul>
+        </div>
         <button onclick="register()">Registrera</button>
         <p class="auth-switch">
           Har redan ett konto? <a href="#" onclick="showLogin()">Logga in</a>
@@ -46,12 +55,16 @@
         <h1>Keep Clone</h1>
         <div class="header-actions">
           <input type="text" id="search-input" placeholder="Sök anteckningar..." onkeyup="searchNotes()">
+          <button class="btn-secondary" onclick="toggleShared()">
+            <span id="shared-toggle-text">Visa delade</span>
+          </button>
           <button class="btn-secondary" onclick="openImportModal()">
-            📥 Importera från Google Keep
+            📥 Importera
           </button>
           <button class="btn-secondary" onclick="toggleArchived()">
             <span id="archive-toggle-text">Visa arkiv</span>
           </button>
+          <div id="user-profile-pic" class="profile-pic-header" onclick="openProfileModal()"></div>
           <span id="user-info"></span>
           <button class="btn-secondary" onclick="logout()">Logga ut</button>
         </div>
@@ -144,6 +157,9 @@
                 <button class="color-btn edit-color-btn" data-color="#e8eaed" style="background: #e8eaed"></button>
               </div>
             </div>
+            <button id="share-note-btn" class="btn-icon" onclick="openShareModal()" title="Dela">
+              👥
+            </button>
             <button class="btn-icon" onclick="toggleArchiveNote()" title="Arkivera">
               📦
             </button>
@@ -203,6 +219,60 @@
         <button id="import-button" class="btn-primary" onclick="startImport()" disabled>
           Importera
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Modal -->
+  <div id="profile-modal" class="modal" onclick="closeProfileModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 400px;">
+      <h2>Din profil</h2>
+
+      <div style="text-align: center; margin: 20px 0;">
+        <div id="profile-picture-preview" class="profile-pic-large"></div>
+        <p style="margin-top: 10px; color: #5f6368;"><span id="profile-username"></span></p>
+      </div>
+
+      <div class="import-upload-area">
+        <input type="file" id="profile-picture-input" accept="image/*" onchange="handleProfilePictureSelect()" style="display: none;">
+        <button class="btn-primary" onclick="document.getElementById('profile-picture-input').click()">
+          📷 Välj profilbild
+        </button>
+        <p style="font-size: 12px; color: #666; margin-top: 8px;">Max 5MB, rekommenderad storlek 200x200px</p>
+      </div>
+
+      <div class="note-form-actions" style="margin-top: 20px;">
+        <button class="btn-secondary" onclick="closeProfileModal()">Stäng</button>
+        <button id="upload-profile-picture-btn" class="btn-primary" onclick="uploadProfilePicture()" disabled>
+          Ladda upp
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share Modal -->
+  <div id="share-modal" class="modal" onclick="closeShareModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
+      <h2>Dela anteckning</h2>
+
+      <!-- Share with new users -->
+      <div style="margin: 20px 0;">
+        <h3 style="font-size: 14px; margin-bottom: 10px;">Dela med familjemedlem</h3>
+        <div id="share-users-list" class="share-users-list">
+          <!-- Users will be inserted here -->
+        </div>
+      </div>
+
+      <!-- Current shares -->
+      <div style="margin: 20px 0;">
+        <h3 style="font-size: 14px; margin-bottom: 10px;">Delar med</h3>
+        <div id="current-shares-list" class="current-shares-list">
+          <!-- Current shares will be inserted here -->
+        </div>
+      </div>
+
+      <div class="note-form-actions" style="margin-top: 20px;">
+        <button class="btn-secondary" onclick="closeShareModal()">Stäng</button>
       </div>
     </div>
   </div>

@@ -1,336 +1,465 @@
-# Keep Clone - Privat Familjeanteckning
+# Keep Clone - Privat Google Keep för familjer
 
-En egen, självhostad klon av Google Keep som du kan köra privat på din hemmaserver. Perfekt för familjen!
+En säker, självhostad Google Keep-klon med delningsfunktioner, profilbilder och import från Google Keep.
 
-![Keep Clone](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 ## ✨ Funktioner
 
-- 📝 **Skapa och redigera anteckningar** - Snabbt och enkelt
-- 🎨 **Färgkodning** - Organisera dina anteckningar med färger
-- ☑️ **Checklistor** - Skapa att-göra listor
-- 🔍 **Sök** - Hitta dina anteckningar snabbt
-- 📦 **Arkivering** - Arkivera gamla anteckningar
-- 👨‍👩‍👧‍👦 **Multi-användare** - Perfekt för familjen (separata konton)
-- 🔄 **Realtidssynk** - Ändringar visas direkt via WebSockets
-- 📥 **Import från Google Keep** - Importera alla dina befintliga anteckningar!
-- 🐳 **Docker-stöd** - Enkel deployment på Linux/Synology
-- 🔒 **Privat & säkert** - All data stannar på din server
+- 📝 **Anteckningar:** Skapa, redigera och organisera anteckningar
+- ☑️ **Checklistor:** Avbockningsbara uppgiftslistor
+- 🎨 **Färgkodning:** 12 färger att välja mellan
+- 📦 **Arkiv:** Arkivera anteckningar du inte vill se just nu
+- 🔍 **Sök:** Hitta anteckningar snabbt
+- 👥 **Dela:** Dela anteckningar med familjemedlemmar (visa eller redigera)
+- 👤 **Profilbilder:** Personliga profilbilder för alla användare
+- 📥 **Import:** Importera dina befintliga anteckningar från Google Keep
+- 🔄 **Real-time:** Synkroniserar automatiskt mellan alla enheter
+- 🔐 **Säkerhet:** Företagsstandard säkerhet med CSRF, rate limiting, XSS-skydd m.m.
 
-## 📥 Importera från Google Keep
+## 🚀 Snabbstart
 
-Keep Clone har inbyggd import från Google Keep! Så här flyttar du över dina anteckningar:
+### Förutsättningar
 
-### Steg 1: Exportera från Google Keep
-
-1. Gå till **[Google Takeout](https://takeout.google.com/)**
-2. Klicka **"Avmarkera alla"**
-3. Scrolla ner och markera endast **"Keep"**
-4. Klicka **"Nästa steg"**
-5. Välj exportformat (rekommenderat: .zip)
-6. Klicka **"Skapa export"**
-7. Vänta på mail från Google (kan ta några minuter till en timme)
-8. Ladda ner zip-filen när den är klar
-
-### Steg 2: Importera till Keep Clone
-
-1. Logga in i din Keep Clone
-2. Klicka på knappen **"📥 Importera från Google Keep"** i headern
-3. Följ instruktionerna i dialogen
-4. Välj din nedladdade Google Takeout zip-fil
-5. Klicka **"Importera"**
-6. Vänta medan importen körs (kan ta en stund för stora exporter)
-7. Klar! Alla dina anteckningar är nu importerade
-
-### Vad importeras?
-
-✅ **Importeras:**
-- Alla anteckningar (text)
-- Titlar
-- Färger (mappas till närliggande färger)
-- Checklistor / att-göra-listor
-- Arkiverade anteckningar
-- Tidsstämplar (skapad/uppdaterad)
-- Bilagor (bilder, ljud)
-
-❌ **Importeras INTE:**
-- Papperskorgen (trash)
-- Etiketter/labels (planerat för framtida version)
-- Delningar (sharees) - metadata sparas men funktionen finns inte än
-- Påminnelser
-
-### Importrapport
-
-Efter importen får du en detaljerad rapport:
-- Antal importerade anteckningar
-- Antal checklistor
-- Antal bilagor
-- Eventuella fel eller varningar (t.ex. saknade bilagor)
-
-### Tips
-
-- 💡 **Kör en testimport först** med ett mindre Google Takeout-export för att se att allt fungerar
-- 🔄 **Du kan importera flera gånger** - dubbletter skapas (ingen automatisk dedupe än)
-- 📦 **Stora exporter** kan ta tid - var tålmodig!
-- 🖼️ **Bilagor** kopieras till serverns media-katalog och bevaras
-
-## 🚀 Snabbstart med Docker (Rekommenderat)
-
-### Krav
-- Docker och Docker Compose installerat på din server
+- Node.js 16 eller senare
+- npm (medföljer Node.js)
 
 ### Installation
 
-1. Klona eller ladda ner projektet:
+1. **Klona repository:**
 ```bash
-cd /path/to/your/server
-git clone <repository-url> keep-clone
+git clone https://github.com/yourusername/keep-clone.git
 cd keep-clone
 ```
 
-2. Skapa en `.env` fil (valfritt):
-```bash
-cp .env.example .env
-# Redigera .env och ändra SESSION_SECRET till något unikt
-```
-
-3. Starta applikationen:
-```bash
-docker-compose up -d
-```
-
-4. Öppna i webbläsaren:
-```
-http://your-server-ip:3000
-```
-
-### Stoppa applikationen
-```bash
-docker-compose down
-```
-
-### Se loggar
-```bash
-docker-compose logs -f
-```
-
-## 🖥️ Installation utan Docker
-
-### Krav
-- Node.js 18 eller senare
-- npm
-
-### Installation
-
-1. Installera beroenden:
+2. **Installera dependencies:**
 ```bash
 npm install
 ```
 
-2. Starta servern:
+3. **Starta servern:**
 ```bash
 npm start
 ```
 
-3. För utveckling (med auto-reload):
-```bash
-npm run dev
-```
-
-4. Öppna i webbläsaren:
+4. **Öppna i webbläsaren:**
 ```
 http://localhost:3000
 ```
 
-## 📦 Synology Installation
+### Första användningen
 
-### Med Docker via Synology DSM
+1. Klicka på "Registrera dig"
+2. Skapa ett konto (minst 3 tecken användarnamn, 12+ tecken lösenord)
+3. Logga in
+4. Börja skapa anteckningar!
 
-1. Öppna **Docker** paketet i DSM
-2. Gå till **Register** och sök efter "node"
-3. Ladda ner "node:18-alpine"
-4. Ladda upp projektet till din Synology (t.ex. `/volume1/docker/keep-clone`)
-5. I **Docker** -> **Container**, klicka "Create"
-6. Välj image "node:18-alpine"
-7. Konfigurera:
-   - **Volume**: Mappa `/volume1/docker/keep-clone` till `/app`
-   - **Port**: Mappa lokal port `3000` till container port `3000`
-   - **Command**: `sh -c "cd /app && npm install && node server.js"`
-8. Starta containern
+## 📦 Docker (rekommenderat för produktion)
 
-Alternativt, använd Docker Compose via SSH:
-```bash
-cd /volume1/docker/keep-clone
-sudo docker-compose up -d
+### Docker Compose
+
+1. **Skapa `docker-compose.yml`:**
+```yaml
+version: '3.8'
+
+services:
+  keep-clone:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - ./data:/app/data
+    ports:
+      - "3000:3000"
+    command: sh -c "npm install && npm start"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
 ```
+
+2. **Starta:**
+```bash
+docker-compose up -d
+```
+
+### Synology NAS
+
+1. Öppna Docker-paketet i DSM
+2. Ladda ner "node:18-alpine" imagen
+3. Skapa en ny container:
+   - Image: node:18-alpine
+   - Port: 3000:3000
+   - Volume: Mappa en lokal mapp till `/app` och `/app/data`
+   - Command: `sh -c "cd /app && npm install && npm start"`
+4. Starta containern
+
+**Åtkomst via Tailscale:**
+- Installera Tailscale på din NAS
+- Anslut från valfri enhet på ditt Tailscale-nätverk
+- Gå till `http://[nas-tailscale-ip]:3000`
+
+## 📚 Dokumentation
+
+- **[FEATURES.md](./FEATURES.md)** - Komplett funktions- och säkerhetsdokumentation
+- **[IMPORT-GUIDE.md](./IMPORT-GUIDE.md)** - Detaljerad guide för Google Keep-import
+
+### Snabbguider
+
+**Dela en anteckning:**
+1. Öppna anteckningen
+2. Klicka på dela-ikonen (👥)
+3. Välj "Visa" eller "Redigera" för familjemedlem
+4. De får omedelbart åtkomst!
+
+**Ladda upp profilbild:**
+1. Klicka på din profilbild/initialer i headern
+2. Välj "📷 Välj profilbild"
+3. Välj en bild (max 5MB)
+4. Klicka "Ladda upp"
+
+**Importera från Google Keep:**
+1. Gå till [Google Takeout](https://takeout.google.com/)
+2. Välj endast "Keep" och ladda ner
+3. Klicka "📥 Importera" i Keep Clone
+4. Välj zip-filen och importera
+5. Se [IMPORT-GUIDE.md](./IMPORT-GUIDE.md) för mer detaljer
+
+## 📥 Import från Google Keep
+
+Keep Clone har inbyggd import från Google Keep! Flytta över alla dina anteckningar enkelt.
+
+### Snabbinstruktioner
+
+1. **Exportera från Google:** Gå till [Google Takeout](https://takeout.google.com/), välj endast "Keep", ladda ner zip
+2. **Importera:** Klicka "📥 Importera" i Keep Clone, välj zip-filen, klicka "Importera"
+3. **Klar!** Alla anteckningar importeras med färger, checklistor och bilagor
+
+### Vad importeras?
+
+✅ **Importeras:**
+- Anteckningar med titlar och innehåll
+- Checklistor med avbockningsstatus
+- Färgkodning
+- Arkiverade anteckningar
+- Tidsstämplar
+- Bilagor (bilder, filer)
+
+❌ **Importeras INTE:**
+- Papperskorgen (trash)
+- Etiketter/labels
+- Påminnelser
+- Delningar (blir privata)
+
+För detaljerad guide, se [IMPORT-GUIDE.md](./IMPORT-GUIDE.md)
 
 ## 🔐 Säkerhet
 
-### Första gången
-1. Öppna applikationen i webbläsaren
-2. Klicka på "Registrera dig"
-3. Skapa det första användarkontot för familjen
-4. Varje familjemedlem kan sedan skapa sitt eget konto
+Keep Clone är byggd med säkerhet i första hand, lämplig för Tailscale-åtkomst:
 
-### Viktiga säkerhetsåtgärder
+- ✅ **Stark autentisering:** Bcrypt-hashning, 12+ tecken lösenord
+- ✅ **CSRF-skydd:** Alla ändringar skyddade med tokens
+- ✅ **Rate limiting:** Förhindrar brute-force (5 login-försök/15 min)
+- ✅ **XSS-skydd:** DOMPurify sanerar all input
+- ✅ **Säkerhetsheaders:** Helmet med CSP, HSTS, X-Frame-Options
+- ✅ **Path traversal-skydd:** Säker filhantering
+- ✅ **Säkra sessioner:** HTTP-only, SameSite strict cookies
+- ✅ **WebSocket auth:** Validerad session på alla WS-anslutningar
 
-⚠️ **VIKTIGT för produktion:**
+**Rate limits:**
+- Login: 5 försök / 15 minuter
+- Register: 3 registreringar / timme
+- Import: 10 importer / timme
+- API: 100 anrop / minut
 
-1. **Ändra SESSION_SECRET**:
-   - Skapa en `.env` fil och sätt `SESSION_SECRET` till en slumpmässig sträng
-   - Exempel: `SESSION_SECRET=din-mycket-hemliga-och-långa-slumpmässiga-sträng-här`
+Läs mer i [FEATURES.md#säkerhetsfunktioner](./FEATURES.md#säkerhetsfunktioner)
 
-2. **Använd HTTPS**:
-   - Sätt upp en reverse proxy (t.ex. Nginx, Traefik) med SSL/TLS
-   - För Synology: använd Synologys inbyggda reverse proxy
+## 👥 Dela anteckningar
 
-3. **Brandvägg**:
-   - Blockera extern åtkomst om du bara vill använda det lokalt
-   - Öppna port 3000 endast för ditt lokala nätverk
+Dela anteckningar med familjemedlemmar:
 
-4. **Backups**:
-   - Databasen sparas i `data/keep.db`
-   - Backa upp denna fil regelbundet!
+**Två behörighetsnivåer:**
+- **Visa:** Kan läsa och markera checklistor
+- **Redigera:** Kan göra ändringar i anteckningen
+
+**Så här delar du:**
+1. Öppna anteckningen
+2. Klicka på dela-ikonen (👥)
+3. Välj familjemedlem och behörighet
+4. Klart! Real-time synkronisering aktiveras
+
+**Funktioner:**
+- Se vem som delat anteckningar med dig
+- Real-time uppdateringar när någon ändrar
+- Profilbilder visar vem som äger/redigerar
+- Toggle mellan "Mina anteckningar" och "Delade med mig"
+
+## 🏗️ Arkitektur
+
+**Backend:**
+- Node.js + Express
+- SQLite för databas
+- WebSocket för real-time synk
+- Session-based autentisering
+
+**Frontend:**
+- Vanilla JavaScript
+- Responsiv design
+- Real-time uppdateringar
+
+**Säkerhet:**
+- helmet - HTTP headers
+- express-rate-limit - Rate limiting
+- csurf - CSRF protection
+- bcryptjs - Lösenordshashning
+- dompurify - XSS prevention
+- sharp - Bildoptimering
+
+## 📊 Databasstruktur
+
+```
+users
+  ├─ id
+  ├─ username (unique)
+  ├─ password_hash
+  ├─ profile_picture
+  └─ created_at
+
+notes
+  ├─ id
+  ├─ user_id → users.id
+  ├─ title
+  ├─ content
+  ├─ color
+  ├─ is_checklist
+  ├─ checklist_items (JSON)
+  ├─ is_archived
+  └─ timestamps
+
+shares
+  ├─ id
+  ├─ note_id → notes.id (CASCADE)
+  ├─ shared_by_user_id → users.id
+  ├─ shared_with_user_id → users.id
+  ├─ permission (view/edit)
+  └─ created_at
+```
+
+## 🛠️ API Endpoints
+
+### Autentisering
+- `POST /api/auth/register` - Registrera ny användare
+- `POST /api/auth/login` - Logga in
+- `POST /api/auth/logout` - Logga ut
+- `GET /api/auth/check` - Kontrollera session
+- `GET /api/auth/csrf-token` - Hämta CSRF token
+
+### Anteckningar
+- `GET /api/notes?shared=true` - Hämta anteckningar
+- `POST /api/notes` - Skapa anteckning (CSRF)
+- `PUT /api/notes/:id` - Uppdatera anteckning (CSRF)
+- `DELETE /api/notes/:id` - Ta bort anteckning (CSRF)
+
+### Delning
+- `POST /api/notes/:id/share` - Dela anteckning (CSRF)
+- `DELETE /api/notes/:noteId/share/:userId` - Sluta dela (CSRF)
+- `GET /api/notes/:id/shares` - Hämta delningar
+- `GET /api/users` - Lista användare
+
+### Profil & Import
+- `POST /api/profile-picture` - Ladda upp profilbild (CSRF)
+- `GET /api/profile-picture/:filename` - Hämta profilbild
+- `POST /api/import` - Importera Google Keep (CSRF)
+
+## 🔧 Konfiguration
+
+### Portar
+
+Standard port är 3000. Ändra i `server.js`:
+```javascript
+const PORT = process.env.PORT || 3000;
+```
+
+### Datalokalisering
+
+Data lagras i `./data/`:
+- `notes.db` - SQLite databas
+- `media/` - Importerade bilagor
+- `profile-pictures/` - Profilbilder
+
+### Rate Limiting
+
+Justera i `server.js`:
+```javascript
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minuter
+  max: 5 // 5 försök
+});
+```
+
+## 🐛 Felsökning
+
+### Servern startar inte
+
+**Problem:** Port 3000 redan används
+
+**Lösning:**
+```bash
+# Hitta process på port 3000
+lsof -i :3000
+# Döda processen
+kill -9 <PID>
+# Eller använd annan port
+PORT=3001 npm start
+```
+
+### Kan inte logga in
+
+**Problem:** Felaktigt lösenord eller användarnamn
+
+**Lösning:**
+- Kontrollera att användarnamnet är korrekt (case-sensitive)
+- Skapa nytt konto om du glömt lösenordet
+- Kontrollera att caps lock inte är på
+
+### Import fungerar inte
+
+**Problem:** Fel filformat eller korrupt zip
+
+**Lösning:**
+- Se [IMPORT-GUIDE.md](./IMPORT-GUIDE.md) för detaljerad felsökning
+- Kontrollera att filen är en Google Takeout export (.zip)
+- Försök packa upp lokalt först för att verifiera integritet
+
+### WebSocket-fel
+
+**Problem:** Real-time uppdateringar fungerar inte
+
+**Lösning:**
+- Kontrollera att webbläsaren stödjer WebSocket
+- Uppdatera sidan (F5)
+- Kontrollera serverkonsolen för fel
+- Vissa proxies blockerar WebSocket - använd direkt anslutning
+
+## 🧪 Utveckling
+
+### Utvecklingsläge med auto-restart
+
+```bash
+npm install -g nodemon
+npm run dev
+```
+
+### Testa import-funktionen
+
+```bash
+node test-import.js /path/to/google-takeout.zip
+```
+
+### Rensa databasen
+
+```bash
+rm data/notes.db
+# Servern skapar ny databas vid nästa start
+```
 
 ## 📁 Projektstruktur
 
 ```
 keep-clone/
-├── server.js              # Huvudserver (Express + WebSocket)
-├── database.js            # SQLite databaskonfiguration
-├── package.json           # Node.js beroenden
-├── Dockerfile             # Docker image definition
-├── docker-compose.yml     # Docker Compose konfiguration
-├── data/                  # Databas (skapas automatiskt)
-│   └── keep.db           # SQLite databas
-└── public/               # Frontend filer
-    ├── index.html        # Huvudsida
-    ├── styles.css        # Styling (Google Keep-stil)
-    └── app.js            # Frontend JavaScript
+├── server.js              # Huvudserver med alla endpoints
+├── database.js            # Databas-initialisering och schema
+├── import-parser.js       # Google Keep import-parser
+├── package.json           # Dependencies
+├── public/
+│   ├── index.html         # Frontend HTML
+│   ├── app.js             # Frontend JavaScript
+│   └── styles.css         # CSS styling
+├── data/
+│   ├── notes.db           # SQLite databas
+│   ├── media/             # Importerade bilagor
+│   └── profile-pictures/  # Profilbilder
+└── docs/
+    ├── README.md          # Denna fil
+    ├── FEATURES.md        # Funktionsdokumentation
+    └── IMPORT-GUIDE.md    # Importguide
 ```
 
-## 🛠️ Teknisk Stack
+## 📝 Changelog
 
-- **Backend**: Node.js + Express
-- **Databas**: SQLite (lätt, portabel, ingen extra server behövs)
-- **Frontend**: Vanilla HTML/CSS/JavaScript (ingen build-process)
-- **Realtid**: WebSockets för live-uppdateringar
-- **Auth**: Session-baserad autentisering med bcrypt
-- **Deploy**: Docker + Docker Compose
+### Version 1.0.0 (2025-01-19)
 
-## 🌐 Nätverksinställningar
+**Nya funktioner:**
+- ✨ Dela anteckningar med familjemedlemmar (view/edit permissions)
+- 👤 Profilbilder med automatisk optimering
+- 📥 Import från Google Keep via Takeout
+- 🔄 Real-time synkronisering via WebSocket
 
-### Lokal åtkomst (samma nätverk)
-Applikationen körs som standard på port 3000. Åtkomst från andra enheter i hemmet:
-```
-http://192.168.1.X:3000
-```
-(Byt X mot din servers IP-adress)
+**Säkerhet:**
+- 🔐 CSRF-skydd på alla ändringsoperationer
+- 🚫 Rate limiting på känsliga endpoints
+- 🛡️ XSS-skydd med DOMPurify
+- 🔒 Säkra sessioner och cookies
+- 📋 Starka lösenordskrav (12+ tecken)
+- 🏗️ Security headers med Helmet
 
-### Extern åtkomst (valfritt)
-För åtkomst utanför hemmet:
-1. Sätt upp port forwarding i din router (port 3000)
-2. **ELLER**: Använd VPN (säkrare!)
-3. **ELLER**: Använd Synology QuickConnect (om du har Synology)
-
-⚠️ **Rekommendation**: Använd VPN istället för att öppna portar direkt mot internet!
-
-## 🔄 Uppdatering
-
-```bash
-cd keep-clone
-git pull
-docker-compose down
-docker-compose up -d --build
-```
-
-## 📊 Datahantering
-
-### Backup
-```bash
-# Kopiera databasen
-cp data/keep.db data/keep.db.backup-$(date +%Y%m%d)
-
-# Eller med Docker
-docker-compose exec keep-clone cp /app/data/keep.db /app/data/keep.db.backup
-```
-
-### Återställning
-```bash
-# Stoppa applikationen
-docker-compose down
-
-# Återställ databasen
-cp data/keep.db.backup data/keep.db
-
-# Starta igen
-docker-compose up -d
-```
-
-## 🆘 Felsökning
-
-### Kan inte ansluta till servern
-1. Kontrollera att containern körs: `docker ps`
-2. Kontrollera loggar: `docker-compose logs`
-3. Kontrollera att port 3000 är öppen: `netstat -tulpn | grep 3000`
-
-### Databas-fel
-1. Kontrollera att `data/` mappen existerar
-2. Kontrollera skrivbehörigheter: `ls -la data/`
-3. Radera och återskapa databasen (varning: all data förloras):
-   ```bash
-   rm data/keep.db
-   docker-compose restart
-   ```
-
-### WebSocket-fel
-1. Kontrollera att du använder http:// (inte https:// om du inte har SSL)
-2. Kontrollera att reverse proxy (om du använder en) stödjer WebSockets
-
-## 📝 Användning
-
-### Skapa anteckning
-1. Klicka i "Skriv en anteckning..." fältet
-2. Skriv din titel och innehåll
-3. Välj färg (🎨) eller aktivera checklista (☐)
-4. Klicka "Spara"
-
-### Redigera anteckning
-1. Klicka på en anteckning
-2. Gör dina ändringar
-3. Klicka "Uppdatera"
-
-### Checklista
-1. Klicka på ☐ ikonen när du skapar en anteckning
-2. Lägg till listpunkter
-3. Bocka av när du är klar!
-
-### Arkivera
-1. Öppna en anteckning
-2. Klicka på 📦 ikonen
-3. Visa arkiverade: Klicka "Visa arkiv" i headern
-
-### Sök
-Skriv i sökfältet i headern för att filtrera anteckningar.
-
-## 🤝 Bidra
-
-Detta är ett privat projekt för familjebruk. Du är välkommen att:
-- Rapportera buggar
-- Föreslå nya funktioner
-- Skicka pull requests
+**Förbättringar:**
+- ♻️ Komplett omskrivning av backend för säkerhet
+- 🎨 Förbättrat UI med profilbilder och delningsindikatorer
+- 📱 Responsiv design för mobila enheter
+- ⚡ Optimerad bildhantering med Sharp
 
 ## 📄 Licens
 
-MIT License - fri att använda och modifiera!
+MIT License - Se [LICENSE](./LICENSE) för detaljer.
 
-## 🙏 Tack
+## 🤝 Bidra
 
-Inspirerat av Google Keep, men helt självständigt byggt för privat bruk.
+Detta är ett familje-projekt, men pull requests är välkomna!
+
+1. Fork projektet
+2. Skapa en feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit dina ändringar (`git commit -m 'Add some AmazingFeature'`)
+4. Push till branchen (`git push origin feature/AmazingFeature`)
+5. Öppna en Pull Request
+
+## 💡 Planerade funktioner
+
+- [ ] Etiketter/taggar för organisering
+- [ ] Påminnelser
+- [ ] Bilagor på nya anteckningar (inte bara import)
+- [ ] Markdown-stöd
+- [ ] Export till olika format
+- [ ] Mobil app (PWA)
+- [ ] Mörkt tema
+- [ ] Två-faktor autentisering
+
+## ❓ Support
+
+Om du har frågor eller problem:
+
+1. Läs dokumentationen i detta repo
+2. Sök bland [GitHub Issues](https://github.com/yourusername/keep-clone/issues)
+3. Öppna en ny issue med detaljer om ditt problem
+
+## 👨‍👩‍👧‍👦 För familjer
+
+Keep Clone är särskilt designad för familjer som vill:
+- 🏠 Ha full kontroll över sina data
+- 🔒 Inte låta Google läsa deras anteckningar
+- 💰 Spara pengar (helt gratis)
+- 🤝 Enkelt dela anteckningar med familjen
+- 📱 Synkronisera mellan alla enheter
+- 🚀 Enkelt sätta upp på hemmaserver eller NAS
+
+**Perfect för:**
+- Inköpslistor
+- Recept
+- Todolistor
+- Familjeplanering
+- Reseplaner
+- Vanliga noteringar
 
 ---
 
-**Njut av din egen privata familjeanteckning! 🎉**
-
-För frågor eller support, öppna en issue på GitHub.
+**Byggd med ❤️ för familjer som värdesätter integritet och enkelhet.**
