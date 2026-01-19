@@ -76,10 +76,41 @@ class KeepImportParser {
   }
 
   /**
+   * Sanitize filename to prevent path traversal
+   */
+  sanitizeFilename(filename) {
+    // Remove any path separators and only keep the basename
+    const basename = path.basename(filename);
+
+    // Remove any remaining dangerous characters
+    const sanitized = basename.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+    return sanitized;
+  }
+
+  /**
+   * Validate that a path is within the expected directory
+   */
+  isPathSafe(filePath, allowedDir) {
+    const resolvedPath = path.resolve(filePath);
+    const resolvedAllowedDir = path.resolve(allowedDir);
+
+    return resolvedPath.startsWith(resolvedAllowedDir);
+  }
+
+  /**
    * Parse a single note JSON file
    */
   async parseNote(jsonFile) {
-    const jsonPath = path.join(this.keepDir, jsonFile);
+    // Sanitize filename to prevent path traversal
+    const safeJsonFile = this.sanitizeFilename(jsonFile);
+    const jsonPath = path.join(this.keepDir, safeJsonFile);
+
+    // Validate that the path is within keepDir
+    if (!this.isPathSafe(jsonPath, this.keepDir)) {
+      throw new Error(`Invalid file path: ${jsonFile}`);
+    }
+
     const rawData = fs.readFileSync(jsonPath, 'utf8');
     const data = JSON.parse(rawData);
 
@@ -145,7 +176,18 @@ class KeepImportParser {
    * Handle attachment - copy file to media directory
    */
   async handleAttachment(attachment, sourceNote) {
-    const sourcePath = path.join(this.keepDir, attachment.filePath);
+    // Sanitize attachment file path to prevent path traversal
+    const safeFilePath = this.sanitizeFilename(attachment.filePath);
+    const sourcePath = path.join(this.keepDir, safeFilePath);
+
+    // Validate that source path is within keepDir
+    if (!this.isPathSafe(sourcePath, this.keepDir)) {
+      this.stats.errors.push({
+        file: sourceNote,
+        error: `Invalid attachment path: ${attachment.filePath}`
+      });
+      return null;
+    }
 
     // Check if file exists
     if (!fs.existsSync(sourcePath)) {
@@ -156,10 +198,20 @@ class KeepImportParser {
       return null;
     }
 
-    // Generate unique filename
-    const ext = path.extname(attachment.filePath);
-    const uniqueName = `${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
+    // Generate unique filename with safe extension
+    const ext = path.extname(safeFilePath).substring(0, 10); // Limit extension length
+    const safeExt = ext.replace(/[^a-zA-Z0-9.]/g, ''); // Only alphanumeric + dot
+    const uniqueName = `${Date.now()}_${Math.random().toString(36).substring(7)}${safeExt}`;
     const destPath = path.join(this.mediaDir, uniqueName);
+
+    // Validate that destination path is within mediaDir
+    if (!this.isPathSafe(destPath, this.mediaDir)) {
+      this.stats.errors.push({
+        file: sourceNote,
+        error: `Invalid destination path for attachment`
+      });
+      return null;
+    }
 
     // Ensure media directory exists
     if (!fs.existsSync(this.mediaDir)) {
