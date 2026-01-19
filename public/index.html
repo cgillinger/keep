@@ -85,8 +85,17 @@
             <button class="btn-text" onclick="addChecklistItem()">+ Lägg till punkt</button>
           </div>
 
+          <!-- Images Container -->
+          <div id="images-container" style="display: none;">
+            <div id="images-preview" class="images-preview"></div>
+          </div>
+
           <div class="note-form-actions">
             <div class="note-options">
+              <input type="file" id="new-note-image-input" accept="image/*" capture="camera" onchange="handleNewNoteImageSelect()" style="display: none;" multiple>
+              <button class="btn-icon" onclick="document.getElementById('new-note-image-input').click()" title="Lägg till bild">
+                📷
+              </button>
               <button class="btn-icon" onclick="toggleChecklist()" title="Checklista">
                 <span id="checklist-toggle">☐</span>
               </button>
@@ -135,8 +144,17 @@
           <button class="btn-text" onclick="addEditChecklistItem()">+ Lägg till punkt</button>
         </div>
 
+        <!-- Edit Images Container -->
+        <div id="edit-images-container" style="display: none;">
+          <div id="edit-images-preview" class="images-preview"></div>
+        </div>
+
         <div class="note-form-actions">
           <div class="note-options">
+            <input type="file" id="edit-note-image-input" accept="image/*" capture="camera" onchange="handleEditNoteImageSelect()" style="display: none;" multiple>
+            <button class="btn-icon" onclick="document.getElementById('edit-note-image-input').click()" title="Lägg till bild">
+              📷
+            </button>
             <button class="btn-icon" onclick="toggleEditChecklist()" title="Checklista">
               <span id="edit-checklist-toggle">☐</span>
             </button>
@@ -275,6 +293,12 @@
         <button class="btn-secondary" onclick="closeShareModal()">Stäng</button>
       </div>
     </div>
+  </div>
+
+  <!-- Image View Modal -->
+  <div id="image-modal" class="image-modal" onclick="closeImageModal()">
+    <button class="close-image-modal" onclick="closeImageModal()">✕</button>
+    <img id="image-modal-img" src="" alt="Full size image">
   </div>
 
   <script src="app.js"></script>

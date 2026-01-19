@@ -50,6 +50,25 @@ db.serialize(() => {
     UNIQUE(note_id, shared_with_user_id)
   )`);
 
+  // Migration: Add images column to notes if it doesn't exist
+  db.all("PRAGMA table_info(notes)", (err, columns) => {
+    if (err) {
+      console.error('Error checking notes schema:', err);
+      return;
+    }
+
+    const hasImages = columns.some(col => col.name === 'images');
+    if (!hasImages) {
+      db.run(`ALTER TABLE notes ADD COLUMN images TEXT`, (err) => {
+        if (err) {
+          console.error('Error adding images column:', err);
+        } else {
+          console.log('Added images column to notes table');
+        }
+      });
+    }
+  });
+
   console.log('Database initialized');
 });
 

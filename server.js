@@ -433,6 +433,87 @@ app.get('/api/profile/picture/:filename', (req, res) => {
   res.sendFile(filepath);
 });
 
+// ===== NOTE IMAGE ROUTES =====
+
+const noteImageUpload = multer({
+  dest: path.join(__dirname, 'data', 'uploads', 'temp'),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB max
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Endast bilder är tillåtna'));
+    }
+  }
+});
+
+app.post('/api/notes/image', requireAuth, csrfProtection, apiLimiter, noteImageUpload.single('image'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Ingen bild uppladdad' });
+  }
+
+  try {
+    const noteImagesDir = path.join(__dirname, 'data', 'note-images');
+    if (!fs.existsSync(noteImagesDir)) {
+      fs.mkdirSync(noteImagesDir, { recursive: true });
+    }
+
+    // Generate filename
+    const filename = `note_${req.session.userId}_${Date.now()}.webp`;
+    const outputPath = path.join(noteImagesDir, filename);
+
+    // Get image metadata to check dimensions
+    const metadata = await sharp(req.file.path).metadata();
+
+    // Resize if larger than 1200px width, maintain aspect ratio
+    // Use high quality settings to keep text readable
+    let sharpInstance = sharp(req.file.path);
+
+    if (metadata.width > 1200) {
+      sharpInstance = sharpInstance.resize(1200, null, {
+        fit: 'inside',
+        withoutEnlargement: true
+      });
+    }
+
+    await sharpInstance
+      .webp({
+        quality: 88,  // High quality to keep text readable
+        effort: 6     // More effort for better compression
+      })
+      .toFile(outputPath);
+
+    // Delete temp file
+    fs.unlinkSync(req.file.path);
+
+    res.json({
+      filename: filename,
+      message: 'Bild uppladdad'
+    });
+  } catch (error) {
+    console.error('Note image processing error:', error);
+    // Clean up temp file if exists
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: 'Kunde inte bearbeta bilden' });
+  }
+});
+
+app.get('/api/notes/image/:filename', (req, res) => {
+  const filename = path.basename(req.params.filename); // Prevent path traversal
+  const filepath = path.join(__dirname, 'data', 'note-images', filename);
+
+  if (!fs.existsSync(filepath)) {
+    return res.status(404).send('Bild hittades inte');
+  }
+
+  res.sendFile(filepath);
+});
+
 // ===== USER ROUTES (for sharing) =====
 
 app.get('/api/users', requireAuth, apiLimiter, (req, res) => {
@@ -483,6 +564,13 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
               note.checklist_items = [];
             }
           }
+          if (note.images) {
+            try {
+              note.images = JSON.parse(note.images);
+            } catch (e) {
+              note.images = [];
+            }
+          }
           note.isShared = true;
         });
 
@@ -512,6 +600,13 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
               note.checklist_items = [];
             }
           }
+          if (note.images) {
+            try {
+              note.images = JSON.parse(note.images);
+            } catch (e) {
+              note.images = [];
+            }
+          }
         });
 
         res.json(notes);
@@ -521,7 +616,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
 });
 
 app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, (req, res) => {
-  const { title, content, color, is_checklist, checklist_items } = req.body;
+  const { title, content, color, is_checklist, checklist_items, images } = req.body;
 
   // Sanitize and validate
   const sanitizedTitle = sanitizeInput(title, 500);
@@ -540,10 +635,23 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, (req, res) => {
     checklistData = JSON.stringify(sanitizedItems);
   }
 
+  // Validate and sanitize images array
+  let imagesData = null;
+  if (images && Array.isArray(images)) {
+    // Only keep filenames, max 10 images, sanitize filenames
+    const sanitizedImages = images
+      .slice(0, 10)
+      .map(img => path.basename(img))
+      .filter(img => /^note_\d+_\d+\.webp$/.test(img));
+    if (sanitizedImages.length > 0) {
+      imagesData = JSON.stringify(sanitizedImages);
+    }
+  }
+
   db.run(
-    `INSERT INTO notes (user_id, title, content, color, is_checklist, checklist_items)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [req.session.userId, sanitizedTitle, sanitizedContent, validatedColor, is_checklist ? 1 : 0, checklistData],
+    `INSERT INTO notes (user_id, title, content, color, is_checklist, checklist_items, images)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [req.session.userId, sanitizedTitle, sanitizedContent, validatedColor, is_checklist ? 1 : 0, checklistData, imagesData],
     function(err) {
       if (err) {
         console.error('Create note error:', err);
@@ -560,6 +668,14 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, (req, res) => {
           }
         }
 
+        if (note && note.images) {
+          try {
+            note.images = JSON.parse(note.images);
+          } catch (e) {
+            note.images = [];
+          }
+        }
+
         broadcastToUser(req.session.userId, {
           type: 'note_created',
           note
@@ -573,7 +689,7 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, (req, res) => {
 
 app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) => {
   const { id } = req.params;
-  const { title, content, color, is_checklist, checklist_items, is_archived } = req.body;
+  const { title, content, color, is_checklist, checklist_items, is_archived, images } = req.body;
 
   // Check permission (owner or shared with edit permission)
   db.get(
@@ -608,10 +724,22 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
         checklistData = JSON.stringify(sanitizedItems);
       }
 
+      // Validate and sanitize images array
+      let imagesData = null;
+      if (images && Array.isArray(images)) {
+        const sanitizedImages = images
+          .slice(0, 10)
+          .map(img => path.basename(img))
+          .filter(img => /^note_\d+_\d+\.webp$/.test(img));
+        if (sanitizedImages.length > 0) {
+          imagesData = JSON.stringify(sanitizedImages);
+        }
+      }
+
       db.run(
         `UPDATE notes
          SET title = ?, content = ?, color = ?, is_checklist = ?, checklist_items = ?,
-             is_archived = ?, updated_at = CURRENT_TIMESTAMP
+             is_archived = ?, images = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
         [
           sanitizedTitle,
@@ -620,6 +748,7 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
           is_checklist ? 1 : 0,
           checklistData,
           is_archived ? 1 : 0,
+          imagesData,
           id
         ],
         function(err) {
@@ -634,6 +763,14 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
                 updatedNote.checklist_items = JSON.parse(updatedNote.checklist_items);
               } catch (e) {
                 updatedNote.checklist_items = [];
+              }
+            }
+
+            if (updatedNote && updatedNote.images) {
+              try {
+                updatedNote.images = JSON.parse(updatedNote.images);
+              } catch (e) {
+                updatedNote.images = [];
               }
             }
 

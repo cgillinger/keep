@@ -8,6 +8,8 @@ let showingArchived = false;
 let showingShared = false;
 let ws = null;
 let csrfToken = null;
+let newNoteImages = []; // Filenames of images uploaded for new note
+let editNoteImages = []; // Filenames of images for editing note
 
 // ===== INITIALIZATION =====
 window.addEventListener('DOMContentLoaded', async () => {
@@ -378,11 +380,24 @@ function renderNotes() {
       contentHtml = `<p>${escapeHtml(note.content)}</p>`;
     }
 
+    // Render images
+    let imagesHtml = '';
+    if (note.images && Array.isArray(note.images) && note.images.length > 0) {
+      imagesHtml = `
+        <div class="note-images" onclick="event.stopPropagation()">
+          ${note.images.map(img => `
+            <img src="/api/notes/image/${img}" alt="Note image" onclick="openImageModal('${img}')">
+          `).join('')}
+        </div>
+      `;
+    }
+
     return `
       <div class="note-card" style="background-color: ${escapeHtml(note.color)}" onclick="openEditModal(${note.id})">
         ${ownerIndicator}
         ${note.title ? `<h3>${escapeHtml(note.title)}</h3>` : ''}
         ${contentHtml}
+        ${imagesHtml}
         ${shareIndicator}
       </div>
     `;
@@ -398,7 +413,7 @@ async function saveNote() {
     checklistItems = getChecklistItems('checklist-items');
   }
 
-  if (!title && !content && (!checklistItems || checklistItems.length === 0)) {
+  if (!title && !content && (!checklistItems || checklistItems.length === 0) && newNoteImages.length === 0) {
     return;
   }
 
@@ -414,7 +429,8 @@ async function saveNote() {
         content,
         color: selectedColor,
         is_checklist: isChecklistMode,
-        checklist_items: checklistItems
+        checklist_items: checklistItems,
+        images: newNoteImages
       })
     });
 
@@ -423,7 +439,10 @@ async function saveNote() {
       document.getElementById('new-note-content').value = '';
       selectedColor = '#ffffff';
       isChecklistMode = false;
+      newNoteImages = [];
       document.getElementById('checklist-container').style.display = 'none';
+      document.getElementById('images-container').style.display = 'none';
+      document.getElementById('images-preview').innerHTML = '';
       document.getElementById('new-note-form').style.backgroundColor = '#ffffff';
       document.getElementById('checklist-items').innerHTML = '';
       loadNotes();
@@ -483,6 +502,15 @@ function openEditModal(noteId) {
     document.getElementById('edit-checklist-toggle').textContent = '☐';
   }
 
+  // Handle images
+  editNoteImages = note.images && Array.isArray(note.images) ? [...note.images] : [];
+  if (editNoteImages.length > 0) {
+    document.getElementById('edit-images-container').style.display = 'block';
+    renderImagePreview('edit-images-preview', editNoteImages, canEdit);
+  } else {
+    document.getElementById('edit-images-container').style.display = 'none';
+  }
+
   document.getElementById('edit-modal').classList.add('active');
 }
 
@@ -517,7 +545,8 @@ async function updateNote() {
         color: currentEditingNote.color,
         is_checklist: isChecklist,
         checklist_items: checklistItems,
-        is_archived: currentEditingNote.is_archived
+        is_archived: currentEditingNote.is_archived,
+        images: editNoteImages
       })
     });
 
@@ -1065,5 +1094,164 @@ document.addEventListener('keydown', (e) => {
     closeImportModal();
     closeProfileModal();
     closeShareModal();
+    closeImageModal();
   }
 });
+
+// ===== IMAGE HANDLING =====
+
+// Handle new note image selection
+async function handleNewNoteImageSelect() {
+  const input = document.getElementById('new-note-image-input');
+  const files = Array.from(input.files);
+
+  if (files.length === 0) return;
+
+  // Max 10 images per note
+  const remainingSlots = 10 - newNoteImages.length;
+  if (files.length > remainingSlots) {
+    alert(`Du kan bara lägga till ${remainingSlots} till bilder (max 10 per anteckning)`);
+    return;
+  }
+
+  try {
+    for (const file of files) {
+      // Validate file size (10MB max)
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`Bilden "${file.name}" är för stor (max 10MB)`);
+        continue;
+      }
+
+      // Upload image
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await fetch('/api/notes/image', {
+        method: 'POST',
+        headers: getCSRFHeaders(),
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        newNoteImages.push(data.filename);
+      } else if (response.status === 403) {
+        await fetchCSRFToken();
+        alert('Session expired, please try again');
+        return;
+      } else {
+        throw new Error('Failed to upload image');
+      }
+    }
+
+    // Show images container and render previews
+    if (newNoteImages.length > 0) {
+      document.getElementById('images-container').style.display = 'block';
+      renderImagePreview('images-preview', newNoteImages, true);
+    }
+
+    // Reset input
+    input.value = '';
+  } catch (error) {
+    console.error('Failed to upload images:', error);
+    alert('Kunde inte ladda upp bilder');
+  }
+}
+
+// Handle edit note image selection
+async function handleEditNoteImageSelect() {
+  const input = document.getElementById('edit-note-image-input');
+  const files = Array.from(input.files);
+
+  if (files.length === 0) return;
+
+  const remainingSlots = 10 - editNoteImages.length;
+  if (files.length > remainingSlots) {
+    alert(`Du kan bara lägga till ${remainingSlots} till bilder (max 10 per anteckning)`);
+    return;
+  }
+
+  try {
+    for (const file of files) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`Bilden "${file.name}" är för stor (max 10MB)`);
+        continue;
+      }
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await fetch('/api/notes/image', {
+        method: 'POST',
+        headers: getCSRFHeaders(),
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        editNoteImages.push(data.filename);
+      } else if (response.status === 403) {
+        await fetchCSRFToken();
+        alert('Session expired, please try again');
+        return;
+      } else {
+        throw new Error('Failed to upload image');
+      }
+    }
+
+    // Show images container and render previews
+    if (editNoteImages.length > 0) {
+      document.getElementById('edit-images-container').style.display = 'block';
+      const canEdit = !currentEditingNote.isShared || currentEditingNote.permission === 'edit';
+      renderImagePreview('edit-images-preview', editNoteImages, canEdit);
+    }
+
+    input.value = '';
+  } catch (error) {
+    console.error('Failed to upload images:', error);
+    alert('Kunde inte ladda upp bilder');
+  }
+}
+
+// Render image preview
+function renderImagePreview(containerId, images, canRemove) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = images.map((img, index) => `
+    <div class="image-preview-item">
+      <img src="/api/notes/image/${img}" alt="Preview">
+      ${canRemove ? `<button class="remove-image" onclick="removeImage('${containerId}', ${index})">✕</button>` : ''}
+    </div>
+  `).join('');
+}
+
+// Remove image from preview
+function removeImage(containerId, index) {
+  if (containerId === 'images-preview') {
+    newNoteImages.splice(index, 1);
+    if (newNoteImages.length === 0) {
+      document.getElementById('images-container').style.display = 'none';
+    }
+    renderImagePreview('images-preview', newNoteImages, true);
+  } else if (containerId === 'edit-images-preview') {
+    editNoteImages.splice(index, 1);
+    if (editNoteImages.length === 0) {
+      document.getElementById('edit-images-container').style.display = 'none';
+    }
+    const canEdit = !currentEditingNote.isShared || currentEditingNote.permission === 'edit';
+    renderImagePreview('edit-images-preview', editNoteImages, canEdit);
+  }
+}
+
+// Open image modal for full view
+function openImageModal(filename) {
+  const modal = document.getElementById('image-modal');
+  const img = document.getElementById('image-modal-img');
+  img.src = `/api/notes/image/${filename}`;
+  modal.classList.add('active');
+}
+
+// Close image modal
+function closeImageModal() {
+  const modal = document.getElementById('image-modal');
+  modal.classList.remove('active');
+}
