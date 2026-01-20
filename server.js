@@ -158,18 +158,33 @@ function validateColor(color) {
 
 // ===== WEBSOCKET WITH SECURE AUTHENTICATION =====
 
-// Store session parsers for WebSocket
+// Store session parsers for WebSocket (must match main session config)
 const sessionParser = session({
   secret: process.env.SESSION_SECRET || 'keep-clone-secret-change-in-production',
   resave: false,
-  saveUninitialized: false
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  },
+  name: 'sessionId' // CRITICAL: Must match main session name
 });
 
 const clients = new Map(); // userId -> WebSocket connection
 
 wss.on('connection', (ws, req) => {
+  // Create a mock response object for session parsing
+  const mockRes = {
+    setHeader: () => {},
+    getHeader: () => {},
+    end: () => {},
+    writeHead: () => {}
+  };
+
   // Parse session from cookie
-  sessionParser(req, {}, () => {
+  sessionParser(req, mockRes, () => {
     if (!req.session || !req.session.userId) {
       console.log('WebSocket connection rejected: No valid session');
       ws.close(1008, 'Authentication required');
