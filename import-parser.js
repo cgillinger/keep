@@ -36,6 +36,9 @@ class KeepImportParser {
       missingAttachments: 0,
       errors: []
     };
+
+    // Filename mapping to handle filesystem sanitization differences
+    this.fileMap = {};
   }
 
   /**
@@ -46,10 +49,25 @@ class KeepImportParser {
       throw new Error('Invalid Google Keep export structure. Expected Takeout/Keep/ directory.');
     }
 
-    // Find all JSON files
+    // Find all files and build a mapping to handle filesystem sanitization
     const files = fs.readdirSync(this.keepDir);
-    const jsonFiles = files.filter(f => f.endsWith('.json') && f !== 'Labels.json');
 
+    // Build file map - map various sanitized versions to actual filenames
+    for (const file of files) {
+      // Map the actual filename to itself
+      this.fileMap[file] = file;
+
+      // Also map the sanitized version (in case JSON references use original format)
+      const sanitized = this.sanitizeFilename(file);
+      this.fileMap[sanitized] = file;
+
+      // Map a version with colons replaced (common in timestamps)
+      // This handles cases like "2023-11-28T21:51:27.284+01:00.json" → "2023-11-28T21_51_27.284+01_00.json"
+      const colonReplaced = file.replace(/:/g, '_');
+      this.fileMap[colonReplaced] = file;
+    }
+
+    const jsonFiles = files.filter(f => f.endsWith('.json') && f !== 'Labels.json');
     this.stats.totalNotes = jsonFiles.length;
 
     const notes = [];
@@ -89,6 +107,40 @@ class KeepImportParser {
   }
 
   /**
+   * Find actual filename from various possible formats
+   * Handles filesystem sanitization differences (colons → underscores, etc.)
+   */
+  findActualFilename(requestedFilename) {
+    const basename = path.basename(requestedFilename);
+
+    // Try exact match first
+    if (this.fileMap[basename]) {
+      return this.fileMap[basename];
+    }
+
+    // Try sanitized version
+    const sanitized = this.sanitizeFilename(basename);
+    if (this.fileMap[sanitized]) {
+      return this.fileMap[sanitized];
+    }
+
+    // Try with colons replaced
+    const colonReplaced = basename.replace(/:/g, '_');
+    if (this.fileMap[colonReplaced]) {
+      return this.fileMap[colonReplaced];
+    }
+
+    // Try with both colons and plus signs replaced
+    const fullyReplaced = basename.replace(/[:\+]/g, '_');
+    if (this.fileMap[fullyReplaced]) {
+      return this.fileMap[fullyReplaced];
+    }
+
+    // Not found - return null
+    return null;
+  }
+
+  /**
    * Validate that a path is within the expected directory
    */
   isPathSafe(filePath, allowedDir) {
@@ -102,9 +154,13 @@ class KeepImportParser {
    * Parse a single note JSON file
    */
   async parseNote(jsonFile) {
-    // Sanitize filename to prevent path traversal
-    const safeJsonFile = this.sanitizeFilename(jsonFile);
-    const jsonPath = path.join(this.keepDir, safeJsonFile);
+    // Find the actual filename on disk (handles filesystem sanitization)
+    const actualFilename = this.findActualFilename(jsonFile);
+    if (!actualFilename) {
+      throw new Error(`File not found: ${jsonFile}`);
+    }
+
+    const jsonPath = path.join(this.keepDir, actualFilename);
 
     // Validate that the path is within keepDir
     if (!this.isPathSafe(jsonPath, this.keepDir)) {
@@ -176,9 +232,17 @@ class KeepImportParser {
    * Handle attachment - copy file to media directory
    */
   async handleAttachment(attachment, sourceNote) {
-    // Sanitize attachment file path to prevent path traversal
-    const safeFilePath = this.sanitizeFilename(attachment.filePath);
-    const sourcePath = path.join(this.keepDir, safeFilePath);
+    // Find the actual filename on disk (handles filesystem sanitization)
+    const actualFilename = this.findActualFilename(attachment.filePath);
+    if (!actualFilename) {
+      this.stats.errors.push({
+        file: sourceNote,
+        error: `Attachment file not found: ${attachment.filePath}`
+      });
+      return null;
+    }
+
+    const sourcePath = path.join(this.keepDir, actualFilename);
 
     // Validate that source path is within keepDir
     if (!this.isPathSafe(sourcePath, this.keepDir)) {
@@ -189,17 +253,17 @@ class KeepImportParser {
       return null;
     }
 
-    // Check if file exists
+    // Double-check file exists (should exist since we found it in fileMap)
     if (!fs.existsSync(sourcePath)) {
       this.stats.errors.push({
         file: sourceNote,
-        error: `Missing attachment: ${attachment.filePath}`
+        error: `Missing attachment: ${attachment.filePath} (mapped to ${actualFilename})`
       });
       return null;
     }
 
     // Generate unique filename with safe extension
-    const ext = path.extname(safeFilePath).substring(0, 10); // Limit extension length
+    const ext = path.extname(actualFilename).substring(0, 10); // Limit extension length
     const safeExt = ext.replace(/[^a-zA-Z0-9.]/g, ''); // Only alphanumeric + dot
     const uniqueName = `${Date.now()}_${Math.random().toString(36).substring(7)}${safeExt}`;
     const destPath = path.join(this.mediaDir, uniqueName);
