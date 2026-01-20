@@ -37,6 +37,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
+      scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc)
       styleSrc: ["'self'", "'unsafe-inline'"], // Inline styles needed for dynamic colors
       imgSrc: ["'self'", "data:", "blob:"],
       connectSrc: ["'self'", "ws:", "wss:"],
