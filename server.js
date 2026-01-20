@@ -1070,9 +1070,14 @@ function importNote(note) {
       ? JSON.stringify(note.checklist_items)
       : null;
 
+    // Convert attachments to images array (just the filenames)
+    const imagesData = note.attachments && note.attachments.length > 0
+      ? JSON.stringify(note.attachments.map(att => att.stored_filename))
+      : null;
+
     db.run(
-      `INSERT INTO notes (user_id, title, content, color, is_checklist, checklist_items, is_archived, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO notes (user_id, title, content, color, is_checklist, checklist_items, is_archived, images, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         note.user_id,
         note.title,
@@ -1081,6 +1086,7 @@ function importNote(note) {
         note.is_checklist,
         checklistData,
         note.is_archived,
+        imagesData,
         note.created_at,
         note.updated_at
       ],
