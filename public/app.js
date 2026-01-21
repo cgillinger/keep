@@ -22,7 +22,9 @@ window.addEventListener('DOMContentLoaded', async () => {
 // ===== CSRF TOKEN =====
 async function fetchCSRFToken() {
   try {
-    const response = await fetch('/api/csrf-token');
+    const response = await fetch('/api/csrf-token', {
+      credentials: 'include'
+    });
     if (response.ok) {
       const data = await response.json();
       csrfToken = data.csrfToken;
@@ -39,7 +41,9 @@ function getCSRFHeaders() {
 // ===== AUTH FUNCTIONS =====
 async function checkAuth() {
   try {
-    const response = await fetch('/api/me');
+    const response = await fetch('/api/me', {
+      credentials: 'include'
+    });
     if (response.ok) {
       const user = await response.json();
       currentUser = user;
@@ -92,6 +96,7 @@ async function login() {
   try {
     const response = await fetch('/api/login', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...getCSRFHeaders()
@@ -153,6 +158,7 @@ async function register() {
   try {
     const response = await fetch('/api/register', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...getCSRFHeaders()
@@ -178,7 +184,10 @@ async function register() {
 }
 
 async function logout() {
-  await fetch('/api/logout', { method: 'POST' });
+  await fetch('/api/logout', {
+    method: 'POST',
+    credentials: 'include'
+  });
   if (ws) ws.close();
   currentUser = null;
   notes = [];
@@ -322,6 +331,7 @@ async function uploadProfilePicture() {
   try {
     const response = await fetch('/api/profile/picture', {
       method: 'POST',
+      credentials: 'include',
       body: formData
     });
 
@@ -369,7 +379,9 @@ async function loadNotes() {
         ? '/api/notes?shared=true'
         : '/api/notes';
 
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      credentials: 'include'
+    });
     if (response.ok) {
       notes = await response.json();
       renderNotes();
@@ -499,6 +511,7 @@ async function saveNote() {
   try {
     const response = await fetch('/api/notes', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...getCSRFHeaders()
@@ -622,6 +635,7 @@ async function updateNote() {
   try {
     const response = await fetch(`/api/notes/${currentEditingNote.id}`, {
       method: 'PUT',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...getCSRFHeaders()
@@ -659,6 +673,7 @@ async function deleteNote() {
   try {
     const response = await fetch(`/api/notes/${currentEditingNote.id}`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: getCSRFHeaders()
     });
 
@@ -680,6 +695,7 @@ async function togglePinNote() {
   try {
     const response = await fetch(`/api/notes/${currentEditingNote.id}/pin`, {
       method: 'POST',
+      credentials: 'include',
       headers: getCSRFHeaders()
     });
 
@@ -712,6 +728,7 @@ async function toggleArchiveNote() {
   try {
     const response = await fetch(`/api/notes/${currentEditingNote.id}`, {
       method: 'PUT',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...getCSRFHeaders()
@@ -764,13 +781,17 @@ async function openShareModal() {
 
   try {
     // Load available users
-    const usersResponse = await fetch('/api/users');
+    const usersResponse = await fetch('/api/users', {
+      credentials: 'include'
+    });
     if (usersResponse.ok) {
       availableUsers = await usersResponse.json();
     }
 
     // Load current shares
-    const sharesResponse = await fetch(`/api/notes/${currentEditingNote.id}/shares`);
+    const sharesResponse = await fetch(`/api/notes/${currentEditingNote.id}/shares`, {
+      credentials: 'include'
+    });
     if (sharesResponse.ok) {
       const shares = await sharesResponse.json();
       renderShareModal(shares);
@@ -847,6 +868,7 @@ async function addShare(userId, username) {
   try {
     const response = await fetch(`/api/notes/${currentEditingNote.id}/share`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...getCSRFHeaders()
@@ -859,7 +881,9 @@ async function addShare(userId, username) {
 
     if (response.ok) {
       // Reload share modal
-      const sharesResponse = await fetch(`/api/notes/${currentEditingNote.id}/shares`);
+      const sharesResponse = await fetch(`/api/notes/${currentEditingNote.id}/shares`, {
+        credentials: 'include'
+      });
       if (sharesResponse.ok) {
         const shares = await sharesResponse.json();
         renderShareModal(shares);
@@ -883,12 +907,15 @@ async function removeShare(userId, username) {
   try {
     const response = await fetch(`/api/notes/${currentEditingNote.id}/share/${userId}`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: getCSRFHeaders()
     });
 
     if (response.ok) {
       // Reload share modal
-      const sharesResponse = await fetch(`/api/notes/${currentEditingNote.id}/shares`);
+      const sharesResponse = await fetch(`/api/notes/${currentEditingNote.id}/shares`, {
+        credentials: 'include'
+      });
       if (sharesResponse.ok) {
         const shares = await sharesResponse.json();
         renderShareModal(shares);
@@ -908,6 +935,7 @@ async function updateSharePermission(userId, permission) {
   try {
     const response = await fetch(`/api/notes/${currentEditingNote.id}/share`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...getCSRFHeaders()
@@ -1272,6 +1300,7 @@ async function handleNewNoteImageSelect() {
 
       const response = await fetch('/api/notes/image', {
         method: 'POST',
+        credentials: 'include',
         headers: getCSRFHeaders(),
         body: formData
       });
@@ -1327,6 +1356,7 @@ async function handleEditNoteImageSelect() {
 
       const response = await fetch('/api/notes/image', {
         method: 'POST',
+        credentials: 'include',
         headers: getCSRFHeaders(),
         body: formData
       });
