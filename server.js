@@ -274,10 +274,18 @@ app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
           req.session.userId = this.lastID;
           req.session.username = sanitizedUsername;
 
-          res.json({
-            id: this.lastID,
-            username: sanitizedUsername,
-            message: 'Registrering lyckades'
+          // Save session before sending response
+          req.session.save((err) => {
+            if (err) {
+              console.error('Session save error:', err);
+              return res.status(500).json({ error: 'Registrering misslyckades' });
+            }
+
+            res.json({
+              id: this.lastID,
+              username: sanitizedUsername,
+              message: 'Registrering lyckades'
+            });
           });
         });
       }
@@ -324,11 +332,19 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
         req.session.userId = user.id;
         req.session.username = user.username;
 
-        res.json({
-          id: user.id,
-          username: user.username,
-          profilePicture: user.profile_picture,
-          message: 'Inloggning lyckades'
+        // Save session before sending response
+        req.session.save((err) => {
+          if (err) {
+            console.error('Session save error:', err);
+            return res.status(500).json({ error: 'Inloggning misslyckades' });
+          }
+
+          res.json({
+            id: user.id,
+            username: user.username,
+            profilePicture: user.profile_picture,
+            message: 'Inloggning lyckades'
+          });
         });
       });
     } catch (error) {
