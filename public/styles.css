@@ -326,7 +326,7 @@ main {
 /* ===== NOTES GRID ===== */
 .notes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 16px;
 }
 
@@ -353,6 +353,14 @@ main {
   margin-bottom: 8px;
   color: #202124;
   font-weight: 500;
+}
+
+.note-card .note-created-date {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  color: #80868b;
+  font-weight: 400;
 }
 
 .note-card p {
@@ -467,6 +475,31 @@ main {
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  position: relative;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #5f6368;
+  cursor: pointer;
+  padding: 8px;
+  line-height: 1;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.modal-close-btn:hover {
+  background-color: #f1f3f4;
 }
 
 .note-edit-form input,

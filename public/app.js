@@ -10,6 +10,7 @@ let ws = null;
 let csrfToken = null;
 let newNoteImages = []; // Filenames of images uploaded for new note
 let editNoteImages = []; // Filenames of images for editing note
+let showCreatedDate = localStorage.getItem('showCreatedDate') === 'true'; // User preference for showing created date
 
 // ===== INITIALIZATION =====
 window.addEventListener('DOMContentLoaded', async () => {
@@ -47,9 +48,11 @@ async function checkAuth() {
       connectWebSocket();
       updateProfilePicture();
     } else {
+      currentUser = null; // Clear user on auth failure
       showAuthScreen();
     }
   } catch (error) {
+    currentUser = null; // Clear user on error
     showAuthScreen();
   }
 }
@@ -248,7 +251,36 @@ function updateProfilePicture() {
 }
 
 function openProfileModal() {
+  // Update profile info
+  const profileUsername = document.getElementById('profile-username');
+  if (profileUsername && currentUser) {
+    profileUsername.textContent = currentUser.username;
+  }
+
+  // Update created date toggle
+  const dateToggle = document.getElementById('show-created-date-toggle');
+  if (dateToggle) {
+    dateToggle.checked = showCreatedDate;
+  }
+
+  // Update profile picture preview
+  const profilePicPreview = document.getElementById('profile-picture-preview');
+  if (profilePicPreview && currentUser) {
+    if (currentUser.profilePicture) {
+      profilePicPreview.innerHTML = `<img src="/api/profile/picture/${currentUser.profilePicture}" alt="${currentUser.username}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover;">`;
+    } else {
+      const initials = currentUser.username.substring(0, 2).toUpperCase();
+      profilePicPreview.innerHTML = `<div class="profile-initials" style="width: 120px; height: 120px; font-size: 48px;">${initials}</div>`;
+    }
+  }
+
   document.getElementById('profile-modal').classList.add('active');
+}
+
+function toggleShowCreatedDate() {
+  showCreatedDate = !showCreatedDate;
+  localStorage.setItem('showCreatedDate', showCreatedDate);
+  renderNotes(); // Re-render notes to show/hide dates
 }
 
 function closeProfileModal(event) {
@@ -297,6 +329,26 @@ async function uploadProfilePicture() {
   } catch (error) {
     alert('Nätverksfel vid uppladdning');
   }
+}
+
+// Format created date for display
+function formatCreatedDate(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  // If today, show time
+  if (diffDays === 0) {
+    return date.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+  }
+  // If this year, show date without year
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
+  }
+  // Otherwise show full date
+  return date.toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 // ===== NOTES FUNCTIONS =====
@@ -402,11 +454,18 @@ function renderNotes() {
       `;
     }
 
+    // Format created date if enabled
+    let dateHtml = '';
+    if (showCreatedDate && note.created_at) {
+      const formattedDate = formatCreatedDate(note.created_at);
+      dateHtml = `<div class="note-created-date">${formattedDate}</div>`;
+    }
+
     return `
       <div class="note-card" style="background-color: ${escapeHtml(note.color)}" onclick="openEditModal(${note.id})">
         ${pinIndicator}
         ${ownerIndicator}
-        ${note.title ? `<h3>${escapeHtml(note.title)}</h3>` : ''}
+        ${note.title ? `<h3>${escapeHtml(note.title)}${dateHtml}</h3>` : dateHtml}
         ${contentHtml}
         ${imagesHtml}
         ${shareIndicator}
