@@ -258,15 +258,16 @@ main {
   display: none;
   position: absolute;
   top: 100%;
-  left: 0;
+  right: 0;
   background: white;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   padding: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 10;
+  z-index: 100;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
+  min-width: 150px;
 }
 
 .color-picker:hover .color-options {
@@ -337,11 +338,10 @@ main {
   padding: 16px;
   cursor: pointer;
   transition: box-shadow 0.2s;
-  max-height: 500px;
-  overflow: hidden;
   position: relative;
   display: flex;
   flex-direction: column;
+  height: fit-content;
 }
 
 .note-card:hover {
@@ -368,10 +368,8 @@ main {
   color: #5f6368;
   white-space: pre-wrap;
   word-break: break-word;
+  max-height: 600px;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 15;
-  -webkit-box-orient: vertical;
 }
 
 .note-card a {
@@ -386,7 +384,7 @@ main {
 
 .note-card .checklist {
   list-style: none;
-  max-height: 300px;
+  max-height: 600px;
   overflow: hidden;
 }
 
@@ -506,13 +504,14 @@ main {
 .note-edit-form textarea {
   width: 100%;
   border: none;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   outline: none;
   font-size: 14px;
   font-family: inherit;
   resize: none;
   margin-bottom: 16px;
   padding: 8px 0;
+  background: transparent;
 }
 
 .note-edit-form input {

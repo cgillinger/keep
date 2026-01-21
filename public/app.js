@@ -553,7 +553,8 @@ function openEditModal(noteId) {
   const pinBtn = document.getElementById('pin-note-btn');
   if (pinBtn) {
     pinBtn.style.display = canDelete ? 'inline-block' : 'none'; // Same as delete - only owner
-    pinBtn.textContent = note.is_pinned ? '📌 Ta bort fästning' : '📌 Fäst';
+    pinBtn.textContent = note.is_pinned ? '📍' : '📌'; // 📍 = pinned, 📌 = unpinned
+    pinBtn.title = note.is_pinned ? 'Avfästa' : 'Fäst';
   }
 
   if (note.is_checklist && note.checklist_items) {
@@ -677,10 +678,11 @@ async function togglePinNote() {
       const data = await response.json();
       currentEditingNote.is_pinned = data.is_pinned;
 
-      // Update pin button text in modal
+      // Update pin button icon in modal
       const pinBtn = document.getElementById('pin-note-btn');
       if (pinBtn) {
-        pinBtn.textContent = data.is_pinned ? '📌 Ta bort fästning' : '📌 Fäst';
+        pinBtn.textContent = data.is_pinned ? '📍' : '📌'; // 📍 = pinned, 📌 = unpinned
+        pinBtn.title = data.is_pinned ? 'Avfästa' : 'Fäst';
       }
 
       loadNotes();

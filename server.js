@@ -98,12 +98,12 @@ app.use(session({
     console.error('WARNING: Using default session secret! Set SESSION_SECRET environment variable!');
     return 'keep-clone-secret-change-in-production';
   })(),
-  resave: false,
+  resave: true, // Save session on every request to ensure persistence
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // True in production with HTTPS
+    secure: false, // Set to true only with HTTPS in production
     httpOnly: true, // Prevent JavaScript access
-    sameSite: 'strict', // CSRF protection
+    sameSite: 'lax', // Changed from 'strict' to 'lax' for better compatibility
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days (reduced from 30)
   },
   name: 'sessionId' // Don't use default name
