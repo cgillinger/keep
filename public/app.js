@@ -345,6 +345,12 @@ function renderNotes() {
     let contentHtml = '';
     let shareIndicator = '';
     let ownerIndicator = '';
+    let pinIndicator = '';
+
+    // Show pin indicator if pinned
+    if (note.is_pinned) {
+      pinIndicator = '<div class="pin-indicator">📌</div>';
+    }
 
     // Show owner if this is a shared note
     if (note.isShared && note.owner_username) {
@@ -398,6 +404,7 @@ function renderNotes() {
 
     return `
       <div class="note-card" style="background-color: ${escapeHtml(note.color)}" onclick="openEditModal(${note.id})">
+        ${pinIndicator}
         ${ownerIndicator}
         ${note.title ? `<h3>${escapeHtml(note.title)}</h3>` : ''}
         ${contentHtml}
@@ -482,6 +489,13 @@ function openEditModal(noteId) {
   document.getElementById('delete-note-btn').style.display = canDelete ? 'inline-block' : 'none';
   document.getElementById('archive-note-btn').style.display = canEdit ? 'inline-block' : 'none';
   document.getElementById('share-note-btn').style.display = canShare ? 'inline-block' : 'none';
+
+  // Pin button - only owner can pin
+  const pinBtn = document.getElementById('pin-note-btn');
+  if (pinBtn) {
+    pinBtn.style.display = canDelete ? 'inline-block' : 'none'; // Same as delete - only owner
+    pinBtn.textContent = note.is_pinned ? '📌 Ta bort fästning' : '📌 Fäst';
+  }
 
   if (note.is_checklist && note.checklist_items) {
     const items = Array.isArray(note.checklist_items)
@@ -588,6 +602,35 @@ async function deleteNote() {
     }
   } catch (error) {
     console.error('Failed to delete note:', error);
+  }
+}
+
+async function togglePinNote() {
+  if (!currentEditingNote) return;
+
+  try {
+    const response = await fetch(`/api/notes/${currentEditingNote.id}/pin`, {
+      method: 'POST',
+      headers: getCSRFHeaders()
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      currentEditingNote.is_pinned = data.is_pinned;
+
+      // Update pin button text in modal
+      const pinBtn = document.getElementById('pin-note-btn');
+      if (pinBtn) {
+        pinBtn.textContent = data.is_pinned ? '📌 Ta bort fästning' : '📌 Fäst';
+      }
+
+      loadNotes();
+    } else if (response.status === 403) {
+      await fetchCSRFToken();
+      alert('Session expired, please try again');
+    }
+  } catch (error) {
+    console.error('Failed to pin note:', error);
   }
 }
 

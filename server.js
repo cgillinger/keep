@@ -564,7 +564,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
        JOIN shares ON notes.id = shares.note_id
        JOIN users ON notes.user_id = users.id
        WHERE shares.shared_with_user_id = ?
-       ORDER BY notes.updated_at DESC`,
+       ORDER BY notes.is_pinned DESC, notes.updated_at DESC`,
       [req.session.userId],
       (err, notes) => {
         if (err) {
@@ -600,7 +600,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
         (SELECT COUNT(*) FROM shares WHERE shares.note_id = notes.id) as share_count
        FROM notes
        WHERE user_id = ? AND is_archived = ?
-       ORDER BY updated_at DESC`,
+       ORDER BY is_pinned DESC, updated_at DESC`,
       [req.session.userId, showArchived ? 1 : 0],
       (err, notes) => {
         if (err) {
@@ -860,6 +860,35 @@ app.delete('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res)
   });
 });
 
+// Pin/unpin note (toggle)
+app.post('/api/notes/:id/pin', requireAuth, apiLimiter, csrfProtection, (req, res) => {
+  const { id } = req.params;
+
+  // Only owner can pin/unpin
+  db.get('SELECT id, user_id, is_pinned FROM notes WHERE id = ?', [id], (err, note) => {
+    if (err) {
+      console.error('Check note owner error:', err);
+      return res.status(500).json({ error: 'Kunde inte fästa anteckning' });
+    }
+
+    if (!note || note.user_id !== req.session.userId) {
+      return res.status(404).json({ error: 'Anteckning hittades inte eller du saknar rättigheter' });
+    }
+
+    // Toggle is_pinned
+    const newPinnedState = note.is_pinned ? 0 : 1;
+
+    db.run('UPDATE notes SET is_pinned = ? WHERE id = ?', [newPinnedState, id], function(err) {
+      if (err) {
+        console.error('Pin note error:', err);
+        return res.status(500).json({ error: 'Kunde inte fästa anteckning' });
+      }
+
+      res.json({ is_pinned: newPinnedState });
+    });
+  });
+});
+
 // ===== SHARING ROUTES =====
 
 app.post('/api/notes/:id/share', requireAuth, apiLimiter, csrfProtection, (req, res) => {
@@ -1076,8 +1105,8 @@ function importNote(note) {
       : null;
 
     db.run(
-      `INSERT INTO notes (user_id, title, content, color, is_checklist, checklist_items, is_archived, images, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO notes (user_id, title, content, color, is_checklist, checklist_items, is_archived, is_pinned, images, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         note.user_id,
         note.title,
@@ -1086,6 +1115,7 @@ function importNote(note) {
         note.is_checklist,
         checklistData,
         note.is_archived,
+        note.is_pinned ? 1 : 0,
         imagesData,
         note.created_at,
         note.updated_at

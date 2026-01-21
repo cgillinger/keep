@@ -67,6 +67,17 @@ db.serialize(() => {
         }
       });
     }
+
+    const hasPinned = columns.some(col => col.name === 'is_pinned');
+    if (!hasPinned) {
+      db.run(`ALTER TABLE notes ADD COLUMN is_pinned INTEGER DEFAULT 0`, (err) => {
+        if (err) {
+          console.error('Error adding is_pinned column:', err);
+        } else {
+          console.log('Added is_pinned column to notes table');
+        }
+      });
+    }
   });
 
   console.log('Database initialized');
