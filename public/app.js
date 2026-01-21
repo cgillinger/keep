@@ -306,48 +306,195 @@ function closeProfileModal(event) {
   document.getElementById('profile-modal').classList.remove('active');
 }
 
-async function uploadProfilePicture() {
+// Image crop state
+let cropImage = null;
+let cropScale = 1;
+let cropX = 0;
+let cropY = 0;
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+
+function selectProfilePicture() {
   const fileInput = document.getElementById('profile-picture-input');
   const file = fileInput.files[0];
 
-  if (!file) {
-    alert('Välj en bild först');
-    return;
-  }
+  if (!file) return;
 
   if (!file.type.startsWith('image/')) {
     alert('Endast bilder är tillåtna');
+    fileInput.value = '';
     return;
   }
 
   if (file.size > 5 * 1024 * 1024) {
     alert('Bilden är för stor. Max 5MB.');
+    fileInput.value = '';
     return;
   }
 
-  const formData = new FormData();
-  formData.append('picture', file);
+  // Load image and show crop modal
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      cropImage = img;
+      setupCropCanvas();
+      document.getElementById('crop-modal').classList.add('active');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
 
-  try {
-    const response = await fetch('/api/profile/picture', {
-      method: 'POST',
-      credentials: 'include',
-      body: formData
-    });
+function setupCropCanvas() {
+  const canvas = document.getElementById('crop-canvas');
+  const ctx = canvas.getContext('2d');
 
-    if (response.ok) {
-      const data = await response.json();
-      currentUser.profilePicture = data.profilePicture;
-      updateProfilePicture();
-      closeProfileModal();
-      alert('Profilbild uppdaterad!');
-    } else {
-      const error = await response.json();
-      alert(error.error || 'Kunde inte ladda upp bild');
+  // Set canvas size to fit image while maintaining aspect ratio
+  const maxSize = 400;
+  let width = cropImage.width;
+  let height = cropImage.height;
+
+  if (width > height) {
+    if (width > maxSize) {
+      height = (height / width) * maxSize;
+      width = maxSize;
     }
-  } catch (error) {
-    alert('Nätverksfel vid uppladdning');
+  } else {
+    if (height > maxSize) {
+      width = (width / height) * maxSize;
+      height = maxSize;
+    }
   }
+
+  canvas.width = width;
+  canvas.height = height;
+
+  // Center the image
+  cropX = (300 - width) / 2;
+  cropY = (300 - height) / 2;
+  cropScale = 1;
+
+  document.getElementById('zoom-slider').value = 100;
+
+  drawCropCanvas();
+  setupCropDrag();
+}
+
+function drawCropCanvas() {
+  const canvas = document.getElementById('crop-canvas');
+  const ctx = canvas.getContext('2d');
+
+  canvas.style.left = cropX + 'px';
+  canvas.style.top = cropY + 'px';
+  canvas.style.transform = `scale(${cropScale})`;
+  canvas.style.transformOrigin = 'top left';
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(cropImage, 0, 0, canvas.width, canvas.height);
+}
+
+function updateCropZoom() {
+  const slider = document.getElementById('zoom-slider');
+  cropScale = slider.value / 100;
+  drawCropCanvas();
+}
+
+function setupCropDrag() {
+  const canvas = document.getElementById('crop-canvas');
+
+  canvas.onmousedown = (e) => {
+    isDragging = true;
+    dragStartX = e.clientX - cropX;
+    dragStartY = e.clientY - cropY;
+    canvas.style.cursor = 'grabbing';
+  };
+
+  document.onmousemove = (e) => {
+    if (!isDragging) return;
+    cropX = e.clientX - dragStartX;
+    cropY = e.clientY - dragStartY;
+    drawCropCanvas();
+  };
+
+  document.onmouseup = () => {
+    isDragging = false;
+    canvas.style.cursor = 'move';
+  };
+}
+
+async function saveCroppedImage() {
+  // Create a new canvas for the cropped circular image
+  const outputCanvas = document.createElement('canvas');
+  outputCanvas.width = 200;
+  outputCanvas.height = 200;
+  const ctx = outputCanvas.getContext('2d');
+
+  // Calculate source rectangle (what part of the scaled image to crop)
+  const canvas = document.getElementById('crop-canvas');
+  const previewRect = canvas.parentElement.getBoundingClientRect();
+  const circleX = 150; // Center of 300px preview
+  const circleY = 150;
+  const circleRadius = 100; // Radius of circle (200px diameter / 2)
+
+  // Calculate the source coordinates in the original canvas
+  const sourceX = (circleX - cropX) / cropScale;
+  const sourceY = (circleY - cropY) / cropScale;
+  const sourceSize = (circleRadius * 2) / cropScale;
+
+  // Draw circular clipped image
+  ctx.beginPath();
+  ctx.arc(100, 100, 100, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+
+  ctx.drawImage(
+    canvas,
+    sourceX - sourceSize / 2,
+    sourceY - sourceSize / 2,
+    sourceSize,
+    sourceSize,
+    0,
+    0,
+    200,
+    200
+  );
+
+  // Convert to blob and upload
+  outputCanvas.toBlob(async (blob) => {
+    const formData = new FormData();
+    formData.append('picture', blob, 'profile.jpg');
+
+    try {
+      const response = await fetch('/api/profile/picture', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        currentUser.profilePicture = data.profilePicture;
+        updateProfilePicture();
+        closeCropModal();
+        closeProfileModal();
+        alert('Profilbild uppdaterad!');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Kunde inte ladda upp bild');
+      }
+    } catch (error) {
+      alert('Nätverksfel vid uppladdning');
+    }
+  }, 'image/jpeg', 0.9);
+}
+
+function closeCropModal(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('crop-modal').classList.remove('active');
+  document.getElementById('profile-picture-input').value = '';
+  cropImage = null;
 }
 
 // Format created date for display
@@ -493,6 +640,17 @@ function renderNotes() {
       </div>
     `;
   }).join('');
+
+  // After rendering, detect truncated cards and add class
+  setTimeout(() => {
+    const cards = container.querySelectorAll('.note-card');
+    cards.forEach(card => {
+      // Check if card content is truncated (scrollHeight > clientHeight)
+      if (card.scrollHeight > card.clientHeight) {
+        card.classList.add('truncated');
+      }
+    });
+  }, 10); // Small delay to ensure DOM is updated
 }
 
 async function saveNote() {

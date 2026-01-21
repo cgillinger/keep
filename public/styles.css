@@ -337,6 +337,8 @@ main {
   max-width: 100%; /* Use full available width */
   margin: 0 auto;
   padding: 0 16px; /* Add padding on sides */
+  grid-auto-rows: min-content; /* CRITICAL: Each row only as tall as needed */
+  align-items: start; /* Align cards to top, don't stretch */
 }
 
 .note-card {
@@ -349,8 +351,9 @@ main {
   position: relative;
   display: flex;
   flex-direction: column;
-  max-height: 460px; /* Critical: Google Keep-style max height */
+  max-height: 460px; /* Google Keep-style max height */
   overflow: hidden; /* Hide content that exceeds max height */
+  height: fit-content; /* Only take needed height, up to max */
 }
 
 .note-card:hover {
@@ -402,17 +405,29 @@ main {
   /* Text will be cut by parent max-height, no need for separate max-height */
 }
 
-/* Fade-out effect for truncated text - subtle indication of more content */
+/* Fade-out effect for truncated content */
 .note-card::after {
   content: '';
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 40px;
-  /* Subtle fade that works with all card colors */
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.5));
+  height: 80px; /* Taller gradient for better visibility */
+  /* Strong gradient to indicate truncation */
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 1));
   pointer-events: none;
+  opacity: 0; /* Hidden by default */
+  transition: opacity 0.2s;
+}
+
+/* Show strong fade when card content is truncated */
+.note-card.truncated::after {
+  opacity: 1;
+}
+
+/* Add subtle bottom padding to truncated cards */
+.note-card.truncated {
+  padding-bottom: 24px;
 }
 
 .note-card a {
@@ -678,6 +693,41 @@ main {
   color: #5f6368;
   font-weight: 500;
   font-size: 12px;
+}
+
+/* ===== IMAGE CROP ===== */
+.crop-container {
+  margin: 20px 0;
+}
+
+.crop-preview {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+#crop-canvas {
+  position: absolute;
+  cursor: move;
+  user-select: none;
+}
+
+.crop-circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 200px;
+  border: 3px solid #1a73e8;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  z-index: 10;
 }
 
 /* ===== SHARE UI ===== */
