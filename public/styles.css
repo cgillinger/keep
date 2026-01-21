@@ -327,8 +327,10 @@ main {
 /* ===== NOTES GRID ===== */
 .notes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
+  max-width: 1600px; /* Prevent cards from becoming too wide on very large screens */
+  margin: 0 auto;
 }
 
 .note-card {
