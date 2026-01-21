@@ -264,10 +264,17 @@ main {
   border-radius: 8px;
   padding: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 100;
+  z-index: 1000; /* Increased from 100 to ensure it's above modal content */
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   min-width: 150px;
+}
+
+/* In edit modal, open color picker upwards to avoid overflow issues */
+.modal-content .color-options {
+  top: auto;
+  bottom: 100%;
+  margin-bottom: 4px;
 }
 
 .color-picker:hover .color-options {
@@ -327,10 +334,11 @@ main {
 /* ===== NOTES GRID ===== */
 .notes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 8px; /* Reduced from 16px to match Google Keep's tighter spacing */
-  max-width: 1600px; /* Prevent cards from becoming too wide on very large screens */
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Reduced from 240px to fit more columns */
+  gap: 8px;
+  max-width: 100%; /* Use full available width */
   margin: 0 auto;
+  padding: 0 16px; /* Add padding on sides */
 }
 
 .note-card {
