@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const WebSocket = require('ws');
@@ -95,22 +96,30 @@ app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// Session configuration (SECURE)
-app.use(session({
+// Session configuration (SECURE) with persistent SQLite store
+const sessionConfig = {
+  store: new SQLiteStore({
+    db: 'sessions.db',
+    dir: './data',
+    table: 'sessions',
+    concurrentDB: true // Enable WAL mode for better concurrency
+  }),
   secret: process.env.SESSION_SECRET || (() => {
     console.error('WARNING: Using default session secret! Set SESSION_SECRET environment variable!');
     return 'keep-clone-secret-change-in-production';
   })(),
-  resave: true, // Save session on every request to ensure persistence
+  resave: false, // SQLite store handles persistence - don't save on every request
   saveUninitialized: false,
   cookie: {
-    secure: false, // Set to true only with HTTPS in production
+    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
     httpOnly: true, // Prevent JavaScript access
-    sameSite: 'lax', // Changed from 'strict' to 'lax' for better compatibility
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days (reduced from 30)
+    sameSite: 'lax', // Balance between security and compatibility
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   },
   name: 'sessionId' // Don't use default name
-}));
+};
+
+app.use(session(sessionConfig));
 
 // CSRF protection (except for specific routes)
 const csrfProtection = csrf({ cookie: true });
@@ -161,19 +170,8 @@ function validateColor(color) {
 
 // ===== WEBSOCKET WITH SECURE AUTHENTICATION =====
 
-// Store session parsers for WebSocket (must match main session config)
-const sessionParser = session({
-  secret: process.env.SESSION_SECRET || 'keep-clone-secret-change-in-production',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  },
-  name: 'sessionId' // CRITICAL: Must match main session name
-});
+// Use same session config for WebSocket authentication
+const sessionParser = session(sessionConfig);
 
 const clients = new Map(); // userId -> WebSocket connection
 
