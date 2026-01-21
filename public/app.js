@@ -224,12 +224,21 @@ function connectWebSocket() {
     }
   };
 
-  ws.onclose = () => {
-    console.log('WebSocket disconnected');
+  ws.onclose = (event) => {
+    console.log('WebSocket disconnected', event.code, event.reason);
+    // Don't reconnect if server rejected (auth error)
+    if (event.code === 1008) {
+      console.log('WebSocket closed by server - authentication required');
+      currentUser = null; // Clear user on auth failure
+      showAuthScreen();
+      return;
+    }
     // Only reconnect if user is still logged in
     if (currentUser) {
       console.log('Reconnecting in 5 seconds...');
       setTimeout(connectWebSocket, 5000);
+    } else {
+      console.log('Not reconnecting - user not logged in');
     }
   };
 
