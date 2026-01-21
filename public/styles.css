@@ -241,7 +241,10 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+  flex-shrink: 0; /* Don't shrink - always visible at bottom */
 }
 
 .note-options {
@@ -514,12 +517,10 @@ main {
   background: white;
   border-radius: 8px;
   padding: 24px;
-  padding-bottom: 180px; /* Extra padding at bottom for color picker dropdown */
   max-width: 600px;
   width: 100%;
-  min-height: 200px; /* Minimum height */
-  max-height: calc(100vh - 80px); /* Full height minus padding, like Google Keep */
-  overflow-y: auto;
+  height: calc(100vh - 80px); /* Fixed height - take almost full screen like Google Keep */
+  overflow: visible; /* Allow color picker to overflow */
   position: relative;
   display: flex;
   flex-direction: column;
@@ -549,6 +550,15 @@ main {
   background-color: #f1f3f4;
 }
 
+/* Make edit form grow to fill modal */
+.note-edit-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* Grow to fill available space in modal-content */
+  min-height: 0; /* Important for flexbox to work properly */
+  overflow-y: auto; /* Scroll inside form, not modal */
+}
+
 .note-edit-form input,
 .note-edit-form textarea {
   width: 100%;
@@ -557,7 +567,6 @@ main {
   outline: none;
   font-size: 14px;
   font-family: inherit;
-  resize: none;
   margin-bottom: 16px;
   padding: 8px 0;
   background: transparent;
@@ -566,6 +575,14 @@ main {
 .note-edit-form input {
   font-weight: 500;
   font-size: 18px;
+  flex-shrink: 0; /* Title should not shrink */
+}
+
+.note-edit-form textarea {
+  flex: 1; /* Textarea grows to fill available space */
+  min-height: 200px; /* Minimum reasonable height */
+  resize: vertical; /* Allow vertical resizing */
+  max-height: none; /* Remove any height restrictions */
 }
 
 /* ===== IMPORT MODAL ===== */
