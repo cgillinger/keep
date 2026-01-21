@@ -992,7 +992,7 @@ const upload = multer({
 });
 
 const uploadsDir = path.join(__dirname, 'data', 'uploads');
-const mediaDir = path.join(__dirname, 'data', 'media');
+const mediaDir = path.join(__dirname, 'data', 'note-images'); // Use same directory as regular note images
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
