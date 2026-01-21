@@ -644,12 +644,42 @@ function renderNotes() {
   // After rendering, detect truncated cards and add class
   setTimeout(() => {
     const cards = container.querySelectorAll('.note-card');
-    cards.forEach(card => {
+    const styles = [];
+
+    cards.forEach((card, index) => {
       // Check if card content is truncated (scrollHeight > clientHeight)
       if (card.scrollHeight > card.clientHeight) {
         card.classList.add('truncated');
+        card.dataset.cardIndex = index;
+
+        // Set gradient to match card's background color
+        const bgColor = window.getComputedStyle(card).backgroundColor;
+        // Convert rgb(r, g, b) to rgba(r, g, b, a) for gradient
+        const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (rgbMatch) {
+          const [, r, g, b] = rgbMatch;
+          const gradient = `linear-gradient(to bottom, rgba(${r}, ${g}, ${b}, 0), rgba(${r}, ${g}, ${b}, 1))`;
+          styles.push(`
+            .note-card[data-card-index="${index}"]::after {
+              background: ${gradient};
+            }
+          `);
+        }
       }
     });
+
+    // Remove old truncation styles and add new ones
+    const oldStyle = document.getElementById('truncation-gradients');
+    if (oldStyle) {
+      oldStyle.remove();
+    }
+
+    if (styles.length > 0) {
+      const styleEl = document.createElement('style');
+      styleEl.id = 'truncation-gradients';
+      styleEl.textContent = styles.join('\n');
+      document.head.appendChild(styleEl);
+    }
   }, 10); // Small delay to ensure DOM is updated
 }
 

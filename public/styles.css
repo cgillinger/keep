@@ -333,7 +333,7 @@ main {
 .notes-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Reduced from 240px to fit more columns */
-  gap: 8px;
+  gap: 4px; /* Minimal spacing like Google Keep */
   max-width: 100%; /* Use full available width */
   margin: 0 auto;
   padding: 0 16px; /* Add padding on sides */
@@ -413,8 +413,7 @@ main {
   left: 0;
   right: 0;
   height: 80px; /* Taller gradient for better visibility */
-  /* Strong gradient to indicate truncation */
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 1));
+  /* Gradient will be set dynamically via JavaScript to match card color */
   pointer-events: none;
   opacity: 0; /* Hidden by default */
   transition: opacity 0.2s;
@@ -649,6 +648,7 @@ main {
   background: #e8eaed;
   background-size: cover;
   background-position: center;
+  overflow: hidden;
   cursor: pointer;
   transition: opacity 0.2s;
   display: flex;
