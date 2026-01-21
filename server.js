@@ -55,25 +55,28 @@ app.use(helmet({
 }));
 
 // Rate limiters
+// Development-friendly: More lenient limits for testing
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts
+  windowMs: isDevelopment ? 1 * 60 * 1000 : 15 * 60 * 1000, // 1 min dev, 15 min prod
+  max: isDevelopment ? 50 : 5, // 50 attempts dev, 5 prod
   message: 'För många inloggningsförsök. Försök igen om 15 minuter.',
   standardHeaders: true,
   legacyHeaders: false
 });
 
 const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // 3 registrations per hour per IP
+  windowMs: isDevelopment ? 1 * 60 * 1000 : 60 * 60 * 1000, // 1 min dev, 1 hour prod
+  max: isDevelopment ? 20 : 3, // 20 registrations dev, 3 prod
   message: 'För många registreringar. Försök igen senare.',
   standardHeaders: true,
   legacyHeaders: false
 });
 
 const importLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // 10 imports per hour
+  windowMs: isDevelopment ? 1 * 60 * 1000 : 60 * 60 * 1000, // 1 min dev, 1 hour prod
+  max: isDevelopment ? 50 : 10, // 50 imports dev, 10 prod
   message: 'För många importer. Försök igen senare.',
   standardHeaders: true,
   legacyHeaders: false
@@ -81,7 +84,7 @@ const importLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 100, // 100 requests per minute
+  max: isDevelopment ? 500 : 100, // 500 requests dev, 100 prod
   message: 'För många förfrågningar. Var god vänta.',
   standardHeaders: true,
   legacyHeaders: false
