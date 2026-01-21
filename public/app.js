@@ -222,8 +222,12 @@ function connectWebSocket() {
   };
 
   ws.onclose = () => {
-    console.log('WebSocket disconnected, reconnecting...');
-    setTimeout(connectWebSocket, 5000);
+    console.log('WebSocket disconnected');
+    // Only reconnect if user is still logged in
+    if (currentUser) {
+      console.log('Reconnecting in 5 seconds...');
+      setTimeout(connectWebSocket, 5000);
+    }
   };
 
   ws.onerror = (error) => {
