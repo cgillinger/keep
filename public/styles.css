@@ -241,10 +241,11 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 16px;
-  padding-top: 16px;
+  padding: 16px 24px; /* Add padding on all sides */
   border-top: 1px solid #e0e0e0;
   flex-shrink: 0; /* Don't shrink - always visible at bottom */
+  background: white; /* Ensure solid background */
+  position: relative; /* For color picker positioning context */
 }
 
 .note-options {
@@ -260,22 +261,18 @@ main {
 .color-options {
   display: none;
   position: absolute;
-  top: 100%;
+  bottom: 100%; /* Open upwards instead of downwards */
   right: 0;
   background: white;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   padding: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  z-index: 10000; /* Very high z-index to be above modal content */
+  z-index: 10000; /* Very high z-index to be above everything */
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   min-width: 150px;
-  margin-top: 4px;
-}
-
-.color-picker:hover .color-options {
-  display: grid;
+  margin-bottom: 4px; /* Space from button when opening upwards */
 }
 
 .color-picker:hover .color-options {
@@ -517,13 +514,14 @@ main {
   background: white;
   border-radius: 8px;
   padding: 24px;
+  padding-bottom: 0; /* Remove bottom padding - actions will have their own */
   max-width: 600px;
   width: 100%;
   height: calc(100vh - 80px); /* Fixed height - take almost full screen like Google Keep */
-  overflow: visible; /* Allow color picker to overflow */
   position: relative;
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* Prevent overflow on modal itself */
 }
 
 .modal-close-btn {
@@ -557,6 +555,8 @@ main {
   flex: 1; /* Grow to fill available space in modal-content */
   min-height: 0; /* Important for flexbox to work properly */
   overflow-y: auto; /* Scroll inside form, not modal */
+  padding: 0 24px; /* Add horizontal padding since we removed it from modal-content bottom */
+  margin: 0 -24px; /* Negative margin to extend to edges */
 }
 
 .note-edit-form input,
