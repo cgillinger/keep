@@ -350,12 +350,13 @@ main {
 .notes-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); /* Increased 15% from 200px */
-  gap: 8px !important; /* Google Keep uses ~8px for visual separation */
+  gap: 2px !important; /* MINIMAL spacing - almost touching */
   max-width: 100%; /* Use full available width */
   margin: 0 auto;
-  padding: 0 8px !important; /* Minimal but reasonable side padding */
+  padding: 0 4px !important; /* Minimal side padding */
   grid-auto-rows: min-content; /* CRITICAL: Each row only as tall as needed */
   align-items: start; /* Align cards to top, don't stretch */
+  background: #f0f0f0; /* TEMPORARY: Debug marker to verify CSS is loading */
 }
 
 .note-card {
