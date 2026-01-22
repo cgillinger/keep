@@ -422,6 +422,16 @@ function renderNotes() {
     return true;
   });
 
+  // Sort notes: pinned first, then by most recent update
+  filteredNotes.sort((a, b) => {
+    // Pinned notes always come first
+    if (a.is_pinned !== b.is_pinned) {
+      return b.is_pinned - a.is_pinned;
+    }
+    // Within same pinned status, sort by updated_at descending (newest first)
+    return new Date(b.updated_at) - new Date(a.updated_at);
+  });
+
   if (filteredNotes.length === 0) {
     const emptyMessage = showingShared
       ? 'Inga delade anteckningar ännu'
