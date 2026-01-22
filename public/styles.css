@@ -350,19 +350,19 @@ main {
 .notes-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); /* Increased 15% from 200px */
-  gap: 2px; /* Minimal spacing - almost no gap like Google Keep */
+  gap: 1px; /* Absolute minimal spacing like Google Keep */
   max-width: 100%; /* Use full available width */
   margin: 0 auto;
-  padding: 0 8px; /* Reduced padding for more card space */
+  padding: 0 4px; /* Minimal padding */
   grid-auto-rows: min-content; /* CRITICAL: Each row only as tall as needed */
   align-items: start; /* Align cards to top, don't stretch */
 }
 
 .note-card {
   background: white;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #e8eaed; /* Lighter border for less visual separation */
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px; /* Reduced internal padding */
   cursor: pointer;
   transition: box-shadow 0.2s;
   position: relative;
