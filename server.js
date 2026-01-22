@@ -19,6 +19,7 @@ const sharp = require('sharp');
 
 const db = require('./database');
 const KeepImportParser = require('./import-parser');
+const BackupGenerator = require('./export-generator');
 const mailer = require('./mailer');
 const crypto = require('crypto');
 
@@ -1159,8 +1160,9 @@ const upload = multer({
   }
 });
 
-const uploadsDir = path.join(__dirname, 'data', 'uploads');
-const mediaDir = path.join(__dirname, 'data', 'note-images'); // Use same directory as regular note images
+const dataDir = path.join(__dirname, 'data');
+const uploadsDir = path.join(dataDir, 'uploads');
+const mediaDir = path.join(dataDir, 'note-images'); // Use same directory as regular note images
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -1269,6 +1271,60 @@ function importNote(note) {
     );
   });
 }
+
+// ===== EXPORT ENDPOINT =====
+
+app.get('/api/backup/export', requireAuth, async (req, res) => {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+  const outputFilename = `keep-clone-backup-${timestamp}.zip`;
+  const outputPath = path.join(uploadsDir, outputFilename);
+
+  try {
+    console.log('Generating backup for user:', req.session.userId);
+
+    const generator = new BackupGenerator(req.session.userId, db, dataDir, outputPath);
+    const result = await generator.generate();
+
+    if (!result.success) {
+      throw new Error('Backup generation failed');
+    }
+
+    console.log('Backup generated:', result.stats);
+
+    // Send file
+    res.download(outputPath, outputFilename, (err) => {
+      // Clean up file after sending
+      try {
+        if (fs.existsSync(outputPath)) {
+          fs.unlinkSync(outputPath);
+        }
+      } catch (cleanupError) {
+        console.error('Failed to cleanup backup file:', cleanupError);
+      }
+
+      if (err) {
+        console.error('Error sending backup:', err);
+      }
+    });
+
+  } catch (error) {
+    console.error('Export error:', error);
+
+    // Clean up on error
+    try {
+      if (fs.existsSync(outputPath)) {
+        fs.unlinkSync(outputPath);
+      }
+    } catch (cleanupError) {
+      console.error('Cleanup error:', cleanupError);
+    }
+
+    res.status(500).json({
+      error: 'Export misslyckades',
+      message: 'Ett fel uppstod vid export av backup.'
+    });
+  }
+});
 
 // ===== ERROR HANDLING =====
 

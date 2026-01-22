@@ -1597,6 +1597,54 @@ function formatFileSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
+// ===== EXPORT FUNCTIONS =====
+async function exportBackup() {
+  if (!confirm('Vill du exportera en backup av alla dina anteckningar?')) {
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/backup/export', {
+      method: 'GET',
+      credentials: 'include',
+      headers: getCSRFHeaders()
+    });
+
+    if (response.ok) {
+      // Get filename from Content-Disposition header or use default
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = 'keep-clone-backup.zip';
+      if (disposition && disposition.includes('filename=')) {
+        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
+
+      // Create download link
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      alert('Backup exporterad!');
+    } else if (response.status === 403) {
+      await fetchCSRFToken();
+      alert('Session expired, please try again');
+    } else {
+      throw new Error('Export failed');
+    }
+  } catch (error) {
+    console.error('Export error:', error);
+    alert('Kunde inte exportera backup. Kontrollera att du är inloggad.');
+  }
+}
+
 // ===== UTILITY =====
 function escapeHtml(text) {
   if (typeof text !== 'string') return '';

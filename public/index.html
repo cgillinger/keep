@@ -100,9 +100,6 @@
           <button class="btn-secondary" onclick="toggleShared()">
             <span id="shared-toggle-text">Visa delade</span>
           </button>
-          <button class="btn-secondary" onclick="openImportModal()">
-            📥 Importera
-          </button>
           <button class="btn-secondary" onclick="toggleArchived()">
             <span id="archive-toggle-text">Visa arkiv</span>
           </button>
@@ -332,6 +329,18 @@
           <input type="checkbox" id="show-created-date-toggle" onchange="toggleShowCreatedDate()" style="width: 18px; height: 18px;">
           <span style="font-size: 14px; color: #202124;">Visa skapdatum på anteckningar</span>
         </label>
+      </div>
+
+      <div style="margin: 20px 0; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+        <h3 style="font-size: 14px; margin-bottom: 12px; color: #202124;">Data och backup</h3>
+        <div style="display: flex; gap: 8px; flex-direction: column;">
+          <button class="btn-secondary" onclick="openImportModal()" style="width: 100%; justify-content: center;">
+            📥 Importera från Google Keep
+          </button>
+          <button class="btn-secondary" onclick="exportBackup()" style="width: 100%; justify-content: center;">
+            📤 Exportera backup
+          </button>
+        </div>
       </div>
 
       <div class="note-form-actions" style="margin-top: 20px;">
