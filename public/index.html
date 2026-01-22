@@ -5,6 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Keep Clone - Familjeanteckningar</title>
   <link rel="stylesheet" href="styles.css?v=3">
+  <style>
+    /* CRITICAL OVERRIDES - Inline to bypass caching */
+    .notes-grid {
+      display: grid !important;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)) !important;
+      gap: 2px !important;
+      max-width: 100% !important;
+      margin: 0 auto !important;
+      padding: 0 4px !important;
+      grid-auto-rows: min-content !important;
+      align-items: start !important;
+      background: #f5f5f5 !important; /* Visible debug marker */
+    }
+
+    .note-card {
+      background: white !important;
+      border: 1px solid #e0e0e0 !important;
+      border-radius: 8px !important;
+      padding: 12px !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+      margin: 0 !important;
+    }
+
+    .note-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+      transform: translateY(-2px) !important;
+    }
+  </style>
 </head>
 <body>
   <!-- Login/Register Screen -->
