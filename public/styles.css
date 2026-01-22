@@ -350,7 +350,7 @@ main {
 .notes-grid {
   /* CSS Grid for horizontal layout with masonry-like packing */
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   grid-auto-rows: 10px; /* Small row units for tight packing */
   gap: 16px;
   max-width: 100%;
@@ -1083,33 +1083,4 @@ main {
   }
 }
 
-/* Responsive grid columns for horizontal layout */
-@media (min-width: 1400px) {
-  .notes-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (min-width: 1200px) and (max-width: 1399px) {
-  .notes-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (min-width: 992px) and (max-width: 1199px) {
-  .notes-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 769px) and (max-width: 991px) {
-  .notes-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 576px) and (max-width: 768px) {
-  .notes-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
+/* Grid automatically adapts columns based on available space */
