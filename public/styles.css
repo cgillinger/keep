@@ -92,9 +92,26 @@ body {
 
 .error-message {
   color: #d93025;
+  background: #fce8e6;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
   text-align: center;
   margin-top: 15px;
+  padding: 12px;
   font-size: 14px;
+  font-weight: 500;
+  display: none; /* Hidden by default */
+  animation: shake 0.5s;
+}
+
+.error-message:not(:empty) {
+  display: block; /* Show when has content */
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-10px); }
+  75% { transform: translateX(10px); }
 }
 
 /* ===== HEADER ===== */

@@ -195,7 +195,28 @@ async function logout() {
 }
 
 function showAuthError(message) {
-  document.getElementById('auth-error').textContent = message;
+  const errorElement = document.getElementById('auth-error');
+  errorElement.textContent = message;
+
+  // Add error styling to input fields
+  const visibleForm = document.getElementById('login-form').style.display !== 'none'
+    ? 'login-form'
+    : 'register-form';
+
+  const inputs = document.querySelectorAll(`#${visibleForm} input`);
+  inputs.forEach(input => {
+    input.style.borderColor = '#d93025';
+    input.style.backgroundColor = '#fef7f7';
+  });
+
+  // Remove error styling when user starts typing
+  inputs.forEach(input => {
+    input.addEventListener('input', function clearError() {
+      input.style.borderColor = '';
+      input.style.backgroundColor = '';
+      input.removeEventListener('input', clearError);
+    }, { once: true });
+  });
 }
 
 // ===== WEBSOCKET =====
@@ -293,7 +314,6 @@ function openProfileModal() {
 
     // Highlight selected avatar color
     updateSelectedAvatarColor(avatarColor);
-    }
   }
 
   document.getElementById('profile-modal').classList.add('active');
