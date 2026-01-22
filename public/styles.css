@@ -125,7 +125,7 @@ header {
 }
 
 .header-content {
-  max-width: 1200px;
+  max-width: 2400px; /* Match main content width for consistency */
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
@@ -219,7 +219,7 @@ button {
 
 /* ===== MAIN CONTENT ===== */
 main {
-  max-width: 1200px;
+  max-width: 2400px; /* Increased for better 4K screen support */
   margin: 0 auto;
   padding: 24px;
 }
