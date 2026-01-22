@@ -410,7 +410,10 @@ async function loadNotes() {
 }
 
 function renderNotes() {
-  const container = document.getElementById('notes-grid');
+  const regularContainer = document.getElementById('notes-grid');
+  const pinnedContainer = document.getElementById('pinned-notes-grid');
+  const pinnedSection = document.getElementById('pinned-section');
+  const otherLabel = document.getElementById('other-label');
   const searchTerm = document.getElementById('search-input').value.toLowerCase();
 
   const filteredNotes = notes.filter(note => {
@@ -422,15 +425,23 @@ function renderNotes() {
     return true;
   });
 
-  // Sort notes: pinned first, then by most recent update
-  filteredNotes.sort((a, b) => {
-    // Pinned notes always come first
-    if (a.is_pinned !== b.is_pinned) {
-      return b.is_pinned - a.is_pinned;
-    }
-    // Within same pinned status, sort by updated_at descending (newest first)
-    return new Date(b.updated_at) - new Date(a.updated_at);
-  });
+  // Separate pinned and regular notes
+  const pinnedNotes = filteredNotes.filter(note => note.is_pinned);
+  const regularNotes = filteredNotes.filter(note => !note.is_pinned);
+
+  // Sort each group by updated_at descending (newest first)
+  pinnedNotes.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+  regularNotes.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+
+  // Show/hide sections
+  if (pinnedNotes.length > 0) {
+    pinnedSection.style.display = 'block';
+    // Show "ANDRA" label only if there are both pinned and regular notes
+    otherLabel.style.display = regularNotes.length > 0 ? 'block' : 'none';
+  } else {
+    pinnedSection.style.display = 'none';
+    otherLabel.style.display = 'none';
+  }
 
   if (filteredNotes.length === 0) {
     const emptyMessage = showingShared
@@ -438,11 +449,13 @@ function renderNotes() {
       : showingArchived
         ? 'Inga arkiverade anteckningar'
         : 'Inga anteckningar ännu';
-    container.innerHTML = `<p style="text-align: center; color: #5f6368; grid-column: 1/-1;">${emptyMessage}</p>`;
+    regularContainer.innerHTML = `<p style="text-align: center; color: #5f6368; grid-column: 1/-1;">${emptyMessage}</p>`;
+    pinnedContainer.innerHTML = '';
     return;
   }
 
-  container.innerHTML = filteredNotes.map(note => {
+  // Render function for a single note
+  const renderNote = (note) => {
     let contentHtml = '';
     let shareIndicator = '';
     let ownerIndicator = '';
@@ -520,14 +533,21 @@ function renderNotes() {
         ${shareIndicator}
       </div>
     `;
-  }).join('');
+  };
+
+  // Render pinned and regular notes in their respective containers
+  pinnedContainer.innerHTML = pinnedNotes.map(renderNote).join('');
+  regularContainer.innerHTML = regularNotes.map(renderNote).join('');
 
   // After rendering, detect truncated cards and add class
   setTimeout(() => {
-    const cards = container.querySelectorAll('.note-card');
+    const allCards = [
+      ...pinnedContainer.querySelectorAll('.note-card'),
+      ...regularContainer.querySelectorAll('.note-card')
+    ];
     const styles = [];
 
-    cards.forEach((card, index) => {
+    allCards.forEach((card, index) => {
       // Check if card content is truncated (scrollHeight > clientHeight)
       if (card.scrollHeight > card.clientHeight) {
         card.classList.add('truncated');

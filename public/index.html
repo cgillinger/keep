@@ -124,8 +124,20 @@
 
       <!-- Notes Grid -->
       <div class="notes-container" id="notes-container">
-        <div class="notes-grid" id="notes-grid">
-          <!-- Notes will be inserted here -->
+        <!-- Pinned notes section -->
+        <div id="pinned-section" style="display: none;">
+          <div class="section-label">FÄSTA</div>
+          <div class="notes-grid" id="pinned-notes-grid">
+            <!-- Pinned notes will be inserted here -->
+          </div>
+        </div>
+
+        <!-- Regular notes section -->
+        <div id="other-section">
+          <div class="section-label" id="other-label" style="display: none;">ANDRA</div>
+          <div class="notes-grid" id="notes-grid">
+            <!-- Regular notes will be inserted here -->
+          </div>
         </div>
       </div>
     </main>
