@@ -7,36 +7,54 @@
   <link rel="stylesheet" href="styles.css?v=3">
   <style>
     /* CRITICAL OVERRIDES - Inline to bypass caching */
+
+    /* Override main container to use full width */
+    main {
+      max-width: 100% !important;
+      width: 100% !important;
+      padding: 16px 4px !important;
+      margin: 0 !important;
+    }
+
+    .notes-container {
+      max-width: 100% !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
     .notes-grid {
       display: grid !important;
       grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)) !important;
-      gap: 0 !important; /* ZERO gap */
-      row-gap: 0 !important; /* Explicit zero row gap */
-      column-gap: 0 !important; /* Explicit zero column gap */
-      grid-gap: 0 !important; /* Legacy property just in case */
+      gap: 0 !important;
+      row-gap: 0 !important;
+      column-gap: 0 !important;
+      grid-gap: 0 !important;
       max-width: 100% !important;
-      margin: 0 auto !important;
-      padding: 0 8px !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
       grid-auto-rows: min-content !important;
       align-items: start !important;
       justify-items: stretch !important;
-      background: white !important;
+      justify-content: start !important;
+      align-content: start !important;
+      background: #ffe0e0 !important; /* PINK DEBUG - shows grid container area */
     }
 
     .note-card {
       background: white !important;
-      border: 1px solid #e0e0e0 !important;
-      border-radius: 0 !important; /* TEMP: Remove radius to see if cards touch */
+      border: 2px solid #ff0000 !important; /* RED border - clearly shows card boundaries */
+      border-radius: 0 !important;
       padding: 12px !important;
-      box-shadow: none !important; /* TEMP: Remove shadow to eliminate visual spacing */
+      box-shadow: none !important;
       margin: 0 !important;
-      padding: 12px !important;
       box-sizing: border-box !important;
       width: 100% !important;
     }
 
     .note-card:hover {
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+      background: #f0f0f0 !important;
     }
   </style>
 </head>
