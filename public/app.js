@@ -539,7 +539,7 @@ function renderNotes() {
   pinnedContainer.innerHTML = pinnedNotes.map(renderNote).join('');
   regularContainer.innerHTML = regularNotes.map(renderNote).join('');
 
-  // After rendering, detect truncated cards and add class
+  // After rendering, detect truncated cards, add class, and calculate grid spans
   setTimeout(() => {
     const allCards = [
       ...pinnedContainer.querySelectorAll('.note-card'),
@@ -548,6 +548,14 @@ function renderNotes() {
     const styles = [];
 
     allCards.forEach((card, index) => {
+      // Calculate grid-row span based on card height
+      // Each grid row unit is 10px, gap is 16px
+      const cardHeight = card.getBoundingClientRect().height;
+      const rowHeight = 10; // Must match grid-auto-rows in CSS
+      const gap = 16; // Must match gap in CSS
+      const rowSpan = Math.ceil((cardHeight + gap) / (rowHeight + gap));
+      card.style.gridRowEnd = `span ${rowSpan}`;
+
       // Check if card content is truncated (scrollHeight > clientHeight)
       if (card.scrollHeight > card.clientHeight) {
         card.classList.add('truncated');

@@ -348,9 +348,10 @@ main {
 
 /* ===== NOTES GRID ===== */
 .notes-grid {
-  /* CSS Grid for horizontal layout (left-to-right, top-to-bottom) */
+  /* CSS Grid for horizontal layout with masonry-like packing */
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 10px; /* Small row units for tight packing */
   gap: 16px;
   max-width: 100%;
   margin: 0 auto;
@@ -1066,6 +1067,7 @@ main {
 
   .notes-grid {
     grid-template-columns: 1fr;
+    grid-auto-rows: 10px; /* Small row units for tight packing */
     padding: 0; /* Remove padding for edge-to-edge cards on mobile */
     gap: 8px 0; /* Vertical gap only, no horizontal gap */
   }
