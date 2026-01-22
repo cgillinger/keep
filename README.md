@@ -24,6 +24,7 @@ En säker, självhostad Google Keep-klon med delningsfunktioner, profilbilder oc
 
 - Node.js 16 eller senare
 - npm (medföljer Node.js)
+- ca 200 MB diskutrymme (för dependencies och data)
 
 ### Installation
 
@@ -38,12 +39,48 @@ cd keep-clone
 npm install
 ```
 
-3. **Starta servern:**
+3. **Konfigurera miljövariabler:**
+
+Skapa en `.env`-fil i projektets root-katalog (eller kopiera från `.env.example`):
+
+```bash
+cp .env.example .env
+```
+
+**Redigera `.env` och ändra följande:**
+
+**OBLIGATORISKT:**
+- `SESSION_SECRET`: Ändra till en lång, slumpmässig sträng för säkra sessioner
+  ```bash
+  # Generera en säker secret med:
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  ```
+
+**VALFRITT (för lösenordsåterställning):**
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`: E-postkonfiguration
+- Om dessa inte är ifyllda fungerar appen ändå, men utan lösenordsåterställning
+- För Gmail: Aktivera 2FA och skapa ett applösenord på https://myaccount.google.com/apppasswords
+
+**Exempel `.env`-fil:**
+```env
+SESSION_SECRET=din_säkra_slumpmässiga_sträng_här
+PORT=3000
+
+# Valfritt - E-post för lösenordsåterställning
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=din.familj@gmail.com
+SMTP_PASS=ditt_applösenord_här
+EMAIL_FROM=Keep Clone <din.familj@gmail.com>
+```
+
+4. **Starta servern:**
 ```bash
 npm start
 ```
 
-4. **Öppna i webbläsaren:**
+5. **Öppna i webbläsaren:**
 ```
 http://localhost:3000
 ```
@@ -55,11 +92,22 @@ http://localhost:3000
 3. Logga in
 4. Börja skapa anteckningar!
 
+**Vad skapas automatiskt:**
+- `data/notes.db` - SQLite-databasen (skapas vid första start)
+- `data/sessions/` - Sessionsdatabas
+- `data/profile-pictures/` - Profilbilder (skapas vid första uppladdning)
+- `data/media/` - Importerade bilagor (skapas vid första import)
+
+**Tips:** Backa upp `data/`-mappen regelbundet för att spara dina anteckningar!
+
 ## 📦 Docker (rekommenderat för produktion)
 
 ### Docker Compose
 
-1. **Skapa `docker-compose.yml`:**
+1. **Skapa `.env`-fil först:**
+Se installationsinstruktionerna ovan för att skapa och konfigurera `.env`-filen.
+
+2. **Skapa `docker-compose.yml`:**
 ```yaml
 version: '3.8'
 
@@ -74,25 +122,40 @@ services:
       - "3000:3000"
     command: sh -c "npm install && npm start"
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
 ```
 
-2. **Starta:**
+3. **Starta:**
 ```bash
 docker-compose up -d
 ```
+
+**Tips för Docker:**
+- `.env`-filen läses automatiskt med `env_file: - .env`
+- Data sparas i `./data` på host-maskinen (överlever container-omstarter)
+- Loggar: `docker-compose logs -f keep-clone`
+- Stoppa: `docker-compose down`
 
 ### Synology NAS
 
 1. Öppna Docker-paketet i DSM
 2. Ladda ner "node:18-alpine" imagen
-3. Skapa en ny container:
+3. Skapa projektmapp på din NAS (t.ex. `/volume1/docker/keep-clone`)
+4. Ladda upp projektfilerna till mappen (eller klona med git)
+5. Skapa `.env`-fil i projektmappen med din SESSION_SECRET
+6. Skapa en ny container:
    - Image: node:18-alpine
    - Port: 3000:3000
-   - Volume: Mappa en lokal mapp till `/app` och `/app/data`
+   - Volume: Mappa projektmappen till `/app` (t.ex. `/volume1/docker/keep-clone` → `/app`)
+   - Environment: Lägg till `NODE_ENV=production` och `SESSION_SECRET=din_secret_här`
    - Command: `sh -c "cd /app && npm install && npm start"`
-4. Starta containern
+7. Starta containern
+
+**OBS:** Du kan antingen sätta miljövariabler via `.env`-fil ELLER direkt i container-inställningarna.
+Rekommenderat är att använda `.env`-filen för enklare hantering.
 
 **Åtkomst via Tailscale:**
 - Installera Tailscale på din NAS
@@ -313,6 +376,22 @@ kill -9 <PID>
 PORT=3001 npm start
 ```
 
+**Problem:** "SESSION_SECRET not configured" eller sessionsfel
+
+**Lösning:**
+- Kontrollera att du har skapat en `.env`-fil i projektets root
+- Se till att `SESSION_SECRET` är satt till en lång, slumpmässig sträng
+- Generera en ny secret: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+
+**Problem:** Moduler saknas eller npm-fel
+
+**Lösning:**
+```bash
+# Rensa och installera om dependencies
+rm -rf node_modules package-lock.json
+npm install
+```
+
 ### Kan inte logga in
 
 **Problem:** Felaktigt lösenord eller användarnamn
@@ -345,10 +424,36 @@ PORT=3001 npm start
 
 ### Utvecklingsläge med auto-restart
 
+För utveckling med automatisk omstart vid filändringar:
+
 ```bash
+# Installera nodemon globalt (valfritt, redan i devDependencies)
 npm install -g nodemon
+
+# Starta i utvecklingsläge
 npm run dev
 ```
+
+### Utveckling vs Produktion
+
+Keep Clone har olika säkerhetsinställningar för utveckling och produktion:
+
+**Utvecklingsläge (NODE_ENV != 'production'):**
+- Mer generösa rate limits för testning
+- Login: 50 försök/minut
+- Register: 20 försök/minut
+- API: 500 anrop/minut
+
+**Produktionsläge:**
+```bash
+NODE_ENV=production npm start
+```
+- Striktare säkerhet
+- Login: 5 försök/15 min
+- Register: 3 försök/timme
+- API: 100 anrop/minut
+
+**Rekommendation:** Kör alltid i produktionsläge på publika servrar!
 
 ### Testa import-funktionen
 
