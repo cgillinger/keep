@@ -1054,6 +1054,15 @@ main {
 
   .notes-grid {
     column-count: 1;
+    padding: 0; /* Remove padding for edge-to-edge cards on mobile */
+    column-gap: 0; /* Remove gap since we only have 1 column */
+  }
+
+  .note-card {
+    border-radius: 0; /* Remove rounded corners for edge-to-edge look */
+    border-left: none; /* Remove left border */
+    border-right: none; /* Remove right border */
+    margin-bottom: 8px; /* Reduce spacing between cards on mobile */
   }
 
   .images-preview {
