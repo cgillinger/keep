@@ -1342,15 +1342,55 @@ function toggleChecklist() {
   const container = document.getElementById('checklist-container');
   const contentArea = document.getElementById('new-note-content');
   const toggle = document.getElementById('checklist-toggle');
+  const itemsContainer = document.getElementById('checklist-items');
 
   if (isChecklistMode) {
+    // Switching TO checklist mode
     container.style.display = 'block';
     contentArea.style.display = 'none';
     toggle.textContent = '☑';
-    if (document.getElementById('checklist-items').children.length === 0) {
+
+    // Convert existing text content to checklist items
+    const existingContent = contentArea.value.trim();
+    if (existingContent && itemsContainer.children.length === 0) {
+      // Split content by newlines and create checklist items
+      const lines = existingContent.split('\n').filter(line => line.trim() !== '');
+      lines.forEach(line => {
+        const item = document.createElement('div');
+        item.className = 'checklist-item';
+        item.innerHTML = `
+          <input type="checkbox">
+          <input type="text" value="${escapeHtml(line.trim())}" placeholder="Listpunkt">
+          <button onclick="removeChecklistItem(this)">×</button>
+        `;
+        itemsContainer.appendChild(item);
+      });
+
+      // Clear the textarea since content is now in checklist
+      contentArea.value = '';
+    } else if (itemsContainer.children.length === 0) {
+      // No existing content, add empty checklist item
       addChecklistItem();
     }
   } else {
+    // Switching FROM checklist mode back to text mode
+    // Convert checklist items back to text
+    const items = [];
+    itemsContainer.querySelectorAll('.checklist-item').forEach(item => {
+      const textInput = item.querySelector('input[type="text"]');
+      if (textInput && textInput.value.trim()) {
+        items.push(textInput.value.trim());
+      }
+    });
+
+    // If there are checklist items and no text content, convert them to text
+    if (items.length > 0 && !contentArea.value.trim()) {
+      contentArea.value = items.join('\n');
+    }
+
+    // Clear checklist items
+    itemsContainer.innerHTML = '';
+
     container.style.display = 'none';
     contentArea.style.display = 'block';
     toggle.textContent = '☐';
@@ -1400,17 +1440,55 @@ function toggleEditChecklist() {
   const container = document.getElementById('edit-checklist-container');
   const contentArea = document.getElementById('edit-note-content');
   const toggle = document.getElementById('edit-checklist-toggle');
+  const itemsContainer = document.getElementById('edit-checklist-items');
 
   if (container.style.display === 'none') {
+    // Switching TO checklist mode
     container.style.display = 'block';
     contentArea.style.display = 'none';
     toggle.textContent = '☑';
 
-    const itemsContainer = document.getElementById('edit-checklist-items');
-    if (itemsContainer.children.length === 0) {
+    // Convert existing text content to checklist items
+    const existingContent = contentArea.value.trim();
+    if (existingContent && itemsContainer.children.length === 0) {
+      // Split content by newlines and create checklist items
+      const lines = existingContent.split('\n').filter(line => line.trim() !== '');
+      lines.forEach(line => {
+        const item = document.createElement('div');
+        item.className = 'checklist-item';
+        item.innerHTML = `
+          <input type="checkbox">
+          <input type="text" value="${escapeHtml(line.trim())}" placeholder="Listpunkt">
+          <button onclick="removeEditChecklistItem(${itemsContainer.children.length})">×</button>
+        `;
+        itemsContainer.appendChild(item);
+      });
+
+      // Clear the textarea since content is now in checklist
+      contentArea.value = '';
+    } else if (itemsContainer.children.length === 0) {
+      // No existing content, add empty checklist item
       addEditChecklistItem();
     }
   } else {
+    // Switching FROM checklist mode back to text mode
+    // Convert checklist items back to text
+    const items = [];
+    itemsContainer.querySelectorAll('.checklist-item').forEach(item => {
+      const textInput = item.querySelector('input[type="text"]');
+      if (textInput && textInput.value.trim()) {
+        items.push(textInput.value.trim());
+      }
+    });
+
+    // If there are checklist items and no text content, convert them to text
+    if (items.length > 0 && !contentArea.value.trim()) {
+      contentArea.value = items.join('\n');
+    }
+
+    // Clear checklist items
+    itemsContainer.innerHTML = '';
+
     container.style.display = 'none';
     contentArea.style.display = 'block';
     toggle.textContent = '☐';
@@ -1446,6 +1524,25 @@ function updateEditChecklistItem(index) {
 
 // ===== COLOR PICKER =====
 function setupColorPickers() {
+  // Handle color picker toggle buttons
+  document.querySelectorAll('.color-picker > .btn-icon').forEach(toggleBtn => {
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const colorPicker = toggleBtn.closest('.color-picker');
+
+      // Close all other color pickers
+      document.querySelectorAll('.color-picker').forEach(picker => {
+        if (picker !== colorPicker) {
+          picker.classList.remove('active');
+        }
+      });
+
+      // Toggle this color picker
+      colorPicker.classList.toggle('active');
+    });
+  });
+
+  // Handle color button clicks
   document.querySelectorAll('.color-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1460,7 +1557,19 @@ function setupColorPickers() {
         selectedColor = color;
         document.getElementById('new-note-form').style.backgroundColor = color;
       }
+
+      // Close the color picker after selecting a color
+      btn.closest('.color-picker').classList.remove('active');
     });
+  });
+
+  // Close color pickers when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.color-picker')) {
+      document.querySelectorAll('.color-picker').forEach(picker => {
+        picker.classList.remove('active');
+      });
+    }
   });
 }
 

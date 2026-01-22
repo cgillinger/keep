@@ -317,7 +317,7 @@ main {
   margin-bottom: 4px; /* Space from button when opening upwards */
 }
 
-.color-picker:hover .color-options {
+.color-picker.active .color-options {
   display: grid;
 }
 
