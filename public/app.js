@@ -1468,6 +1468,9 @@ function setupColorPickers() {
 let selectedImportFile = null;
 
 function openImportModal() {
+  // Close profile modal if it's open to prevent z-index layering issues
+  document.getElementById('profile-modal').classList.remove('active');
+
   document.getElementById('import-modal').classList.add('active');
   selectedImportFile = null;
   document.getElementById('import-file-name').textContent = '';
