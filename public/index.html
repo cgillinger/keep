@@ -4,7 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Keep Clone - Familjeanteckningar</title>
-  <link rel="stylesheet" href="styles.css?v=4">
+  <!-- CSS files loaded in specific order: base → layout → components → modals → utilities → debug -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/modals.css">
+  <link rel="stylesheet" href="css/utilities.css">
+  <link rel="stylesheet" href="css/debug.css">
 </head>
 <body>
   <!-- Login/Register Screen -->
@@ -21,26 +27,26 @@
         <p class="auth-switch">
           Ny användare? <a href="#" onclick="showRegister(); return false;">Registrera dig</a>
         </p>
-        <p class="auth-switch" id="forgot-password-link" style="display: none;">
+        <p class="auth-switch hidden" id="forgot-password-link">
           <a href="#" onclick="showForgotPassword(); return false;">Glömt lösenord?</a>
         </p>
       </div>
 
-      <div id="register-form" class="auth-form" style="display: none;">
+      <div id="register-form" class="auth-form hidden">
         <h2>Registrera</h2>
         <input type="text" id="register-username" placeholder="Användarnamn (minst 3 tecken)" autocomplete="username">
         <input type="email" id="register-email" placeholder="E-post (valfritt, för återställning)" autocomplete="email">
         <input type="password" id="register-password" placeholder="Lösenord" autocomplete="new-password">
         <input type="password" id="register-password-confirm" placeholder="Bekräfta lösenord" autocomplete="new-password">
         <div class="password-requirements">
-          <p style="font-size: 12px; color: #666; margin: 8px 0;">Lösenordskrav:</p>
-          <ul style="font-size: 11px; color: #666; margin: 0; padding-left: 20px;">
+          <p>Lösenordskrav:</p>
+          <ul>
             <li>Minst 12 tecken</li>
             <li>Minst en stor bokstav (A-Z)</li>
             <li>Minst en liten bokstav (a-z)</li>
             <li>Minst en siffra (0-9)</li>
           </ul>
-          <p style="font-size: 11px; color: #666; margin: 8px 0 0 0;">
+          <p class="tip">
             💡 Tips: Lägg till en e-postadress för att kunna återställa lösenordet om du glömmer det.
           </p>
         </div>
@@ -50,9 +56,9 @@
         </p>
       </div>
 
-      <div id="forgot-password-form" class="auth-form" style="display: none;">
+      <div id="forgot-password-form" class="auth-form hidden">
         <h2>Återställ lösenord</h2>
-        <p style="font-size: 13px; color: #666; margin-bottom: 16px;">
+        <p class="help-text">
           Ange ditt användarnamn eller e-postadress. Om kontot finns och har en e-post kopplad kommer du att få en återställningslänk.
         </p>
         <input type="text" id="forgot-password-input" placeholder="Användarnamn eller e-post" autocomplete="username">
@@ -62,16 +68,16 @@
         </p>
       </div>
 
-      <div id="reset-password-form" class="auth-form" style="display: none;">
+      <div id="reset-password-form" class="auth-form hidden">
         <h2>Nytt lösenord</h2>
-        <p style="font-size: 13px; color: #666; margin-bottom: 16px;">
+        <p class="help-text">
           Ange ditt nya lösenord nedan.
         </p>
         <input type="password" id="reset-password-new" placeholder="Nytt lösenord" autocomplete="new-password">
         <input type="password" id="reset-password-confirm" placeholder="Bekräfta nytt lösenord" autocomplete="new-password">
         <div class="password-requirements">
-          <p style="font-size: 12px; color: #666; margin: 8px 0;">Lösenordskrav:</p>
-          <ul style="font-size: 11px; color: #666; margin: 0; padding-left: 20px;">
+          <p>Lösenordskrav:</p>
+          <ul>
             <li>Minst 12 tecken</li>
             <li>Minst en stor bokstav (A-Z)</li>
             <li>Minst en liten bokstav (a-z)</li>
@@ -85,12 +91,12 @@
       </div>
 
       <div id="auth-error" class="error-message"></div>
-      <div id="auth-success" class="success-message" style="display: none;"></div>
+      <div id="auth-success" class="success-message hidden"></div>
     </div>
   </div>
 
   <!-- Main App -->
-  <div id="app" style="display: none;">
+  <div id="app" class="hidden">
     <!-- Header -->
     <header>
       <div class="header-content">
@@ -119,19 +125,19 @@
           <textarea id="new-note-content" placeholder="Skriv en anteckning..." rows="3"></textarea>
 
           <!-- Checklist Container -->
-          <div id="checklist-container" style="display: none;">
+          <div id="checklist-container" class="hidden">
             <div id="checklist-items"></div>
             <button class="btn-text" onclick="addChecklistItem()">+ Lägg till punkt</button>
           </div>
 
           <!-- Images Container -->
-          <div id="images-container" style="display: none;">
+          <div id="images-container" class="hidden">
             <div id="images-preview" class="images-preview"></div>
           </div>
 
           <div class="note-form-actions">
             <div class="note-options">
-              <input type="file" id="new-note-image-input" accept="image/*" capture="camera" onchange="handleNewNoteImageSelect()" style="display: none;" multiple>
+              <input type="file" id="new-note-image-input" accept="image/*" capture="camera" onchange="handleNewNoteImageSelect()" class="hidden" multiple>
               <button class="btn-icon" onclick="document.getElementById('new-note-image-input').click()" title="Lägg till bild">
                 📷
               </button>
@@ -141,18 +147,18 @@
               <div class="color-picker">
                 <button class="btn-icon" title="Färg">🎨</button>
                 <div class="color-options">
-                  <button class="color-btn" data-color="#ffffff" style="background: #ffffff"></button>
-                  <button class="color-btn" data-color="#f28b82" style="background: #f28b82"></button>
-                  <button class="color-btn" data-color="#fbbc04" style="background: #fbbc04"></button>
-                  <button class="color-btn" data-color="#fff475" style="background: #fff475"></button>
-                  <button class="color-btn" data-color="#ccff90" style="background: #ccff90"></button>
-                  <button class="color-btn" data-color="#a7ffeb" style="background: #a7ffeb"></button>
-                  <button class="color-btn" data-color="#cbf0f8" style="background: #cbf0f8"></button>
-                  <button class="color-btn" data-color="#aecbfa" style="background: #aecbfa"></button>
-                  <button class="color-btn" data-color="#d7aefb" style="background: #d7aefb"></button>
-                  <button class="color-btn" data-color="#fdcfe8" style="background: #fdcfe8"></button>
-                  <button class="color-btn" data-color="#e6c9a8" style="background: #e6c9a8"></button>
-                  <button class="color-btn" data-color="#e8eaed" style="background: #e8eaed"></button>
+                  <button class="color-btn" data-color="#ffffff"></button>
+                  <button class="color-btn" data-color="#f28b82"></button>
+                  <button class="color-btn" data-color="#fbbc04"></button>
+                  <button class="color-btn" data-color="#fff475"></button>
+                  <button class="color-btn" data-color="#ccff90"></button>
+                  <button class="color-btn" data-color="#a7ffeb"></button>
+                  <button class="color-btn" data-color="#cbf0f8"></button>
+                  <button class="color-btn" data-color="#aecbfa"></button>
+                  <button class="color-btn" data-color="#d7aefb"></button>
+                  <button class="color-btn" data-color="#fdcfe8"></button>
+                  <button class="color-btn" data-color="#e6c9a8"></button>
+                  <button class="color-btn" data-color="#e8eaed"></button>
                 </div>
               </div>
             </div>
@@ -164,7 +170,7 @@
       <!-- Notes Grid -->
       <div class="notes-container" id="notes-container">
         <!-- Pinned notes section -->
-        <div id="pinned-section" style="display: none;">
+        <div id="pinned-section" class="hidden">
           <div class="section-label">FÄSTA</div>
           <div class="notes-grid" id="pinned-notes-grid">
             <!-- Pinned notes will be inserted here -->
@@ -173,7 +179,7 @@
 
         <!-- Regular notes section -->
         <div id="other-section">
-          <div class="section-label" id="other-label" style="display: none;">ANDRA</div>
+          <div class="section-label hidden" id="other-label">ANDRA</div>
           <div class="notes-grid" id="notes-grid">
             <!-- Regular notes will be inserted here -->
           </div>
@@ -191,19 +197,19 @@
         <textarea id="edit-note-content" placeholder="Skriv en anteckning..." rows="6"></textarea>
 
         <!-- Edit Checklist Container -->
-        <div id="edit-checklist-container" style="display: none;">
+        <div id="edit-checklist-container" class="hidden">
           <div id="edit-checklist-items"></div>
           <button class="btn-text" onclick="addEditChecklistItem()">+ Lägg till punkt</button>
         </div>
 
         <!-- Edit Images Container -->
-        <div id="edit-images-container" style="display: none;">
+        <div id="edit-images-container" class="hidden">
           <div id="edit-images-preview" class="images-preview"></div>
         </div>
 
         <div class="note-form-actions">
           <div class="note-options">
-            <input type="file" id="edit-note-image-input" accept="image/*" capture="camera" onchange="handleEditNoteImageSelect()" style="display: none;" multiple>
+            <input type="file" id="edit-note-image-input" accept="image/*" capture="camera" onchange="handleEditNoteImageSelect()" class="hidden" multiple>
             <button class="btn-icon" onclick="document.getElementById('edit-note-image-input').click()" title="Lägg till bild">
               📷
             </button>
@@ -213,18 +219,18 @@
             <div class="color-picker">
               <button class="btn-icon" title="Färg">🎨</button>
               <div class="color-options">
-                <button class="color-btn edit-color-btn" data-color="#ffffff" style="background: #ffffff"></button>
-                <button class="color-btn edit-color-btn" data-color="#f28b82" style="background: #f28b82"></button>
-                <button class="color-btn edit-color-btn" data-color="#fbbc04" style="background: #fbbc04"></button>
-                <button class="color-btn edit-color-btn" data-color="#fff475" style="background: #fff475"></button>
-                <button class="color-btn edit-color-btn" data-color="#ccff90" style="background: #ccff90"></button>
-                <button class="color-btn edit-color-btn" data-color="#a7ffeb" style="background: #a7ffeb"></button>
-                <button class="color-btn edit-color-btn" data-color="#cbf0f8" style="background: #cbf0f8"></button>
-                <button class="color-btn edit-color-btn" data-color="#aecbfa" style="background: #aecbfa"></button>
-                <button class="color-btn edit-color-btn" data-color="#d7aefb" style="background: #d7aefb"></button>
-                <button class="color-btn edit-color-btn" data-color="#fdcfe8" style="background: #fdcfe8"></button>
-                <button class="color-btn edit-color-btn" data-color="#e6c9a8" style="background: #e6c9a8"></button>
-                <button class="color-btn edit-color-btn" data-color="#e8eaed" style="background: #e8eaed"></button>
+                <button class="color-btn edit-color-btn" data-color="#ffffff"></button>
+                <button class="color-btn edit-color-btn" data-color="#f28b82"></button>
+                <button class="color-btn edit-color-btn" data-color="#fbbc04"></button>
+                <button class="color-btn edit-color-btn" data-color="#fff475"></button>
+                <button class="color-btn edit-color-btn" data-color="#ccff90"></button>
+                <button class="color-btn edit-color-btn" data-color="#a7ffeb"></button>
+                <button class="color-btn edit-color-btn" data-color="#cbf0f8"></button>
+                <button class="color-btn edit-color-btn" data-color="#aecbfa"></button>
+                <button class="color-btn edit-color-btn" data-color="#d7aefb"></button>
+                <button class="color-btn edit-color-btn" data-color="#fdcfe8"></button>
+                <button class="color-btn edit-color-btn" data-color="#e6c9a8"></button>
+                <button class="color-btn edit-color-btn" data-color="#e8eaed"></button>
               </div>
             </div>
             <button id="share-note-btn" class="btn-icon" onclick="openShareModal()" title="Dela">
@@ -248,10 +254,10 @@
 
   <!-- Import Modal -->
   <div id="import-modal" class="modal" onclick="closeImportModal(event)">
-    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 600px;">
+    <div class="modal-content" onclick="event.stopPropagation()">
       <h2>Importera från Google Keep</h2>
 
-      <div id="import-instructions" style="margin: 20px 0;">
+      <div id="import-instructions" class="settings-section">
         <h3>Så här gör du:</h3>
         <ol style="line-height: 1.8; margin-left: 20px;">
           <li>Gå till <a href="https://takeout.google.com/" target="_blank" rel="noopener">Google Takeout</a></li>
@@ -262,32 +268,32 @@
         </ol>
 
         <div class="import-upload-area">
-          <input type="file" id="import-file-input" accept=".zip" onchange="handleImportFile()" style="display: none;">
+          <input type="file" id="import-file-input" accept=".zip" onchange="handleImportFile()" class="hidden">
           <button class="btn-primary" onclick="document.getElementById('import-file-input').click()">
             📁 Välj Google Keep export (.zip)
           </button>
-          <p id="import-file-name" style="margin-top: 10px; color: #5f6368;"></p>
+          <p id="import-file-name" class="profile-username"></p>
         </div>
       </div>
 
-      <div id="import-progress" style="display: none; margin: 20px 0;">
+      <div id="import-progress" class="hidden settings-section">
         <div style="background: #e8eaed; border-radius: 8px; height: 8px; overflow: hidden;">
           <div id="import-progress-bar" style="background: #1a73e8; height: 100%; width: 0%; transition: width 0.3s;"></div>
         </div>
         <p id="import-status" style="text-align: center; margin-top: 10px; color: #5f6368;"></p>
       </div>
 
-      <div id="import-results" style="display: none; margin: 20px 0;">
+      <div id="import-results" class="hidden settings-section">
         <h3>Import klar!</h3>
         <div id="import-stats" style="background: #f1f3f4; padding: 16px; border-radius: 8px; margin: 12px 0;">
           <!-- Stats will be inserted here -->
         </div>
-        <div id="import-errors" style="max-height: 200px; overflow-y: auto; background: #fef7e0; padding: 12px; border-radius: 8px; margin: 12px 0; display: none;">
+        <div id="import-errors" class="hidden" style="max-height: 200px; overflow-y: auto; background: #fef7e0; padding: 12px; border-radius: 8px; margin: 12px 0;">
           <!-- Errors will be inserted here -->
         </div>
       </div>
 
-      <div class="note-form-actions" style="margin-top: 20px;">
+      <div class="note-form-actions settings-section">
         <button class="btn-secondary" onclick="closeImportModal()">Stäng</button>
         <button id="import-button" class="btn-primary" onclick="startImport()" disabled>
           Importera
@@ -298,52 +304,52 @@
 
   <!-- Profile Modal -->
   <div id="profile-modal" class="modal" onclick="closeProfileModal(event)">
-    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 400px;">
+    <div class="modal-content modal-content--small" onclick="event.stopPropagation()">
       <h2>Din profil</h2>
 
-      <div style="text-align: center; margin: 20px 0;">
+      <div style="text-align: center;" class="settings-section">
         <div id="profile-picture-preview" class="profile-pic-large"></div>
-        <p style="margin-top: 10px; color: #5f6368;"><span id="profile-username"></span></p>
+        <p class="profile-username"><span id="profile-username"></span></p>
       </div>
 
-      <div style="margin: 20px 0;">
-        <label style="display: block; margin-bottom: 10px; color: #202124; font-weight: 500;">
+      <div class="settings-section">
+        <label class="settings-label">
           Välj avatarfärg
         </label>
-        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; max-width: 250px; margin: 0 auto;">
-          <button class="avatar-color-option" data-color="#1a73e8" style="background: #1a73e8;" onclick="selectAvatarColor('#1a73e8')"></button>
-          <button class="avatar-color-option" data-color="#d93025" style="background: #d93025;" onclick="selectAvatarColor('#d93025')"></button>
-          <button class="avatar-color-option" data-color="#0f9d58" style="background: #0f9d58;" onclick="selectAvatarColor('#0f9d58')"></button>
-          <button class="avatar-color-option" data-color="#f29900" style="background: #f29900;" onclick="selectAvatarColor('#f29900')"></button>
-          <button class="avatar-color-option" data-color="#a142f4" style="background: #a142f4;" onclick="selectAvatarColor('#a142f4')"></button>
-          <button class="avatar-color-option" data-color="#e91e63" style="background: #e91e63;" onclick="selectAvatarColor('#e91e63')"></button>
-          <button class="avatar-color-option" data-color="#00acc1" style="background: #00acc1;" onclick="selectAvatarColor('#00acc1')"></button>
-          <button class="avatar-color-option" data-color="#7cb342" style="background: #7cb342;" onclick="selectAvatarColor('#7cb342')"></button>
-          <button class="avatar-color-option" data-color="#ff6f00" style="background: #ff6f00;" onclick="selectAvatarColor('#ff6f00')"></button>
-          <button class="avatar-color-option" data-color="#5e35b1" style="background: #5e35b1;" onclick="selectAvatarColor('#5e35b1')"></button>
+        <div class="avatar-color-grid">
+          <button class="avatar-color-option" data-color="#1a73e8" onclick="selectAvatarColor('#1a73e8')"></button>
+          <button class="avatar-color-option" data-color="#d93025" onclick="selectAvatarColor('#d93025')"></button>
+          <button class="avatar-color-option" data-color="#0f9d58" onclick="selectAvatarColor('#0f9d58')"></button>
+          <button class="avatar-color-option" data-color="#f29900" onclick="selectAvatarColor('#f29900')"></button>
+          <button class="avatar-color-option" data-color="#a142f4" onclick="selectAvatarColor('#a142f4')"></button>
+          <button class="avatar-color-option" data-color="#e91e63" onclick="selectAvatarColor('#e91e63')"></button>
+          <button class="avatar-color-option" data-color="#00acc1" onclick="selectAvatarColor('#00acc1')"></button>
+          <button class="avatar-color-option" data-color="#7cb342" onclick="selectAvatarColor('#7cb342')"></button>
+          <button class="avatar-color-option" data-color="#ff6f00" onclick="selectAvatarColor('#ff6f00')"></button>
+          <button class="avatar-color-option" data-color="#5e35b1" onclick="selectAvatarColor('#5e35b1')"></button>
         </div>
       </div>
 
-      <div style="margin: 20px 0; padding: 12px; background: #f8f9fa; border-radius: 8px;">
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="show-created-date-toggle" onchange="toggleShowCreatedDate()" style="width: 18px; height: 18px;">
-          <span style="font-size: 14px; color: #202124;">Visa skapdatum på anteckningar</span>
+      <div class="settings-section-highlight">
+        <label class="checkbox-label">
+          <input type="checkbox" id="show-created-date-toggle" onchange="toggleShowCreatedDate()">
+          <span>Visa skapdatum på anteckningar</span>
         </label>
       </div>
 
-      <div style="margin: 20px 0; padding: 12px; background: #f8f9fa; border-radius: 8px;">
-        <h3 style="font-size: 14px; margin-bottom: 12px; color: #202124;">Data och backup</h3>
-        <div style="display: flex; gap: 8px; flex-direction: column;">
-          <button class="btn-secondary" onclick="openImportModal()" style="width: 100%; justify-content: center;">
+      <div class="settings-section-highlight">
+        <h3 class="settings-heading">Data och backup</h3>
+        <div class="flex-col gap-1">
+          <button class="btn-secondary w-full justify-center" onclick="openImportModal()">
             📥 Importera från Google Keep
           </button>
-          <button class="btn-secondary" onclick="exportBackup()" style="width: 100%; justify-content: center;">
+          <button class="btn-secondary w-full justify-center" onclick="exportBackup()">
             📤 Exportera backup
           </button>
         </div>
       </div>
 
-      <div class="note-form-actions" style="margin-top: 20px;">
+      <div class="note-form-actions settings-section">
         <button class="btn-secondary" onclick="closeProfileModal()">Stäng</button>
       </div>
     </div>
@@ -351,26 +357,26 @@
 
   <!-- Share Modal -->
   <div id="share-modal" class="modal" onclick="closeShareModal(event)">
-    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
+    <div class="modal-content modal-content--medium" onclick="event.stopPropagation()">
       <h2>Dela anteckning</h2>
 
       <!-- Share with new users -->
-      <div style="margin: 20px 0;">
-        <h3 style="font-size: 14px; margin-bottom: 10px;">Dela med familjemedlem</h3>
+      <div class="settings-section">
+        <h3 class="settings-heading">Dela med familjemedlem</h3>
         <div id="share-users-list" class="share-users-list">
           <!-- Users will be inserted here -->
         </div>
       </div>
 
       <!-- Current shares -->
-      <div style="margin: 20px 0;">
-        <h3 style="font-size: 14px; margin-bottom: 10px;">Delar med</h3>
+      <div class="settings-section">
+        <h3 class="settings-heading">Delar med</h3>
         <div id="current-shares-list" class="current-shares-list">
           <!-- Current shares will be inserted here -->
         </div>
       </div>
 
-      <div class="note-form-actions" style="margin-top: 20px;">
+      <div class="note-form-actions settings-section">
         <button class="btn-secondary" onclick="closeShareModal()">Stäng</button>
       </div>
     </div>

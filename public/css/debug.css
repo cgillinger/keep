@@ -1,0 +1,17 @@
+/* ===== DEBUG ===== */
+/* Debug-only styles - should be removed in production or controlled by data-debug attribute */
+
+/* Example debug styles (currently none active) */
+/* Use this file for temporary debugging CSS */
+
+/* To enable debug mode, add data-debug="true" to body: */
+/* <body data-debug="true"> */
+
+/* Then use selectors like: */
+/* body[data-debug="true"] .notes-grid {
+  outline: 2px solid red;
+} */
+
+/* body[data-debug="true"] .note-card {
+  outline: 1px dashed blue;
+} */

@@ -1,0 +1,838 @@
+/* ===== COMPONENTS ===== */
+/* Reusable components: buttons, forms, note cards, etc. */
+
+/* ===== AUTH SCREEN ===== */
+.auth-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.auth-container {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth-container h1 {
+  text-align: center;
+  color: #667eea;
+  margin-bottom: 10px;
+  font-size: 32px;
+}
+
+.subtitle {
+  text-align: center;
+  color: #666;
+  margin-bottom: 30px;
+  font-size: 14px;
+}
+
+.auth-form h2 {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 24px;
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.auth-form button {
+  width: 100%;
+  padding: 12px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.auth-form button:hover {
+  background: #5568d3;
+}
+
+.auth-switch {
+  text-align: center;
+  margin-top: 20px;
+  color: #666;
+  font-size: 14px;
+}
+
+.auth-switch a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
+}
+
+.error-message {
+  color: #d93025;
+  background: #fce8e6;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  text-align: center;
+  margin-top: 15px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  display: none; /* Hidden by default */
+  animation: shake 0.5s;
+}
+
+.error-message:not(:empty) {
+  display: block; /* Show when has content */
+}
+
+.success-message {
+  color: #137333;
+  background: #e6f4ea;
+  border: 1px solid #9bc79f;
+  border-radius: 8px;
+  text-align: center;
+  margin-top: 15px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  display: none; /* Hidden by default */
+  animation: fadeIn 0.3s;
+}
+
+.success-message:not(:empty) {
+  display: block; /* Show when has content */
+}
+
+/* ===== BUTTONS ===== */
+.btn-primary {
+  background: #1a73e8;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover {
+  background: #1557b0;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #5f6368;
+  border: 1px solid #dadce0;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #f1f3f4;
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background 0.2s;
+  /* Optimize for hover animations */
+  will-change: background-color;
+}
+
+.btn-icon:hover {
+  background: #f1f3f4;
+}
+
+.btn-text {
+  background: transparent;
+  border: none;
+  color: #1a73e8;
+  font-size: 14px;
+  padding: 8px;
+  transition: background 0.2s;
+}
+
+.btn-text:hover {
+  background: #f1f3f4;
+}
+
+/* ===== NEW NOTE FORM ===== */
+.new-note-container {
+  max-width: 600px;
+  margin: 0 auto 32px;
+}
+
+.new-note-form {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.new-note-form input,
+.new-note-form textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  margin-bottom: 12px;
+}
+
+.new-note-form input {
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.note-form-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px; /* Add padding on all sides */
+  border-top: 1px solid #e0e0e0;
+  flex-shrink: 0; /* Don't shrink - always visible at bottom */
+  background: white; /* Ensure solid background */
+  position: relative; /* For color picker positioning context */
+}
+
+.note-options {
+  display: flex;
+  gap: 4px;
+}
+
+/* ===== COLOR PICKER ===== */
+.color-picker {
+  position: relative;
+}
+
+.color-options {
+  display: none;
+  position: absolute;
+  bottom: 100%; /* Open upwards instead of downwards */
+  right: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  z-index: 10000; /* Very high z-index to be above everything */
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  min-width: 150px;
+  margin-bottom: 4px; /* Space from button when opening upwards */
+}
+
+.color-picker.active .color-options {
+  display: grid;
+}
+
+.color-btn {
+  width: 32px;
+  height: 32px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+  /* GPU acceleration */
+  will-change: transform, border-color;
+  transform: translateZ(0);
+}
+
+.color-btn:hover {
+  border-color: #5f6368;
+  transform: scale(1.1) translateZ(0);
+}
+
+/* Color button variants using data-color attribute */
+.color-btn[data-color="#ffffff"] { background: #ffffff; }
+.color-btn[data-color="#f28b82"] { background: #f28b82; }
+.color-btn[data-color="#fbbc04"] { background: #fbbc04; }
+.color-btn[data-color="#fff475"] { background: #fff475; }
+.color-btn[data-color="#ccff90"] { background: #ccff90; }
+.color-btn[data-color="#a7ffeb"] { background: #a7ffeb; }
+.color-btn[data-color="#cbf0f8"] { background: #cbf0f8; }
+.color-btn[data-color="#aecbfa"] { background: #aecbfa; }
+.color-btn[data-color="#d7aefb"] { background: #d7aefb; }
+.color-btn[data-color="#fdcfe8"] { background: #fdcfe8; }
+.color-btn[data-color="#e6c9a8"] { background: #e6c9a8; }
+.color-btn[data-color="#e8eaed"] { background: #e8eaed; }
+
+/* ===== CHECKLIST ===== */
+#checklist-container,
+#edit-checklist-container {
+  margin: 12px 0;
+}
+
+.checklist-item {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.checklist-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.checklist-item input[type="text"] {
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 4px;
+  font-size: 14px;
+  margin: 0;
+}
+
+.checklist-item button {
+  background: transparent;
+  border: none;
+  color: #5f6368;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px;
+}
+
+/* ===== NOTE CARD ===== */
+.note-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.1s;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: 460px; /* Google Keep-style max height */
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  /* GPU acceleration for smooth animations */
+  will-change: transform, box-shadow;
+  transform: translateZ(0); /* Force GPU layer */
+  backface-visibility: hidden; /* Smoother animations */
+}
+
+.note-card:hover {
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2); /* More pronounced shadow on hover */
+  transform: translateY(-2px) translateZ(0); /* Subtle lift effect with GPU */
+}
+
+/* Hover checkmark indicator (like Google Keep) */
+.note-card:hover::before {
+  content: '✓';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background-color: rgba(0, 0, 0, 0.87);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  z-index: 10;
+}
+
+.note-card h3 {
+  font-size: 16px;
+  margin-bottom: 8px;
+  color: #202124;
+  font-weight: 500;
+  flex-shrink: 0; /* Title always visible */
+}
+
+.note-card .note-created-date {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  color: #80868b;
+  font-weight: 400;
+}
+
+.note-card p {
+  font-size: 14px;
+  color: #5f6368;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+  position: relative;
+  /* Text will be cut by parent max-height, no need for separate max-height */
+}
+
+/* Fade-out effect for truncated content */
+.note-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px; /* Taller gradient for better visibility */
+  /* Use CSS custom properties set by JavaScript */
+  background: linear-gradient(
+    to bottom,
+    rgba(var(--card-color-r, 255), var(--card-color-g, 255), var(--card-color-b, 255), 0),
+    rgba(var(--card-color-r, 255), var(--card-color-g, 255), var(--card-color-b, 255), 1)
+  );
+  pointer-events: none;
+  opacity: 0; /* Hidden by default */
+  transition: opacity 0.2s;
+}
+
+/* Show strong fade when card content is truncated */
+.note-card.truncated::after {
+  opacity: 1;
+}
+
+/* Add subtle bottom padding to truncated cards */
+.note-card.truncated {
+  padding-bottom: 24px;
+}
+
+.note-card a {
+  color: #1a73e8;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.note-card a:hover {
+  text-decoration: underline;
+}
+
+.note-card .checklist {
+  list-style: none;
+  overflow: hidden;
+  /* Checklist will be cut by parent max-height */
+}
+
+.note-card .checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: #5f6368;
+}
+
+.note-card .checklist li input {
+  width: 16px;
+  height: 16px;
+}
+
+.note-card .checklist li.checked {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.note-card .pin-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 16px;
+  opacity: 0.7;
+}
+
+.note-card .note-owner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 12px;
+  color: #5f6368;
+}
+
+.note-card .note-owner img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.note-card .note-owner .profile-initials-small {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #1a73e8;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ===== PROFILE PICTURES (AVATAR WITH INITIALS) ===== */
+.profile-pic-header {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #1a73e8; /* Default blue */
+  overflow: hidden;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.profile-pic-header:hover {
+  opacity: 0.8;
+}
+
+.profile-pic-large {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: #1a73e8; /* Default blue */
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 48px;
+  text-transform: uppercase;
+  user-select: none;
+  border: 3px solid #dadce0;
+}
+
+.profile-pic-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #1a73e8; /* Default blue */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.profile-initials-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #1a73e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/* ===== AVATAR COLOR PICKER ===== */
+.avatar-color-option {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.avatar-color-option:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.avatar-color-option.selected {
+  border-color: #202124;
+  box-shadow: 0 0 0 2px white, 0 0 0 4px #202124;
+}
+
+/* Avatar color variants using data-color attribute */
+.avatar-color-option[data-color="#1a73e8"] { background: #1a73e8; }
+.avatar-color-option[data-color="#d93025"] { background: #d93025; }
+.avatar-color-option[data-color="#0f9d58"] { background: #0f9d58; }
+.avatar-color-option[data-color="#f29900"] { background: #f29900; }
+.avatar-color-option[data-color="#a142f4"] { background: #a142f4; }
+.avatar-color-option[data-color="#e91e63"] { background: #e91e63; }
+.avatar-color-option[data-color="#00acc1"] { background: #00acc1; }
+.avatar-color-option[data-color="#7cb342"] { background: #7cb342; }
+.avatar-color-option[data-color="#ff6f00"] { background: #ff6f00; }
+.avatar-color-option[data-color="#5e35b1"] { background: #5e35b1; }
+
+/* ===== SHARE UI ===== */
+.share-users-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.share-user-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.share-user-item:hover {
+  background: #f1f3f4;
+}
+
+.share-user-item .username {
+  flex: 1;
+  font-size: 14px;
+  color: #202124;
+}
+
+.share-user-item .share-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.share-user-item button {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid #dadce0;
+  background: white;
+  color: #5f6368;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.share-user-item button.active {
+  background: #1a73e8;
+  color: white;
+  border-color: #1a73e8;
+}
+
+.share-user-item button:hover:not(.active) {
+  background: #f1f3f4;
+}
+
+.current-shares-list {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.current-shares-list:empty::before {
+  content: 'Inte delad med någon än';
+  display: block;
+  text-align: center;
+  color: #5f6368;
+  padding: 20px;
+  font-size: 14px;
+}
+
+.share-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  background: #f8f9fa;
+}
+
+.share-item .username {
+  flex: 1;
+  font-size: 14px;
+  color: #202124;
+}
+
+.share-item .permission-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.share-item .permission-badge.view {
+  background: #e8f0fe;
+  color: #1967d2;
+}
+
+.share-item .permission-badge.edit {
+  background: #e6f4ea;
+  color: #137333;
+}
+
+.share-item .remove-btn {
+  background: transparent;
+  border: none;
+  color: #d93025;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.share-item .remove-btn:hover {
+  background: #fce8e6;
+}
+
+/* Share indicator on note cards */
+.note-card .share-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e0e0e0;
+  font-size: 12px;
+  color: #5f6368;
+}
+
+.note-card .owner-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e0e0e0;
+  font-size: 12px;
+  color: #5f6368;
+  font-style: italic;
+}
+
+/* ===== NOTE IMAGES ===== */
+.images-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.image-preview-item {
+  position: relative;
+  padding-top: 100%; /* 1:1 aspect ratio */
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f1f3f4;
+}
+
+.image-preview-item img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.image-preview-item img:hover {
+  opacity: 0.8;
+}
+
+.image-preview-item .remove-image {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.image-preview-item:hover .remove-image {
+  opacity: 1;
+}
+
+.image-preview-item .remove-image:hover {
+  background: rgba(217, 48, 37, 0.9);
+}
+
+.note-card .note-images {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  /* Default: multiple images - compact grid */
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* Single image: full width, taller */
+.note-card .note-images:has(img:only-child) {
+  grid-template-columns: 1fr;
+}
+
+/* Increased specificity to avoid !important */
+.note-card .note-images:has(img:only-child) img {
+  height: 200px;
+  min-height: 200px;
+  max-height: 200px;
+}
+
+/* Two images: side by side */
+.note-card .note-images:has(img:nth-child(2):last-child) {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Three or more images: compact 2-column grid */
+.note-card .note-images img {
+  width: 100%;
+  height: 120px; /* Slightly taller than before for better visibility */
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  /* GPU acceleration for smooth scaling */
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.note-card .note-images img:hover {
+  transform: scale(1.05) translateZ(0);
+}

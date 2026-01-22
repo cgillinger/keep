@@ -1,0 +1,77 @@
+/* ===== LAYOUT ===== */
+/* Header, main content container, grid layout */
+
+/* ===== HEADER ===== */
+header {
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 16px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-content {
+  max-width: 2400px; /* Match main content width for consistency */
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+header h1 {
+  font-size: 24px;
+  color: #5f6368;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+#search-input {
+  padding: 8px 16px;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  font-size: 14px;
+  width: 300px;
+}
+
+#user-info {
+  color: #5f6368;
+  font-size: 14px;
+}
+
+/* ===== MAIN CONTENT ===== */
+main {
+  max-width: 2400px; /* Increased for better 4K screen support */
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* ===== NOTES GRID ===== */
+.notes-grid {
+  /* CSS Grid for horizontal layout with masonry-like packing */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-auto-rows: 10px; /* Small row units for tight packing */
+  gap: 16px;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 16px;
+  align-items: start; /* Align cards to top of their grid cell */
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #5f6368;
+  letter-spacing: 0.8px;
+  padding: 0 32px 8px 32px;
+  margin-top: 16px;
+}
+
+#pinned-section {
+  margin-bottom: 32px;
+}
