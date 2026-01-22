@@ -349,7 +349,7 @@ main {
 /* ===== NOTES GRID ===== */
 .notes-grid {
   /* CSS Columns for true masonry layout */
-  column-count: 5;
+  column-count: 4;
   column-gap: 16px;
   max-width: 100%;
   margin: 0 auto;
@@ -1073,19 +1073,19 @@ main {
 /* Responsive column counts for masonry layout */
 @media (min-width: 1400px) {
   .notes-grid {
-    column-count: 6;
+    column-count: 4;
   }
 }
 
 @media (min-width: 1200px) and (max-width: 1399px) {
   .notes-grid {
-    column-count: 5;
+    column-count: 4;
   }
 }
 
 @media (min-width: 992px) and (max-width: 1199px) {
   .notes-grid {
-    column-count: 4;
+    column-count: 3;
   }
 }
 
