@@ -348,31 +348,30 @@ main {
 
 /* ===== NOTES GRID ===== */
 .notes-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); /* Increased 15% from 200px */
-  gap: 2px !important; /* MINIMAL spacing - almost touching */
-  max-width: 100%; /* Use full available width */
+  /* CSS Columns for true masonry layout */
+  column-count: 5;
+  column-gap: 16px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 0 4px !important; /* Minimal side padding */
-  grid-auto-rows: min-content; /* CRITICAL: Each row only as tall as needed */
-  align-items: start; /* Align cards to top, don't stretch */
-  background: #f0f0f0; /* TEMPORARY: Debug marker to verify CSS is loading */
+  padding: 0 16px;
 }
 
 .note-card {
   background: white;
-  border: 1px solid #e0e0e0; /* Visible border */
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
-  padding: 12px; /* Compact internal padding */
+  padding: 12px;
   cursor: pointer;
   transition: box-shadow 0.2s, transform 0.1s;
   position: relative;
   display: flex;
   flex-direction: column;
   max-height: 460px; /* Google Keep-style max height */
-  overflow: hidden; /* Hide content that exceeds max height */
-  height: fit-content; /* Only take needed height, up to max */
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  margin-bottom: 16px; /* Space between cards in column */
+  break-inside: avoid; /* Prevent card from splitting across columns */
+  page-break-inside: avoid; /* For older browsers */
 }
 
 .note-card:hover {
@@ -1054,10 +1053,41 @@ main {
   }
 
   .notes-grid {
-    grid-template-columns: 1fr;
+    column-count: 1;
   }
 
   .images-preview {
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  }
+}
+
+/* Responsive column counts for masonry layout */
+@media (min-width: 1400px) {
+  .notes-grid {
+    column-count: 6;
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1399px) {
+  .notes-grid {
+    column-count: 5;
+  }
+}
+
+@media (min-width: 992px) and (max-width: 1199px) {
+  .notes-grid {
+    column-count: 4;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 991px) {
+  .notes-grid {
+    column-count: 3;
+  }
+}
+
+@media (min-width: 576px) and (max-width: 768px) {
+  .notes-grid {
+    column-count: 2;
   }
 }
