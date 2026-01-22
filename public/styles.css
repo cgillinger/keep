@@ -349,11 +349,11 @@ main {
 /* ===== NOTES GRID ===== */
 .notes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Reduced from 240px to fit more columns */
-  gap: 4px; /* Minimal spacing like Google Keep */
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); /* Increased 15% from 200px */
+  gap: 2px; /* Minimal spacing - almost no gap like Google Keep */
   max-width: 100%; /* Use full available width */
   margin: 0 auto;
-  padding: 0 16px; /* Add padding on sides */
+  padding: 0 8px; /* Reduced padding for more card space */
   grid-auto-rows: min-content; /* CRITICAL: Each row only as tall as needed */
   align-items: start; /* Align cards to top, don't stretch */
 }
