@@ -134,8 +134,23 @@ app.use(session(sessionConfig));
 // CSRF protection (except for specific routes)
 const csrfProtection = csrf({ cookie: true });
 
-// Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static files with aggressive caching
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1y', // Cache for 1 year
+  etag: true, // Enable ETag for conditional requests
+  lastModified: true, // Enable Last-Modified header
+  immutable: true, // Tell browsers the file won't change
+  setHeaders: (res, filePath) => {
+    // For HTML files, use shorter cache to allow quick updates
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour for HTML
+    }
+    // For JS and CSS with version query params, use long cache
+    else if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // 1 year
+    }
+  }
+}));
 
 // Auth middleware
 const requireAuth = (req, res, next) => {

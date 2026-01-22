@@ -11,6 +11,7 @@ let csrfToken = null;
 let newNoteImages = []; // Filenames of images uploaded for new note
 let editNoteImages = []; // Filenames of images for editing note
 let showCreatedDate = localStorage.getItem('showCreatedDate') === 'true'; // User preference for showing created date
+let renderedNotesMap = new Map(); // Cache of rendered notes by ID for incremental updates
 
 // ===== INITIALIZATION =====
 window.addEventListener('DOMContentLoaded', async () => {
@@ -438,10 +439,11 @@ function connectWebSocket() {
         } else {
           notes.unshift(data.note);
         }
-        renderNotes();
+        // Use incremental update for better performance
+        updateSingleNote(data.note);
       } else if (data.type === 'note_deleted' || data.type === 'note_unshared') {
         notes = notes.filter(n => n.id !== data.noteId);
-        renderNotes();
+        removeSingleNote(data.noteId);
       } else if (data.type === 'note_shared') {
         // Reload notes to show newly shared note
         if (showingShared) {
@@ -588,6 +590,182 @@ function formatCreatedDate(dateString) {
 }
 
 // ===== NOTES FUNCTIONS =====
+
+// Incremental update: Update or add a single note without full re-render
+function updateSingleNote(note) {
+  const searchTerm = document.getElementById('search-input').value.toLowerCase();
+
+  // Check if note matches current search/filter
+  const matchesSearch = !searchTerm ||
+    note.title.toLowerCase().includes(searchTerm) ||
+    note.content.toLowerCase().includes(searchTerm);
+
+  if (!matchesSearch) {
+    removeSingleNote(note.id);
+    return;
+  }
+
+  const isPinned = note.is_pinned;
+  const container = isPinned
+    ? document.getElementById('pinned-notes-grid')
+    : document.getElementById('notes-grid');
+
+  // Find existing card
+  const existingCard = container.querySelector(`[data-note-id="${note.id}"]`);
+
+  // Render note HTML
+  const noteHtml = renderNoteHTML(note);
+
+  if (existingCard) {
+    // Update existing card
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = noteHtml;
+    const newCard = tempDiv.firstElementChild;
+    existingCard.replaceWith(newCard);
+
+    // Re-calculate grid span for the updated card
+    requestAnimationFrame(() => calculateCardLayout(newCard));
+  } else {
+    // Add new card at the beginning
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = noteHtml;
+    const newCard = tempDiv.firstElementChild;
+    container.insertBefore(newCard, container.firstChild);
+
+    // Calculate grid span for new card
+    requestAnimationFrame(() => calculateCardLayout(newCard));
+  }
+
+  // Update section visibility
+  updateSectionVisibility();
+}
+
+// Remove a single note from DOM
+function removeSingleNote(noteId) {
+  const card = document.querySelector(`[data-note-id="${noteId}"]`);
+  if (card) {
+    card.remove();
+    updateSectionVisibility();
+  }
+}
+
+// Calculate grid layout for a single card
+function calculateCardLayout(card) {
+  const cardHeight = card.getBoundingClientRect().height;
+  const rowHeight = 10;
+  const gap = 16;
+  const rowSpan = Math.ceil((cardHeight + gap) / (rowHeight + gap));
+  card.style.gridRowEnd = `span ${rowSpan}`;
+
+  // Check truncation
+  if (card.scrollHeight > card.clientHeight) {
+    card.classList.add('truncated');
+    const bgColor = window.getComputedStyle(card).backgroundColor;
+    const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    if (rgbMatch) {
+      const [, r, g, b] = rgbMatch;
+      card.style.setProperty('--card-color-r', r);
+      card.style.setProperty('--card-color-g', g);
+      card.style.setProperty('--card-color-b', b);
+    }
+  }
+}
+
+// Update visibility of pinned/regular sections
+function updateSectionVisibility() {
+  const pinnedSection = document.getElementById('pinned-section');
+  const pinnedGrid = document.getElementById('pinned-notes-grid');
+  const otherLabel = document.getElementById('other-label');
+  const regularGrid = document.getElementById('notes-grid');
+
+  const hasPinned = pinnedGrid.children.length > 0;
+  const hasRegular = regularGrid.children.length > 0;
+
+  pinnedSection.style.display = hasPinned ? 'block' : 'none';
+  otherLabel.style.display = (hasPinned && hasRegular) ? 'block' : 'none';
+}
+
+// Render a single note's HTML (extracted from renderNotes)
+function renderNoteHTML(note) {
+  let contentHtml = '';
+  let shareIndicator = '';
+  let ownerIndicator = '';
+  let pinIndicator = '';
+
+  // Show pin indicator if pinned
+  if (note.is_pinned) {
+    pinIndicator = '<div class="pin-indicator">📌</div>';
+  }
+
+  // Show owner if this is a shared note
+  if (note.isShared && note.owner_username) {
+    const initials = note.owner_username.substring(0, 2).toUpperCase();
+    const avatarColor = note.owner_avatar_color || '#1a73e8';
+    const ownerAvatar = `<div class="profile-initials-small" style="background-color: ${avatarColor};">${initials}</div>`;
+
+    ownerIndicator = `
+      <div class="note-owner">
+        ${ownerAvatar}
+        <span>${note.owner_username}</span>
+      </div>
+    `;
+  }
+
+  // Show share count if owned by user
+  if (!note.isShared && note.share_count > 0) {
+    shareIndicator = `<span class="share-indicator" title="Delad med ${note.share_count} ${note.share_count === 1 ? 'person' : 'personer'}">👥 ${note.share_count}</span>`;
+  }
+
+  if (note.is_checklist && note.checklist_items) {
+    const items = Array.isArray(note.checklist_items)
+      ? note.checklist_items
+      : JSON.parse(note.checklist_items || '[]');
+
+    contentHtml = `
+      <ul class="checklist">
+        ${items.map(item => `
+          <li class="${item.checked ? 'checked' : ''}">
+            <input type="checkbox" ${item.checked ? 'checked' : ''} disabled>
+            <span>${linkify(item.text)}</span>
+          </li>
+        `).join('')}
+      </ul>
+    `;
+  } else {
+    contentHtml = `<p>${linkify(note.content)}</p>`;
+  }
+
+  // Render images with lazy loading
+  let imagesHtml = '';
+  if (note.images && Array.isArray(note.images) && note.images.length > 0) {
+    imagesHtml = `
+      <div class="note-images" onclick="event.stopPropagation()">
+        ${note.images.map(img => `
+          <img src="/api/notes/image/${img}" alt="Note image" loading="lazy" onclick="openImageModal('${img}')">
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // Format created date if enabled
+  let dateHtml = '';
+  if (showCreatedDate && note.created_at) {
+    const formattedDate = formatCreatedDate(note.created_at);
+    dateHtml = `<div class="note-created-date">${formattedDate}</div>`;
+  }
+
+  return `
+    <div class="note-card" data-note-id="${note.id}" style="background-color: ${escapeHtml(note.color)}" onclick="openEditModal(${note.id})">
+      ${pinIndicator}
+      ${ownerIndicator}
+      ${note.title ? `<h3>${escapeHtml(note.title)}${dateHtml}</h3>` : dateHtml}
+      ${contentHtml}
+      ${imagesHtml}
+      ${shareIndicator}
+    </div>
+  `;
+}
+
 async function loadNotes() {
   try {
     const url = showingArchived
@@ -653,98 +831,16 @@ function renderNotes() {
     return;
   }
 
-  // Render function for a single note
-  const renderNote = (note) => {
-    let contentHtml = '';
-    let shareIndicator = '';
-    let ownerIndicator = '';
-    let pinIndicator = '';
-
-    // Show pin indicator if pinned
-    if (note.is_pinned) {
-      pinIndicator = '<div class="pin-indicator">📌</div>';
-    }
-
-    // Show owner if this is a shared note
-    if (note.isShared && note.owner_username) {
-      const initials = note.owner_username.substring(0, 2).toUpperCase();
-      const avatarColor = note.owner_avatar_color || '#1a73e8';
-      const ownerAvatar = `<div class="profile-initials-small" style="background-color: ${avatarColor};">${initials}</div>`;
-
-      ownerIndicator = `
-        <div class="note-owner">
-          ${ownerAvatar}
-          <span>${note.owner_username}</span>
-        </div>
-      `;
-    }
-
-    // Show share count if owned by user
-    if (!note.isShared && note.share_count > 0) {
-      shareIndicator = `<span class="share-indicator" title="Delad med ${note.share_count} ${note.share_count === 1 ? 'person' : 'personer'}">👥 ${note.share_count}</span>`;
-    }
-
-    if (note.is_checklist && note.checklist_items) {
-      const items = Array.isArray(note.checklist_items)
-        ? note.checklist_items
-        : JSON.parse(note.checklist_items || '[]');
-
-      contentHtml = `
-        <ul class="checklist">
-          ${items.map(item => `
-            <li class="${item.checked ? 'checked' : ''}">
-              <input type="checkbox" ${item.checked ? 'checked' : ''} disabled>
-              <span>${linkify(item.text)}</span>
-            </li>
-          `).join('')}
-        </ul>
-      `;
-    } else {
-      contentHtml = `<p>${linkify(note.content)}</p>`;
-    }
-
-    // Render images
-    let imagesHtml = '';
-    if (note.images && Array.isArray(note.images) && note.images.length > 0) {
-      imagesHtml = `
-        <div class="note-images" onclick="event.stopPropagation()">
-          ${note.images.map(img => `
-            <img src="/api/notes/image/${img}" alt="Note image" onclick="openImageModal('${img}')">
-          `).join('')}
-        </div>
-      `;
-    }
-
-    // Format created date if enabled
-    let dateHtml = '';
-    if (showCreatedDate && note.created_at) {
-      const formattedDate = formatCreatedDate(note.created_at);
-      dateHtml = `<div class="note-created-date">${formattedDate}</div>`;
-    }
-
-    return `
-      <div class="note-card" style="background-color: ${escapeHtml(note.color)}" onclick="openEditModal(${note.id})">
-        ${pinIndicator}
-        ${ownerIndicator}
-        ${note.title ? `<h3>${escapeHtml(note.title)}${dateHtml}</h3>` : dateHtml}
-        ${contentHtml}
-        ${imagesHtml}
-        ${shareIndicator}
-      </div>
-    `;
-  };
-
   // Render pinned and regular notes in their respective containers
-  pinnedContainer.innerHTML = pinnedNotes.map(renderNote).join('');
-  regularContainer.innerHTML = regularNotes.map(renderNote).join('');
+  pinnedContainer.innerHTML = pinnedNotes.map(note => renderNoteHTML(note)).join('');
+  regularContainer.innerHTML = regularNotes.map(note => renderNoteHTML(note)).join('');
 
-  // After rendering, detect truncated cards, add class, and calculate grid spans
-  setTimeout(() => {
+  // Use requestAnimationFrame for smooth DOM updates after render
+  requestAnimationFrame(() => {
     const allCards = [
       ...pinnedContainer.querySelectorAll('.note-card'),
       ...regularContainer.querySelectorAll('.note-card')
     ];
-    const styles = [];
 
     allCards.forEach((card, index) => {
       // Calculate grid-row span based on card height
@@ -758,37 +854,19 @@ function renderNotes() {
       // Check if card content is truncated (scrollHeight > clientHeight)
       if (card.scrollHeight > card.clientHeight) {
         card.classList.add('truncated');
-        card.dataset.cardIndex = index;
 
-        // Set gradient to match card's background color
+        // Use CSS custom properties for gradient color
         const bgColor = window.getComputedStyle(card).backgroundColor;
-        // Convert rgb(r, g, b) to rgba(r, g, b, a) for gradient
         const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
         if (rgbMatch) {
           const [, r, g, b] = rgbMatch;
-          const gradient = `linear-gradient(to bottom, rgba(${r}, ${g}, ${b}, 0), rgba(${r}, ${g}, ${b}, 1))`;
-          styles.push(`
-            .note-card[data-card-index="${index}"]::after {
-              background: ${gradient};
-            }
-          `);
+          card.style.setProperty('--card-color-r', r);
+          card.style.setProperty('--card-color-g', g);
+          card.style.setProperty('--card-color-b', b);
         }
       }
     });
-
-    // Remove old truncation styles and add new ones
-    const oldStyle = document.getElementById('truncation-gradients');
-    if (oldStyle) {
-      oldStyle.remove();
-    }
-
-    if (styles.length > 0) {
-      const styleEl = document.createElement('style');
-      styleEl.id = 'truncation-gradients';
-      styleEl.textContent = styles.join('\n');
-      document.head.appendChild(styleEl);
-    }
-  }, 10); // Small delay to ensure DOM is updated
+  });
 }
 
 async function saveNote() {
@@ -1065,8 +1143,13 @@ function toggleShared() {
   loadNotes();
 }
 
+// Debounced search to avoid rendering on every keystroke
+let searchTimeout = null;
 function searchNotes() {
-  renderNotes();
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    renderNotes();
+  }, 150); // Wait 150ms after last keystroke
 }
 
 // ===== SHARING FUNCTIONS =====
