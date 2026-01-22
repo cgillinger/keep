@@ -10,13 +10,13 @@
     .notes-grid {
       display: grid !important;
       grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)) !important;
-      gap: 2px !important;
+      gap: 8px !important; /* Google Keep uses ~8px */
       max-width: 100% !important;
       margin: 0 auto !important;
-      padding: 0 4px !important;
+      padding: 0 8px !important;
       grid-auto-rows: min-content !important;
       align-items: start !important;
-      background: #f5f5f5 !important; /* Visible debug marker */
+      background: white !important; /* White background like Google Keep */
     }
 
     .note-card {
@@ -24,13 +24,16 @@
       border: 1px solid #e0e0e0 !important;
       border-radius: 8px !important;
       padding: 12px !important;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+      /* Google Keep's exact shadow values */
+      box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15) !important;
       margin: 0 !important;
+      transition: box-shadow 0.2s ease, transform 0.1s ease !important;
     }
 
     .note-card:hover {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
-      transform: translateY(-2px) !important;
+      /* Google Keep's hover shadow - more pronounced */
+      box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 2px 6px 2px rgba(60,64,67,0.15) !important;
+      transform: translateY(-1px) !important;
     }
   </style>
 </head>
