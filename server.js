@@ -343,7 +343,7 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
           res.json({
             id: user.id,
             username: user.username,
-            profilePicture: user.profile_picture,
+            avatarColor: user.avatar_color || '#1a73e8',
             message: 'Inloggning lyckades'
           });
         });
@@ -379,91 +379,27 @@ app.get('/api/me', requireAuth, (req, res) => {
   });
 });
 
-// ===== PROFILE PICTURE ROUTES =====
+// ===== AVATAR COLOR ROUTES =====
 
-const profilePictureUpload = multer({
-  dest: path.join(__dirname, 'data', 'uploads', 'temp'),
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB max
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Endast bilder är tillåtna (JPEG, PNG, GIF, WebP)'));
-    }
-  }
-});
+app.post('/api/profile/avatar-color', requireAuth, apiLimiter, csrfProtection, (req, res) => {
+  const { avatarColor } = req.body;
 
-app.post('/api/profile/picture', requireAuth, apiLimiter, profilePictureUpload.single('picture'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'Ingen bild uppladdad' });
+  // Validate color is a valid hex color
+  if (!avatarColor || !/^#[0-9A-Fa-f]{6}$/.test(avatarColor)) {
+    return res.status(400).json({ error: 'Ogiltig färg' });
   }
 
-  try {
-    const profilePicsDir = path.join(__dirname, 'data', 'profile-pictures');
-    if (!fs.existsSync(profilePicsDir)) {
-      fs.mkdirSync(profilePicsDir, { recursive: true });
+  db.run('UPDATE users SET avatar_color = ? WHERE id = ?', [avatarColor, req.session.userId], (err) => {
+    if (err) {
+      console.error('Avatar color update error:', err);
+      return res.status(500).json({ error: 'Kunde inte uppdatera avatarfärg' });
     }
 
-    // Generate filename
-    const filename = `${req.session.userId}_${Date.now()}.jpg`;
-    const outputPath = path.join(profilePicsDir, filename);
-
-    // Resize and optimize image
-    await sharp(req.file.path)
-      .resize(200, 200, {
-        fit: 'cover',
-        position: 'center'
-      })
-      .jpeg({ quality: 85 })
-      .toFile(outputPath);
-
-    // Delete temp file
-    fs.unlinkSync(req.file.path);
-
-    // Delete old profile picture if exists
-    db.get('SELECT profile_picture FROM users WHERE id = ?', [req.session.userId], (err, user) => {
-      if (user && user.profile_picture) {
-        const oldPath = path.join(profilePicsDir, user.profile_picture);
-        if (fs.existsSync(oldPath)) {
-          fs.unlinkSync(oldPath);
-        }
-      }
+    res.json({
+      avatarColor,
+      message: 'Avatarfärg uppdaterad'
     });
-
-    // Update database
-    db.run('UPDATE users SET profile_picture = ? WHERE id = ?', [filename, req.session.userId], (err) => {
-      if (err) {
-        console.error('Profile picture update error:', err);
-        return res.status(500).json({ error: 'Kunde inte uppdatera profilbild' });
-      }
-
-      res.json({
-        profilePicture: filename,
-        message: 'Profilbild uppdaterad'
-      });
-    });
-  } catch (error) {
-    console.error('Profile picture processing error:', error);
-    // Clean up temp file if exists
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
-    res.status(500).json({ error: 'Kunde inte bearbeta bilden' });
-  }
-});
-
-app.get('/api/profile/picture/:filename', (req, res) => {
-  const filename = path.basename(req.params.filename); // Prevent path traversal
-  const filepath = path.join(__dirname, 'data', 'profile-pictures', filename);
-
-  if (!fs.existsSync(filepath)) {
-    return res.status(404).send('Bild hittades inte');
-  }
-
-  res.sendFile(filepath);
+  });
 });
 
 // ===== NOTE IMAGE ROUTES =====
@@ -551,7 +487,7 @@ app.get('/api/notes/image/:filename', (req, res) => {
 
 app.get('/api/users', requireAuth, apiLimiter, (req, res) => {
   db.all(
-    'SELECT id, username, profile_picture FROM users WHERE id != ? ORDER BY username',
+    'SELECT id, username, avatar_color FROM users WHERE id != ? ORDER BY username',
     [req.session.userId],
     (err, users) => {
       if (err) {
@@ -575,7 +511,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
       `SELECT
         notes.*,
         users.username as owner_username,
-        users.profile_picture as owner_picture,
+        users.avatar_color as owner_avatar_color,
         shares.permission
        FROM notes
        JOIN shares ON notes.id = shares.note_id
@@ -1004,7 +940,7 @@ app.get('/api/notes/:id/shares', requireAuth, apiLimiter, (req, res) => {
     }
 
     db.all(
-      `SELECT shares.*, users.username, users.profile_picture
+      `SELECT shares.*, users.username, users.avatar_color
        FROM shares
        JOIN users ON shares.shared_with_user_id = users.id
        WHERE shares.note_id = ?`,

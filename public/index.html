@@ -245,35 +245,6 @@
     </div>
   </div>
 
-  <!-- Image Crop Modal -->
-  <div id="crop-modal" class="modal" onclick="closeCropModal(event)">
-    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
-      <h2>Beskär profilbild</h2>
-
-      <div class="crop-container">
-        <div class="crop-preview">
-          <canvas id="crop-canvas"></canvas>
-          <div class="crop-circle"></div>
-        </div>
-
-        <div style="margin: 20px 0;">
-          <label style="display: block; margin-bottom: 8px; color: #5f6368;">Zooma:</label>
-          <input type="range" id="zoom-slider" min="100" max="300" value="100" step="1"
-                 style="width: 100%;" oninput="updateCropZoom()">
-        </div>
-
-        <p style="font-size: 13px; color: #5f6368; text-align: center;">
-          Dra bilden för att placera den i cirkeln
-        </p>
-      </div>
-
-      <div class="note-form-actions" style="margin-top: 20px;">
-        <button class="btn-secondary" onclick="closeCropModal()">Avbryt</button>
-        <button class="btn-primary" onclick="saveCroppedImage()">Spara</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Profile Modal -->
   <div id="profile-modal" class="modal" onclick="closeProfileModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 400px;">
@@ -284,12 +255,22 @@
         <p style="margin-top: 10px; color: #5f6368;"><span id="profile-username"></span></p>
       </div>
 
-      <div class="import-upload-area">
-        <input type="file" id="profile-picture-input" accept="image/*" onchange="selectProfilePicture()" style="display: none;">
-        <button class="btn-primary" onclick="document.getElementById('profile-picture-input').click()">
-          📷 Välj profilbild
-        </button>
-        <p style="font-size: 12px; color: #666; margin-top: 8px;">Max 5MB</p>
+      <div style="margin: 20px 0;">
+        <label style="display: block; margin-bottom: 10px; color: #202124; font-weight: 500;">
+          Välj avatarfärg
+        </label>
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; max-width: 250px; margin: 0 auto;">
+          <button class="avatar-color-option" data-color="#1a73e8" style="background: #1a73e8;" onclick="selectAvatarColor('#1a73e8')"></button>
+          <button class="avatar-color-option" data-color="#d93025" style="background: #d93025;" onclick="selectAvatarColor('#d93025')"></button>
+          <button class="avatar-color-option" data-color="#0f9d58" style="background: #0f9d58;" onclick="selectAvatarColor('#0f9d58')"></button>
+          <button class="avatar-color-option" data-color="#f29900" style="background: #f29900;" onclick="selectAvatarColor('#f29900')"></button>
+          <button class="avatar-color-option" data-color="#a142f4" style="background: #a142f4;" onclick="selectAvatarColor('#a142f4')"></button>
+          <button class="avatar-color-option" data-color="#e91e63" style="background: #e91e63;" onclick="selectAvatarColor('#e91e63')"></button>
+          <button class="avatar-color-option" data-color="#00acc1" style="background: #00acc1;" onclick="selectAvatarColor('#00acc1')"></button>
+          <button class="avatar-color-option" data-color="#7cb342" style="background: #7cb342;" onclick="selectAvatarColor('#7cb342')"></button>
+          <button class="avatar-color-option" data-color="#ff6f00" style="background: #ff6f00;" onclick="selectAvatarColor('#ff6f00')"></button>
+          <button class="avatar-color-option" data-color="#5e35b1" style="background: #5e35b1;" onclick="selectAvatarColor('#5e35b1')"></button>
+        </div>
       </div>
 
       <div style="margin: 20px 0; padding: 12px; background: #f8f9fa; border-radius: 8px;">
@@ -301,9 +282,6 @@
 
       <div class="note-form-actions" style="margin-top: 20px;">
         <button class="btn-secondary" onclick="closeProfileModal()">Stäng</button>
-        <button id="upload-profile-picture-btn" class="btn-primary" onclick="uploadProfilePicture()" disabled>
-          Ladda upp
-        </button>
       </div>
     </div>
   </div>

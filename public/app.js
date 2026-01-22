@@ -256,15 +256,17 @@ function connectWebSocket() {
   };
 }
 
-// ===== PROFILE PICTURE =====
+// ===== PROFILE PICTURE (AVATAR) =====
 function updateProfilePicture() {
   const profilePicElement = document.getElementById('user-profile-pic');
-  if (currentUser && currentUser.profilePicture) {
-    profilePicElement.innerHTML = `<img src="/api/profile/picture/${currentUser.profilePicture}" alt="${currentUser.username}">`;
+  if (currentUser) {
+    const initials = currentUser.username.substring(0, 2).toUpperCase();
+    const avatarColor = currentUser.avatarColor || '#1a73e8';
+    profilePicElement.innerHTML = initials;
+    profilePicElement.style.backgroundColor = avatarColor;
   } else {
-    // Show initials as fallback
-    const initials = currentUser ? currentUser.username.substring(0, 2).toUpperCase() : '??';
-    profilePicElement.innerHTML = `<div class="profile-initials">${initials}</div>`;
+    profilePicElement.innerHTML = '??';
+    profilePicElement.style.backgroundColor = '#e8eaed';
   }
 }
 
@@ -281,14 +283,16 @@ function openProfileModal() {
     dateToggle.checked = showCreatedDate;
   }
 
-  // Update profile picture preview
+  // Update profile picture preview with initials and color
   const profilePicPreview = document.getElementById('profile-picture-preview');
   if (profilePicPreview && currentUser) {
-    if (currentUser.profilePicture) {
-      profilePicPreview.innerHTML = `<img src="/api/profile/picture/${currentUser.profilePicture}" alt="${currentUser.username}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover;">`;
-    } else {
-      const initials = currentUser.username.substring(0, 2).toUpperCase();
-      profilePicPreview.innerHTML = `<div class="profile-initials" style="width: 120px; height: 120px; font-size: 48px;">${initials}</div>`;
+    const initials = currentUser.username.substring(0, 2).toUpperCase();
+    const avatarColor = currentUser.avatarColor || '#1a73e8';
+    profilePicPreview.innerHTML = initials;
+    profilePicPreview.style.backgroundColor = avatarColor;
+
+    // Highlight selected avatar color
+    updateSelectedAvatarColor(avatarColor);
     }
   }
 
@@ -306,195 +310,42 @@ function closeProfileModal(event) {
   document.getElementById('profile-modal').classList.remove('active');
 }
 
-// Image crop state
-let cropImage = null;
-let cropScale = 1;
-let cropX = 0;
-let cropY = 0;
-let isDragging = false;
-let dragStartX = 0;
-let dragStartY = 0;
+// ===== AVATAR COLOR =====
+async function selectAvatarColor(color) {
+  try {
+    const response = await fetch('/api/profile/avatar-color', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getCSRFHeaders()
+      },
+      body: JSON.stringify({ avatarColor: color })
+    });
 
-function selectProfilePicture() {
-  const fileInput = document.getElementById('profile-picture-input');
-  const file = fileInput.files[0];
-
-  if (!file) return;
-
-  if (!file.type.startsWith('image/')) {
-    alert('Endast bilder är tillåtna');
-    fileInput.value = '';
-    return;
-  }
-
-  if (file.size > 5 * 1024 * 1024) {
-    alert('Bilden är för stor. Max 5MB.');
-    fileInput.value = '';
-    return;
-  }
-
-  // Load image and show crop modal
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const img = new Image();
-    img.onload = () => {
-      cropImage = img;
-      setupCropCanvas();
-      document.getElementById('crop-modal').classList.add('active');
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function setupCropCanvas() {
-  const canvas = document.getElementById('crop-canvas');
-  const ctx = canvas.getContext('2d');
-
-  // Set canvas size to fit image while maintaining aspect ratio
-  const maxSize = 400;
-  let width = cropImage.width;
-  let height = cropImage.height;
-
-  if (width > height) {
-    if (width > maxSize) {
-      height = (height / width) * maxSize;
-      width = maxSize;
+    if (response.ok) {
+      currentUser.avatarColor = color;
+      updateProfilePicture();
+      updateSelectedAvatarColor(color);
+    } else {
+      alert('Kunde inte uppdatera avatarfärg');
     }
-  } else {
-    if (height > maxSize) {
-      width = (width / height) * maxSize;
-      height = maxSize;
-    }
+  } catch (error) {
+    alert('Nätverksfel');
   }
-
-  canvas.width = width;
-  canvas.height = height;
-
-  // Center the image
-  cropX = (300 - width) / 2;
-  cropY = (300 - height) / 2;
-  cropScale = 1;
-
-  document.getElementById('zoom-slider').value = 100;
-
-  drawCropCanvas();
-  setupCropDrag();
 }
 
-function drawCropCanvas() {
-  const canvas = document.getElementById('crop-canvas');
-  const ctx = canvas.getContext('2d');
+function updateSelectedAvatarColor(color) {
+  // Remove selected class from all color options
+  document.querySelectorAll('.avatar-color-option').forEach(btn => {
+    btn.classList.remove('selected');
+  });
 
-  canvas.style.left = cropX + 'px';
-  canvas.style.top = cropY + 'px';
-  canvas.style.transform = `scale(${cropScale})`;
-  canvas.style.transformOrigin = 'top left';
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(cropImage, 0, 0, canvas.width, canvas.height);
-}
-
-function updateCropZoom() {
-  const slider = document.getElementById('zoom-slider');
-  cropScale = slider.value / 100;
-  drawCropCanvas();
-}
-
-function setupCropDrag() {
-  const canvas = document.getElementById('crop-canvas');
-
-  canvas.onmousedown = (e) => {
-    isDragging = true;
-    dragStartX = e.clientX - cropX;
-    dragStartY = e.clientY - cropY;
-    canvas.style.cursor = 'grabbing';
-  };
-
-  document.onmousemove = (e) => {
-    if (!isDragging) return;
-    cropX = e.clientX - dragStartX;
-    cropY = e.clientY - dragStartY;
-    drawCropCanvas();
-  };
-
-  document.onmouseup = () => {
-    isDragging = false;
-    canvas.style.cursor = 'move';
-  };
-}
-
-async function saveCroppedImage() {
-  // Create a new canvas for the cropped circular image
-  const outputCanvas = document.createElement('canvas');
-  outputCanvas.width = 200;
-  outputCanvas.height = 200;
-  const ctx = outputCanvas.getContext('2d');
-
-  // Calculate source rectangle (what part of the scaled image to crop)
-  const canvas = document.getElementById('crop-canvas');
-  const previewRect = canvas.parentElement.getBoundingClientRect();
-  const circleX = 150; // Center of 300px preview
-  const circleY = 150;
-  const circleRadius = 100; // Radius of circle (200px diameter / 2)
-
-  // Calculate the source coordinates in the original canvas
-  const sourceX = (circleX - cropX) / cropScale;
-  const sourceY = (circleY - cropY) / cropScale;
-  const sourceSize = (circleRadius * 2) / cropScale;
-
-  // Draw circular clipped image
-  ctx.beginPath();
-  ctx.arc(100, 100, 100, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.clip();
-
-  ctx.drawImage(
-    canvas,
-    sourceX - sourceSize / 2,
-    sourceY - sourceSize / 2,
-    sourceSize,
-    sourceSize,
-    0,
-    0,
-    200,
-    200
-  );
-
-  // Convert to blob and upload
-  outputCanvas.toBlob(async (blob) => {
-    const formData = new FormData();
-    formData.append('picture', blob, 'profile.jpg');
-
-    try {
-      const response = await fetch('/api/profile/picture', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        currentUser.profilePicture = data.profilePicture;
-        updateProfilePicture();
-        closeCropModal();
-        closeProfileModal();
-        alert('Profilbild uppdaterad!');
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Kunde inte ladda upp bild');
-      }
-    } catch (error) {
-      alert('Nätverksfel vid uppladdning');
-    }
-  }, 'image/jpeg', 0.9);
-}
-
-function closeCropModal(event) {
-  if (event && event.target !== event.currentTarget) return;
-  document.getElementById('crop-modal').classList.remove('active');
-  document.getElementById('profile-picture-input').value = '';
-  cropImage = null;
+  // Add selected class to the chosen color
+  const selectedBtn = document.querySelector(`.avatar-color-option[data-color="${color}"]`);
+  if (selectedBtn) {
+    selectedBtn.classList.add('selected');
+  }
 }
 
 // Format created date for display
@@ -574,13 +425,13 @@ function renderNotes() {
 
     // Show owner if this is a shared note
     if (note.isShared && note.owner_username) {
-      const ownerPic = note.owner_picture
-        ? `<img src="/api/profile/picture/${note.owner_picture}" alt="${note.owner_username}">`
-        : `<div class="profile-initials-small">${note.owner_username.substring(0, 2).toUpperCase()}</div>`;
+      const initials = note.owner_username.substring(0, 2).toUpperCase();
+      const avatarColor = note.owner_avatar_color || '#1a73e8';
+      const ownerAvatar = `<div class="profile-initials-small" style="background-color: ${avatarColor};">${initials}</div>`;
 
       ownerIndicator = `
         <div class="note-owner">
-          ${ownerPic}
+          ${ownerAvatar}
           <span>${note.owner_username}</span>
         </div>
       `;
@@ -1003,13 +854,13 @@ function renderShareModal(currentShares) {
   // Render available users
   usersContainer.innerHTML = availableUsers.map(user => {
     const isShared = currentShares.some(s => s.shared_with_user_id === user.id);
-    const profilePic = user.profile_picture
-      ? `<img src="/api/profile/picture/${user.profile_picture}" alt="${user.username}">`
-      : `<div class="profile-initials-small">${user.username.substring(0, 2).toUpperCase()}</div>`;
+    const initials = user.username.substring(0, 2).toUpperCase();
+    const avatarColor = user.avatar_color || '#1a73e8';
+    const profileAvatar = `<div class="profile-initials-small" style="background-color: ${avatarColor};">${initials}</div>`;
 
     return `
       <div class="share-user-item ${isShared ? 'shared' : ''}" onclick="toggleShare(${user.id}, '${user.username}', ${isShared})">
-        ${profilePic}
+        ${profileAvatar}
         <span>${escapeHtml(user.username)}</span>
         ${isShared ? '<span class="share-check">✓</span>' : ''}
       </div>
@@ -1019,13 +870,13 @@ function renderShareModal(currentShares) {
   // Render current shares
   if (currentShares.length > 0) {
     sharesContainer.innerHTML = currentShares.map(share => {
-      const profilePic = share.profile_picture
-        ? `<img src="/api/profile/picture/${share.profile_picture}" alt="${share.username}">`
-        : `<div class="profile-initials-small">${share.username.substring(0, 2).toUpperCase()}</div>`;
+      const initials = share.username.substring(0, 2).toUpperCase();
+      const avatarColor = share.avatar_color || '#1a73e8';
+      const profileAvatar = `<div class="profile-initials-small" style="background-color: ${avatarColor};">${initials}</div>`;
 
       return `
         <div class="current-share-item">
-          ${profilePic}
+          ${profileAvatar}
           <span>${escapeHtml(share.username)}</span>
           <select onchange="updateSharePermission(${share.shared_with_user_id}, this.value)">
             <option value="view" ${share.permission === 'view' ? 'selected' : ''}>Visa</option>

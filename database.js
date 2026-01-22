@@ -80,6 +80,25 @@ db.serialize(() => {
     }
   });
 
+  // Migration: Add avatar_color column to users if it doesn't exist
+  db.all("PRAGMA table_info(users)", (err, columns) => {
+    if (err) {
+      console.error('Error checking users schema:', err);
+      return;
+    }
+
+    const hasAvatarColor = columns.some(col => col.name === 'avatar_color');
+    if (!hasAvatarColor) {
+      db.run(`ALTER TABLE users ADD COLUMN avatar_color TEXT DEFAULT '#1a73e8'`, (err) => {
+        if (err) {
+          console.error('Error adding avatar_color column:', err);
+        } else {
+          console.log('Added avatar_color column to users table');
+        }
+      });
+    }
+  });
+
   console.log('Database initialized');
 });
 
