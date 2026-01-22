@@ -97,6 +97,39 @@ db.serialize(() => {
         }
       });
     }
+
+    const hasEmail = columns.some(col => col.name === 'email');
+    if (!hasEmail) {
+      db.run(`ALTER TABLE users ADD COLUMN email TEXT`, (err) => {
+        if (err) {
+          console.error('Error adding email column:', err);
+        } else {
+          console.log('Added email column to users table');
+        }
+      });
+    }
+
+    const hasResetToken = columns.some(col => col.name === 'reset_token');
+    if (!hasResetToken) {
+      db.run(`ALTER TABLE users ADD COLUMN reset_token TEXT`, (err) => {
+        if (err) {
+          console.error('Error adding reset_token column:', err);
+        } else {
+          console.log('Added reset_token column to users table');
+        }
+      });
+    }
+
+    const hasResetTokenExpires = columns.some(col => col.name === 'reset_token_expires');
+    if (!hasResetTokenExpires) {
+      db.run(`ALTER TABLE users ADD COLUMN reset_token_expires DATETIME`, (err) => {
+        if (err) {
+          console.error('Error adding reset_token_expires column:', err);
+        } else {
+          console.log('Added reset_token_expires column to users table');
+        }
+      });
+    }
   });
 
   console.log('Database initialized');

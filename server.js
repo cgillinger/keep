@@ -19,6 +19,8 @@ const sharp = require('sharp');
 
 const db = require('./database');
 const KeepImportParser = require('./import-parser');
+const mailer = require('./mailer');
+const crypto = require('crypto');
 
 // Initialize DOMPurify with jsdom
 const window = new JSDOM('').window;
@@ -87,6 +89,14 @@ const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: isDevelopment ? 500 : 100, // 500 requests dev, 100 prod
   message: 'För många förfrågningar. Var god vänta.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const passwordResetLimiter = rateLimit({
+  windowMs: isDevelopment ? 1 * 60 * 1000 : 60 * 60 * 1000, // 1 min dev, 1 hour prod
+  max: isDevelopment ? 20 : 3, // 20 attempts dev, 3 prod
+  message: 'För många återställningsförfrågningar. Försök igen senare.',
   standardHeaders: true,
   legacyHeaders: false
 });
@@ -233,7 +243,7 @@ app.get('/api/csrf-token', csrfProtection, (req, res) => {
 });
 
 app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, email } = req.body;
 
   if (!username || !password) {
     return res.status(400).json({ error: 'Användarnamn och lösenord krävs' });
@@ -245,6 +255,17 @@ app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
     return res.status(400).json({ error: 'Användarnamnet måste vara minst 3 tecken' });
   }
 
+  // Validate and sanitize email (optional)
+  let sanitizedEmail = null;
+  if (email && email.trim()) {
+    sanitizedEmail = sanitizeInput(email, 255).trim().toLowerCase();
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(sanitizedEmail)) {
+      return res.status(400).json({ error: 'Ogiltig e-postadress' });
+    }
+  }
+
   // Validate password
   const passwordError = validatePassword(password);
   if (passwordError) {
@@ -254,8 +275,8 @@ app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 12); // Increased from 10 to 12 rounds
 
-    db.run('INSERT INTO users (username, password) VALUES (?, ?)',
-      [sanitizedUsername, hashedPassword],
+    db.run('INSERT INTO users (username, password, email) VALUES (?, ?, ?)',
+      [sanitizedUsername, hashedPassword, sanitizedEmail],
       function(err) {
         if (err) {
           if (err.message.includes('UNIQUE constraint failed')) {
@@ -285,6 +306,7 @@ app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
             res.json({
               id: this.lastID,
               username: sanitizedUsername,
+              email: sanitizedEmail,
               message: 'Registrering lyckades'
             });
           });
@@ -367,16 +389,165 @@ app.post('/api/logout', requireAuth, (req, res) => {
 });
 
 app.get('/api/me', requireAuth, (req, res) => {
-  db.get('SELECT id, username, profile_picture FROM users WHERE id = ?', [req.session.userId], (err, user) => {
+  db.get('SELECT id, username, profile_picture, avatar_color, email FROM users WHERE id = ?', [req.session.userId], (err, user) => {
     if (err || !user) {
       return res.status(500).json({ error: 'Kunde inte hämta användarinfo' });
     }
     res.json({
       id: user.id,
       username: user.username,
-      profilePicture: user.profile_picture
+      profilePicture: user.profile_picture,
+      avatarColor: user.avatar_color || '#1a73e8',
+      email: user.email
     });
   });
+});
+
+// ===== PASSWORD RESET ROUTES =====
+
+// Check if email is configured (for graceful fallback)
+app.get('/api/password-reset/check-config', (req, res) => {
+  res.json({
+    emailConfigured: mailer.isEmailConfigured()
+  });
+});
+
+// Request password reset
+app.post('/api/password-reset/request', passwordResetLimiter, csrfProtection, async (req, res) => {
+  const { usernameOrEmail } = req.body;
+
+  if (!usernameOrEmail || !usernameOrEmail.trim()) {
+    return res.status(400).json({ error: 'Användarnamn eller e-post krävs' });
+  }
+
+  // Check if email is configured
+  if (!mailer.isEmailConfigured()) {
+    return res.status(503).json({
+      error: 'E-post är inte konfigurerat på servern. Kontakta administratören.',
+      emailNotConfigured: true
+    });
+  }
+
+  const sanitizedInput = sanitizeInput(usernameOrEmail, 255).trim();
+
+  // Find user by username or email
+  db.get(
+    'SELECT id, username, email FROM users WHERE username = ? OR email = ?',
+    [sanitizedInput, sanitizedInput.toLowerCase()],
+    async (err, user) => {
+      if (err) {
+        console.error('Password reset request error:', err);
+        // Generic success message to prevent user enumeration
+        return res.json({ message: 'Om kontot finns kommer ett återställningsmail att skickas.' });
+      }
+
+      if (!user || !user.email) {
+        // Generic success message to prevent user enumeration
+        return res.json({ message: 'Om kontot finns kommer ett återställningsmail att skickas.' });
+      }
+
+      // Generate secure reset token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+
+      // Save token to database
+      db.run(
+        'UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?',
+        [resetToken, resetTokenExpires.toISOString(), user.id],
+        async (err) => {
+          if (err) {
+            console.error('Error saving reset token:', err);
+            return res.json({ message: 'Om kontot finns kommer ett återställningsmail att skickas.' });
+          }
+
+          // Build reset URL
+          const protocol = req.secure ? 'https' : 'http';
+          const host = req.get('host');
+          const resetUrl = `${protocol}://${host}/?reset_token=${resetToken}`;
+
+          // Send email
+          const emailSent = await mailer.sendPasswordResetEmail(
+            user.email,
+            user.username,
+            resetToken,
+            resetUrl
+          );
+
+          if (emailSent) {
+            console.log(`Password reset email sent to ${user.email}`);
+          } else {
+            console.error('Failed to send password reset email');
+          }
+
+          // Always return generic success message
+          res.json({ message: 'Om kontot finns kommer ett återställningsmail att skickas.' });
+        }
+      );
+    }
+  );
+});
+
+// Verify token and reset password
+app.post('/api/password-reset/verify', passwordResetLimiter, csrfProtection, async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Token och nytt lösenord krävs' });
+  }
+
+  // Validate new password
+  const passwordError = validatePassword(newPassword);
+  if (passwordError) {
+    return res.status(400).json({ error: passwordError });
+  }
+
+  // Find user with valid token
+  db.get(
+    'SELECT id, username, reset_token_expires FROM users WHERE reset_token = ?',
+    [token],
+    async (err, user) => {
+      if (err) {
+        console.error('Password reset verify error:', err);
+        return res.status(500).json({ error: 'Serverfel' });
+      }
+
+      if (!user) {
+        return res.status(400).json({ error: 'Ogiltig eller utgången återställningslänk' });
+      }
+
+      // Check if token has expired
+      const now = new Date();
+      const expiresAt = new Date(user.reset_token_expires);
+      if (now > expiresAt) {
+        // Clear expired token
+        db.run('UPDATE users SET reset_token = NULL, reset_token_expires = NULL WHERE id = ?', [user.id]);
+        return res.status(400).json({ error: 'Återställningslänken har gått ut. Begär en ny.' });
+      }
+
+      try {
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+        // Update password and clear reset token
+        db.run(
+          'UPDATE users SET password = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?',
+          [hashedPassword, user.id],
+          (err) => {
+            if (err) {
+              console.error('Error updating password:', err);
+              return res.status(500).json({ error: 'Kunde inte uppdatera lösenordet' });
+            }
+
+            console.log(`Password successfully reset for user: ${user.username}`);
+            res.json({ message: 'Lösenordet har återställts. Du kan nu logga in.' });
+          }
+        );
+      } catch (error) {
+        console.error('Password hashing error:', error);
+        res.status(500).json({ error: 'Serverfel' });
+      }
+    }
+  );
 });
 
 // ===== AVATAR COLOR ROUTES =====

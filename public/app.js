@@ -15,6 +15,8 @@ let showCreatedDate = localStorage.getItem('showCreatedDate') === 'true'; // Use
 // ===== INITIALIZATION =====
 window.addEventListener('DOMContentLoaded', async () => {
   await fetchCSRFToken();
+  await checkEmailConfig();
+  checkForResetToken();
   await checkAuth();
   setupColorPickers();
 });
@@ -75,13 +77,37 @@ function showApp() {
 function showLogin() {
   document.getElementById('login-form').style.display = 'block';
   document.getElementById('register-form').style.display = 'none';
+  document.getElementById('forgot-password-form').style.display = 'none';
+  document.getElementById('reset-password-form').style.display = 'none';
   document.getElementById('auth-error').textContent = '';
+  document.getElementById('auth-success').style.display = 'none';
 }
 
 function showRegister() {
   document.getElementById('login-form').style.display = 'none';
   document.getElementById('register-form').style.display = 'block';
+  document.getElementById('forgot-password-form').style.display = 'none';
+  document.getElementById('reset-password-form').style.display = 'none';
   document.getElementById('auth-error').textContent = '';
+  document.getElementById('auth-success').style.display = 'none';
+}
+
+function showForgotPassword() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('register-form').style.display = 'none';
+  document.getElementById('forgot-password-form').style.display = 'block';
+  document.getElementById('reset-password-form').style.display = 'none';
+  document.getElementById('auth-error').textContent = '';
+  document.getElementById('auth-success').style.display = 'none';
+}
+
+function showResetPassword() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('register-form').style.display = 'none';
+  document.getElementById('forgot-password-form').style.display = 'none';
+  document.getElementById('reset-password-form').style.display = 'block';
+  document.getElementById('auth-error').textContent = '';
+  document.getElementById('auth-success').style.display = 'none';
 }
 
 async function login() {
@@ -124,11 +150,12 @@ async function login() {
 
 async function register() {
   const username = document.getElementById('register-username').value;
+  const email = document.getElementById('register-email').value;
   const password = document.getElementById('register-password').value;
   const confirmPassword = document.getElementById('register-password-confirm').value;
 
   if (!username || !password || !confirmPassword) {
-    showAuthError('Fyll i alla fält');
+    showAuthError('Fyll i användarnamn och lösenord');
     return;
   }
 
@@ -163,7 +190,7 @@ async function register() {
         'Content-Type': 'application/json',
         ...getCSRFHeaders()
       },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password, email: email || null })
     });
 
     const data = await response.json();
@@ -173,6 +200,7 @@ async function register() {
       showApp();
       loadNotes();
       connectWebSocket();
+      updateProfilePicture();
     } else {
       showAuthError(data.error || 'Registrering misslyckades');
       // Refresh CSRF token on auth failure
@@ -197,26 +225,197 @@ async function logout() {
 function showAuthError(message) {
   const errorElement = document.getElementById('auth-error');
   errorElement.textContent = message;
+  document.getElementById('auth-success').style.display = 'none';
 
   // Add error styling to input fields
-  const visibleForm = document.getElementById('login-form').style.display !== 'none'
-    ? 'login-form'
-    : 'register-form';
+  const visibleForms = ['login-form', 'register-form', 'forgot-password-form', 'reset-password-form'];
+  let visibleForm = null;
+  for (const formId of visibleForms) {
+    if (document.getElementById(formId).style.display !== 'none') {
+      visibleForm = formId;
+      break;
+    }
+  }
 
-  const inputs = document.querySelectorAll(`#${visibleForm} input`);
-  inputs.forEach(input => {
-    input.style.borderColor = '#d93025';
-    input.style.backgroundColor = '#fef7f7';
-  });
+  if (visibleForm) {
+    const inputs = document.querySelectorAll(`#${visibleForm} input`);
+    inputs.forEach(input => {
+      input.style.borderColor = '#d93025';
+      input.style.backgroundColor = '#fef7f7';
+    });
 
-  // Remove error styling when user starts typing
-  inputs.forEach(input => {
-    input.addEventListener('input', function clearError() {
-      input.style.borderColor = '';
-      input.style.backgroundColor = '';
-      input.removeEventListener('input', clearError);
-    }, { once: true });
-  });
+    // Remove error styling when user starts typing
+    inputs.forEach(input => {
+      input.addEventListener('input', function clearError() {
+        input.style.borderColor = '';
+        input.style.backgroundColor = '';
+        input.removeEventListener('input', clearError);
+      }, { once: true });
+    });
+  }
+}
+
+function showAuthSuccess(message) {
+  const successElement = document.getElementById('auth-success');
+  successElement.textContent = message;
+  successElement.style.display = 'block';
+  document.getElementById('auth-error').textContent = '';
+}
+
+// ===== PASSWORD RESET =====
+
+// Check if email is configured on the server
+async function checkEmailConfig() {
+  try {
+    const response = await fetch('/api/password-reset/check-config', {
+      credentials: 'include'
+    });
+    const data = await response.json();
+
+    // Show/hide "Forgot password" link based on email configuration
+    const forgotPasswordLink = document.getElementById('forgot-password-link');
+    if (data.emailConfigured) {
+      forgotPasswordLink.style.display = 'block';
+    } else {
+      forgotPasswordLink.style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Failed to check email configuration:', error);
+    // Hide forgot password link on error (graceful fallback)
+    document.getElementById('forgot-password-link').style.display = 'none';
+  }
+}
+
+// Check if there's a reset token in the URL
+function checkForResetToken() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const resetToken = urlParams.get('reset_token');
+
+  if (resetToken) {
+    // Store token and show reset password form
+    sessionStorage.setItem('resetToken', resetToken);
+    showResetPassword();
+
+    // Clean up URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
+
+// Request password reset
+async function requestPasswordReset() {
+  const usernameOrEmail = document.getElementById('forgot-password-input').value;
+
+  if (!usernameOrEmail || !usernameOrEmail.trim()) {
+    showAuthError('Ange ditt användarnamn eller e-post');
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/password-reset/request', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getCSRFHeaders()
+      },
+      body: JSON.stringify({ usernameOrEmail: usernameOrEmail.trim() })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      showAuthSuccess(data.message);
+      // Clear input
+      document.getElementById('forgot-password-input').value = '';
+    } else if (response.status === 503 && data.emailNotConfigured) {
+      showAuthError('E-post är inte konfigurerat. Kontakta din familjeadministratör för att aktivera lösenordsåterställning.');
+    } else {
+      showAuthError(data.error || 'Ett fel uppstod');
+    }
+
+    // Refresh CSRF token
+    await fetchCSRFToken();
+  } catch (error) {
+    showAuthError('Nätverksfel. Kontrollera din anslutning.');
+  }
+}
+
+// Reset password with token
+async function resetPassword() {
+  const token = sessionStorage.getItem('resetToken');
+  const newPassword = document.getElementById('reset-password-new').value;
+  const confirmPassword = document.getElementById('reset-password-confirm').value;
+
+  if (!token) {
+    showAuthError('Ogiltig återställningslänk. Begär en ny.');
+    return;
+  }
+
+  if (!newPassword || !confirmPassword) {
+    showAuthError('Fyll i båda fälten');
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    showAuthError('Lösenorden matchar inte');
+    return;
+  }
+
+  // Client-side validation matching server requirements
+  if (newPassword.length < 12) {
+    showAuthError('Lösenordet måste vara minst 12 tecken');
+    return;
+  }
+  if (!/[A-Z]/.test(newPassword)) {
+    showAuthError('Lösenordet måste innehålla minst en stor bokstav');
+    return;
+  }
+  if (!/[a-z]/.test(newPassword)) {
+    showAuthError('Lösenordet måste innehålla minst en liten bokstav');
+    return;
+  }
+  if (!/[0-9]/.test(newPassword)) {
+    showAuthError('Lösenordet måste innehålla minst en siffra');
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/password-reset/verify', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getCSRFHeaders()
+      },
+      body: JSON.stringify({ token, newPassword })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      // Clear token
+      sessionStorage.removeItem('resetToken');
+
+      // Show success and redirect to login
+      showAuthSuccess(data.message);
+
+      // Clear form
+      document.getElementById('reset-password-new').value = '';
+      document.getElementById('reset-password-confirm').value = '';
+
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
+        showLogin();
+      }, 2000);
+    } else {
+      showAuthError(data.error || 'Återställning misslyckades');
+    }
+
+    // Refresh CSRF token
+    await fetchCSRFToken();
+  } catch (error) {
+    showAuthError('Nätverksfel. Kontrollera din anslutning.');
+  }
 }
 
 // ===== WEBSOCKET =====
