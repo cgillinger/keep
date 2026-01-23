@@ -183,6 +183,12 @@ function updateUITranslations() {
   // Footer
   document.querySelector('.app-footer p').innerHTML = `${t('footer.version')} | <a href="https://github.com/cgillinger/keep" target="_blank" rel="noopener">GitHub</a> | ${t('footer.license')}`;
 
+  // Attribution
+  const attributionText = document.getElementById('icon-attribution-text');
+  if (attributionText) {
+    attributionText.textContent = t('attribution.icon_credit');
+  }
+
   // Update meta tags
   updateMetaTags();
 }

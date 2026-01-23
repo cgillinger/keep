@@ -142,6 +142,9 @@
     "no_archived_notes": "No archived notes",
     "confirm_delete": "Are you sure you want to delete this note?"
   },
+  "attribution": {
+    "icon_credit": "Notebook icons created by Freepik - Flaticon"
+  },
   "footer": {
     "version": "Keep Clone v1.1.0",
     "license": "MIT License"
