@@ -4,6 +4,11 @@ En säker, självhostad Google Keep-klon med delningsfunktioner, anpassningsbara
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
+![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)
+![Docker](https://img.shields.io/badge/docker-supported-2496ED?logo=docker&logoColor=white)
+![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-lightgrey)
+[![GitHub issues](https://img.shields.io/github/issues/cgillinger/keep)](https://github.com/cgillinger/keep/issues)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/cgillinger/keep/pulls)
 
 ## ✨ Funktioner
 
