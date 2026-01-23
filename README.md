@@ -9,8 +9,10 @@ A secure, self-hosted Google Keep clone with sharing features, customizable prof
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)
 ![Docker](https://img.shields.io/badge/docker-supported-2496ED?logo=docker&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-lightgrey)
-[![GitHub issues](https://img.shields.io/github/issues/cgillinger/keep)](https://github.com/cgillinger/keep/issues)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/cgillinger/keep/pulls)
+
+> **⚠️ Hobby Project - Provided "AS IS"**
+>
+> This is a personal hobby project shared freely under MIT license. No support, bug fixes, or feature requests are guaranteed. Use at your own risk. Feel free to fork and modify for your needs.
 
 ## ✨ Features
 
@@ -896,13 +898,15 @@ Copyright (c) 2025 Keep Clone Contributors
 
 ## 🤝 Contributing
 
-This is a family project, but pull requests are welcome!
+**This is a hobby project provided "AS IS" under MIT license.**
 
-1. Fork the project
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+I'm sharing this code freely, but I don't commit to reviewing PRs, fixing bugs, or implementing features. If you find issues or want improvements, feel free to:
+
+- **Fork the project** and modify it for your needs
+- **Share your improvements** with the community (but no obligation for me to merge)
+- **Help other users** in discussions if you want to
+
+No support or maintenance is guaranteed. This is a personal project I built for my family's use.
 
 ## 💡 Planned Features
 
@@ -918,11 +922,16 @@ This is a family project, but pull requests are welcome!
 
 ## ❓ Support
 
-If you have questions or problems:
+**No support is provided for this hobby project.**
 
-1. Read the documentation in this repo
-2. Search [GitHub Issues](https://github.com/cgillinger/keep/issues)
-3. Open a new issue with details about your problem
+This code is shared "as is" without any guarantee of fixes or responses. However, you can:
+
+1. **Read the documentation** in this repo - it's comprehensive
+2. **Search existing issues** - someone might have solved your problem
+3. **Help each other** - community discussions are welcome
+4. **Fork and fix** - you have full access to modify the code
+
+I built this for my family and share it hoping it helps others, but I can't commit to providing support or bug fixes.
 
 ## 👨‍👩‍👧‍👦 For Families
 
@@ -965,8 +974,10 @@ En säker, självhostad Google Keep-klon med delningsfunktioner, anpassningsbara
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)
 ![Docker](https://img.shields.io/badge/docker-supported-2496ED?logo=docker&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-lightgrey)
-[![GitHub issues](https://img.shields.io/github/issues/cgillinger/keep)](https://github.com/cgillinger/keep/issues)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/cgillinger/keep/pulls)
+
+> **⚠️ Hobbyprojekt - Tillhandahålls "SOM DET ÄR"**
+>
+> Detta är ett personligt hobbyprojekt som delas fritt under MIT-licens. Ingen support, buggfixar eller feature requests garanteras. Använd på egen risk. Du är välkommen att forka och modifiera för dina behov.
 
 ## ✨ Funktioner
 
@@ -1852,13 +1863,15 @@ Copyright (c) 2025 Keep Clone Contributors
 
 ## 🤝 Bidra
 
-Detta är ett familje-projekt, men pull requests är välkomna!
+**Detta är ett hobbyprojekt som tillhandahålls "SOM DET ÄR" under MIT-licens.**
 
-1. Fork projektet
-2. Skapa en feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit dina ändringar (`git commit -m 'Add some AmazingFeature'`)
-4. Push till branchen (`git push origin feature/AmazingFeature`)
-5. Öppna en Pull Request
+Jag delar koden fritt, men jag förbinder mig inte att granska PRs, fixa buggar eller implementera funktioner. Om du hittar problem eller vill ha förbättringar, är du välkommen att:
+
+- **Forka projektet** och modifiera det för dina behov
+- **Dela dina förbättringar** med communityn (men ingen skyldighet för mig att merga)
+- **Hjälpa andra användare** i diskussioner om du vill
+
+Ingen support eller underhåll garanteras. Detta är ett personligt projekt jag byggde för min familjs användning.
 
 ## 💡 Planerade funktioner
 
@@ -1874,11 +1887,16 @@ Detta är ett familje-projekt, men pull requests är välkomna!
 
 ## ❓ Support
 
-Om du har frågor eller problem:
+**Ingen support tillhandahålls för detta hobbyprojekt.**
 
-1. Läs dokumentationen i detta repo
-2. Sök bland [GitHub Issues](https://github.com/cgillinger/keep/issues)
-3. Öppna en ny issue med detaljer om ditt problem
+Koden delas "som den är" utan någon garanti för fixar eller svar. Du kan dock:
+
+1. **Läs dokumentationen** i detta repo - den är omfattande
+2. **Sök bland existerande issues** - någon kan ha löst ditt problem
+3. **Hjälp varandra** - diskussioner i communityn är välkomna
+4. **Forka och fixa** - du har full tillgång att modifiera koden
+
+Jag byggde detta för min familj och delar det i hopp om att det hjälper andra, men jag kan inte förbinda mig att ge support eller buggfixar.
 
 ## 👨‍👩‍👧‍👦 För familjer
 
