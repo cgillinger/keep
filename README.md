@@ -435,6 +435,74 @@ SMTP_PASS=applösenord_här
 EMAIL_FROM=Keep Clone <familj@gmail.com>
 ```
 
+### Ändra port
+
+**Metod 1: Via .env-fil (REKOMMENDERAT)**
+
+Redigera `.env`:
+```env
+PORT=8080
+```
+
+Starta om servern:
+```bash
+npm start
+```
+
+Appen körs nu på `http://localhost:8080`
+
+**Metod 2: Via kommandoraden (tillfälligt)**
+
+```bash
+PORT=8080 npm start
+```
+
+Detta gäller endast för denna session.
+
+**För Docker (se Docker-portkonfiguration nedan)**
+
+### Docker-portkonfiguration
+
+Docker har två portar att konfigurera:
+- **Intern port** - porten inuti Docker-containern (där appen körs)
+- **Extern port** - porten på din dator/server (där du ansluter)
+
+**Format:** `extern:intern`
+
+**Exempel 1: Kör appen på port 8080 utanför containern**
+```yaml
+# docker-compose.yml
+services:
+  keep-clone:
+    ports:
+      - "8080:3000"  # Extern:Intern
+    # Appen körs på port 3000 inuti containern
+    # Du ansluter via http://localhost:8080
+```
+
+**Exempel 2: Ändra både intern och extern port**
+```yaml
+services:
+  keep-clone:
+    environment:
+      - PORT=8080      # Intern port ändras
+    ports:
+      - "8080:8080"    # Båda portarna 8080
+```
+
+**Exempel 3: Använd port 80 (standard HTTP)**
+```yaml
+services:
+  keep-clone:
+    ports:
+      - "80:3000"      # Anslut via http://localhost (ingen port behövs)
+```
+
+**Tips:**
+- Lämna intern port som 3000 om möjligt (enklare)
+- Ändra endast extern port för att undvika portkonflikter
+- Port 80 kräver root/admin på många system
+
 ### Datalokalisering
 
 Data lagras i `./data/`:
@@ -459,13 +527,25 @@ const loginLimiter = rateLimit({
 **Problem:** Port 3000 redan används
 
 **Lösning:**
+
+**Alternativ 1: Ändra port (rekommenderat)**
+```bash
+# Lägg till i .env
+echo "PORT=8080" >> .env
+npm start
+```
+
+**Alternativ 2: Hitta och stoppa processen på port 3000**
 ```bash
 # Hitta process på port 3000
 lsof -i :3000
 # Döda processen
 kill -9 <PID>
-# Eller använd annan port
-PORT=3001 npm start
+```
+
+**Alternativ 3: Tillfällig portändring**
+```bash
+PORT=8080 npm start
 ```
 
 **Problem:** "SESSION_SECRET not configured" eller sessionsfel
