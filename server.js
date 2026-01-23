@@ -68,7 +68,12 @@ app.use(
           includeSubDomains: true,
           preload: true
         }
-      : false
+      : false,
+
+    // Disable Cross-Origin policies over HTTP (they require "trustworthy" origins)
+    crossOriginOpenerPolicy: isHttps ? { policy: "same-origin-allow-popups" } : false,
+    crossOriginEmbedderPolicy: false, // Not needed for this app
+    crossOriginResourcePolicy: false  // Not needed for this app
   })
 );
 
