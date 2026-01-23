@@ -13,6 +13,35 @@ let editNoteImages = []; // Filenames of images for editing note
 let showCreatedDate = localStorage.getItem('showCreatedDate') === 'true'; // User preference for showing created date
 let renderedNotesMap = new Map(); // Cache of rendered notes by ID for incremental updates
 
+// ===== COLOR THEME MAPPING =====
+// Maps light note colors to dark mode equivalents (following WCAG accessibility guidelines)
+function getThemeAwareColor(lightColor) {
+  // Check if dark mode is active
+  const isDarkMode = document.body.classList.contains('theme-dark');
+
+  if (!isDarkMode) {
+    return lightColor; // Return original color in light mode
+  }
+
+  // Dark mode color mapping (matches base.css dark theme variables)
+  const darkModeColors = {
+    '#ffffff': '#303134',   // white → dark gray
+    '#f28b82': '#8c2f24',   // red → dark red
+    '#fbbc04': '#996600',   // orange → dark orange
+    '#fff475': '#7f6f0a',   // yellow → dark yellow
+    '#ccff90': '#345920',   // green → dark green
+    '#a7ffeb': '#0e5454',   // teal → dark teal
+    '#cbf0f8': '#1e4a52',   // cyan → dark cyan
+    '#aecbfa': '#1e3a5f',   // blue → dark blue
+    '#d7aefb': '#42275e',   // purple → dark purple
+    '#fdcfe8': '#5b2245',   // pink → dark pink
+    '#e6c9a8': '#442f19',   // brown → dark brown
+    '#e8eaed': '#3c3f43'    // gray → dark gray
+  };
+
+  return darkModeColors[lightColor] || lightColor;
+}
+
 // ===== INITIALIZATION =====
 window.addEventListener('DOMContentLoaded', async () => {
   await fetchCSRFToken();
@@ -628,6 +657,25 @@ function applyBackgroundTheme(theme) {
     const color = themeColors[theme] || themeColors['default'];
     body.style.setProperty('--bg-main', color);
   }
+
+  // Re-render notes to update colors when theme changes
+  if (notes && notes.length > 0) {
+    renderNotes();
+  }
+
+  // Update new note form color
+  const newNoteForm = document.getElementById('new-note-form');
+  if (newNoteForm && selectedColor) {
+    newNoteForm.style.backgroundColor = getThemeAwareColor(selectedColor);
+  }
+
+  // Update modal content color if open
+  if (currentEditingNote) {
+    const modalContent = document.querySelector('.modal-content');
+    if (modalContent) {
+      modalContent.style.backgroundColor = getThemeAwareColor(currentEditingNote.color);
+    }
+  }
 }
 
 function updateSelectedTheme(theme) {
@@ -828,8 +876,10 @@ function renderNoteHTML(note) {
     dateHtml = `<div class="note-created-date">${formattedDate}</div>`;
   }
 
+  const themeColor = getThemeAwareColor(note.color);
+
   return `
-    <div class="note-card" data-note-id="${note.id}" style="background-color: ${escapeHtml(note.color)}" onclick="openEditModal(${note.id})">
+    <div class="note-card" data-note-id="${note.id}" style="background-color: ${escapeHtml(themeColor)}" onclick="openEditModal(${note.id})">
       ${pinIndicator}
       ${ownerIndicator}
       ${note.title ? `<h3>${escapeHtml(note.title)}${dateHtml}</h3>` : dateHtml}
@@ -983,7 +1033,7 @@ async function saveNote() {
       document.getElementById('checklist-container').style.display = 'none';
       document.getElementById('images-container').style.display = 'none';
       document.getElementById('images-preview').innerHTML = '';
-      document.getElementById('new-note-form').style.backgroundColor = '#ffffff';
+      document.getElementById('new-note-form').style.backgroundColor = getThemeAwareColor('#ffffff');
       document.getElementById('checklist-items').innerHTML = '';
       loadNotes();
     } else if (response.status === 403) {
@@ -1004,7 +1054,7 @@ function openEditModal(noteId) {
 
   document.getElementById('edit-note-title').value = note.title || '';
   document.getElementById('edit-note-content').value = note.content || '';
-  document.getElementById('modal-content').style.backgroundColor = note.color;
+  document.getElementById('modal-content').style.backgroundColor = getThemeAwareColor(note.color);
 
   // Show/hide edit options based on permission
   const canEdit = !note.isShared || note.permission === 'edit';
@@ -1646,11 +1696,11 @@ function setupColorPickers() {
       if (btn.classList.contains('edit-color-btn')) {
         if (currentEditingNote) {
           currentEditingNote.color = color;
-          document.querySelector('.modal-content').style.backgroundColor = color;
+          document.querySelector('.modal-content').style.backgroundColor = getThemeAwareColor(color);
         }
       } else {
         selectedColor = color;
-        document.getElementById('new-note-form').style.backgroundColor = color;
+        document.getElementById('new-note-form').style.backgroundColor = getThemeAwareColor(color);
       }
 
       // Close the color picker after selecting a color
