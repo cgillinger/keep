@@ -586,6 +586,11 @@ SESSION_SECRET=your_secure_secret_here
 PORT=3000
 NODE_ENV=production
 
+# HTTPS Configuration (optional)
+# Set to 'true' if running behind a reverse proxy with TLS termination
+# This enables HSTS (HTTP Strict Transport Security) headers
+FORCE_HTTPS=false
+
 # Email (optional, for password reset)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -594,6 +599,32 @@ SMTP_USER=family@gmail.com
 SMTP_PASS=app_password_here
 EMAIL_FROM=Keep Clone <family@gmail.com>
 ```
+
+#### FORCE_HTTPS (Advanced Configuration)
+
+**Default:** `false`
+
+**When to use:**
+- Set to `true` **ONLY** if running behind HTTPS reverse proxy with TLS termination (e.g., Nginx, Traefik, Caddy)
+- Leave as `false` for HTTP-only deployments (Docker, LAN, Tailscale without HTTPS)
+
+**What it does:**
+- When `true`: Enables HSTS (HTTP Strict Transport Security) headers
+- When `false`: Disables HTTPS-only security headers, allowing the app to work correctly over HTTP
+
+**Example scenarios:**
+
+✅ **HTTP deployment (Docker on Synology, LAN access):**
+```env
+FORCE_HTTPS=false  # or omit entirely
+```
+
+✅ **HTTPS deployment (behind Nginx reverse proxy):**
+```env
+FORCE_HTTPS=true
+```
+
+⚠️ **Common mistake:** Setting `FORCE_HTTPS=true` when accessing via HTTP will cause connection issues.
 
 ### Change Port
 
@@ -765,6 +796,38 @@ npm install
 - Test SMTP connection: `node -e "require('./mailer.js')"`
 - Check server console for SMTP errors
 - Some providers require approval for "less secure apps"
+
+### CSS/JS not loading in Docker (ERR_SSL_PROTOCOL_ERROR)
+
+**Problem:** Server starts but UI doesn't load - browser shows `ERR_SSL_PROTOCOL_ERROR` or CSS/JS files fail to load
+
+**Symptoms:**
+- Browser tries to load resources via HTTPS when server runs on HTTP
+- DevTools console shows "Mixed Content" errors or SSL errors
+- Page loads but is unstyled/broken
+
+**Root cause:** HTTPS-only security headers (HSTS, upgrade-insecure-requests) are enabled when running over HTTP
+
+**Solution:**
+
+Check your `.env` file and ensure `FORCE_HTTPS` is **not** set to `true`:
+
+```env
+# For HTTP deployments (Docker, LAN, Synology)
+FORCE_HTTPS=false  # or omit this line entirely
+```
+
+Then restart the container:
+```bash
+docker-compose down
+docker-compose up -d
+```
+
+**When to use `FORCE_HTTPS=true`:**
+- **ONLY** when running behind HTTPS reverse proxy (Nginx, Traefik, Caddy with TLS)
+- For direct HTTP access (Docker, LAN, Tailscale without HTTPS): leave as `false`
+
+See [Environment Variables](#environment-variables) section for more details.
 
 ## 🧪 Development
 
@@ -1551,6 +1614,11 @@ SESSION_SECRET=din_säkra_secret_här
 PORT=3000
 NODE_ENV=production
 
+# HTTPS-konfiguration (valfritt)
+# Sätt till 'true' om du kör bakom en reverse proxy med TLS-terminering
+# Detta aktiverar HSTS (HTTP Strict Transport Security) headers
+FORCE_HTTPS=false
+
 # E-post (valfritt, för lösenordsåterställning)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -1559,6 +1627,32 @@ SMTP_USER=familj@gmail.com
 SMTP_PASS=applösenord_här
 EMAIL_FROM=Keep Clone <familj@gmail.com>
 ```
+
+#### FORCE_HTTPS (Avancerad konfiguration)
+
+**Standard:** `false`
+
+**När ska den användas:**
+- Sätt till `true` **ENDAST** om du kör bakom HTTPS reverse proxy med TLS-terminering (t.ex. Nginx, Traefik, Caddy)
+- Lämna som `false` för HTTP-deployment (Docker, LAN, Tailscale utan HTTPS)
+
+**Vad den gör:**
+- När `true`: Aktiverar HSTS (HTTP Strict Transport Security) headers
+- När `false`: Inaktiverar HTTPS-specifika säkerhetsheaders, tillåter att appen fungerar korrekt över HTTP
+
+**Exempelscenarier:**
+
+✅ **HTTP-deployment (Docker på Synology, LAN-åtkomst):**
+```env
+FORCE_HTTPS=false  # eller utelämna helt
+```
+
+✅ **HTTPS-deployment (bakom Nginx reverse proxy):**
+```env
+FORCE_HTTPS=true
+```
+
+⚠️ **Vanligt misstag:** Att sätta `FORCE_HTTPS=true` när du använder HTTP kommer orsaka anslutningsproblem.
 
 ### Ändra port
 
@@ -1730,6 +1824,38 @@ npm install
 - Testa SMTP-anslutning: `node -e "require('./mailer.js')"`
 - Kontrollera serverkonsolen för SMTP-fel
 - Vissa providers kräver att du godkänner "mindre säkra appar"
+
+### CSS/JS laddas inte i Docker (ERR_SSL_PROTOCOL_ERROR)
+
+**Problem:** Servern startar men UI:t laddas inte - webbläsaren visar `ERR_SSL_PROTOCOL_ERROR` eller CSS/JS-filer laddas inte
+
+**Symtom:**
+- Webbläsaren försöker ladda resurser via HTTPS när servern körs på HTTP
+- DevTools-konsolen visar "Mixed Content"-fel eller SSL-fel
+- Sidan laddas men är ostyled/trasig
+
+**Grundorsak:** HTTPS-specifika säkerhetsheaders (HSTS, upgrade-insecure-requests) är aktiverade när appen körs över HTTP
+
+**Lösning:**
+
+Kontrollera din `.env`-fil och se till att `FORCE_HTTPS` **inte** är satt till `true`:
+
+```env
+# För HTTP-deployment (Docker, LAN, Synology)
+FORCE_HTTPS=false  # eller utelämna denna rad helt
+```
+
+Starta sedan om containern:
+```bash
+docker-compose down
+docker-compose up -d
+```
+
+**När ska `FORCE_HTTPS=true` användas:**
+- **ENDAST** när du kör bakom HTTPS reverse proxy (Nginx, Traefik, Caddy med TLS)
+- För direkt HTTP-åtkomst (Docker, LAN, Tailscale utan HTTPS): lämna som `false`
+
+Se [Miljövariabler](#miljövariabler) för mer information.
 
 ## 🧪 Utveckling
 
