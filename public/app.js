@@ -1,3 +1,201 @@
+// ===== INTERNATIONALIZATION (i18n) =====
+let currentLocale = localStorage.getItem('locale') || 'en'; // Default to English
+let translations = {};
+
+// Load translation file for current locale
+async function loadTranslations(locale) {
+  try {
+    const response = await fetch(`/locales/${locale}.json`);
+    if (response.ok) {
+      translations = await response.json();
+      currentLocale = locale;
+      localStorage.setItem('locale', locale);
+      return true;
+    }
+  } catch (error) {
+    console.error(`Failed to load translations for ${locale}:`, error);
+  }
+  return false;
+}
+
+// Translate function - supports nested keys like "auth.login_title"
+function t(key) {
+  const keys = key.split('.');
+  let value = translations;
+
+  for (const k of keys) {
+    if (value && typeof value === 'object' && k in value) {
+      value = value[k];
+    } else {
+      console.warn(`Translation missing for key: ${key}`);
+      return key; // Return key if translation not found
+    }
+  }
+
+  return value;
+}
+
+// Update meta tags with translated content
+function updateMetaTags() {
+  document.title = t('meta.title');
+  document.querySelector('meta[name="description"]').setAttribute('content', t('meta.description'));
+  document.querySelector('meta[name="keywords"]').setAttribute('content', t('meta.keywords'));
+  document.querySelector('meta[property="og:title"]').setAttribute('content', t('meta.og_title'));
+  document.querySelector('meta[property="og:description"]').setAttribute('content', t('meta.og_description'));
+  document.querySelector('meta[name="twitter:title"]').setAttribute('content', t('meta.twitter_title'));
+  document.querySelector('meta[name="twitter:description"]').setAttribute('content', t('meta.twitter_description'));
+  document.documentElement.setAttribute('lang', currentLocale);
+}
+
+// Update all UI text elements with translations
+function updateUITranslations() {
+  // Auth screen
+  document.querySelector('.auth-container h1').textContent = t('auth.app_name');
+  document.querySelector('.auth-container .subtitle').textContent = t('auth.subtitle');
+
+  // Login form
+  document.querySelector('#login-form h2').textContent = t('auth.login_title');
+  document.querySelector('#login-username').placeholder = t('auth.username_placeholder');
+  document.querySelector('#login-password').placeholder = t('auth.password_placeholder');
+  document.querySelector('#login-form button').textContent = t('auth.login_button');
+  document.querySelector('#login-form .auth-switch').innerHTML =
+    `${t('auth.new_user')} <a href="#" onclick="showRegister(); return false;">${t('auth.register_link')}</a>`;
+  document.querySelector('#forgot-password-link a').textContent = t('auth.forgot_password_link');
+
+  // Register form
+  document.querySelector('#register-form h2').textContent = t('auth.register_title');
+  document.querySelector('#register-username').placeholder = t('auth.username_register_placeholder');
+  document.querySelector('#register-email').placeholder = t('auth.email_placeholder');
+  document.querySelector('#register-password').placeholder = t('auth.password_placeholder');
+  document.querySelector('#register-password-confirm').placeholder = t('auth.confirm_password_placeholder');
+
+  const passwordReqs = document.querySelectorAll('.password-requirements');
+  passwordReqs.forEach(reqDiv => {
+    const p = reqDiv.querySelector('p:first-child');
+    if (p) p.textContent = t('auth.password_requirements');
+    const lis = reqDiv.querySelectorAll('li');
+    if (lis.length >= 4) {
+      lis[0].textContent = t('auth.password_req_length');
+      lis[1].textContent = t('auth.password_req_uppercase');
+      lis[2].textContent = t('auth.password_req_lowercase');
+      lis[3].textContent = t('auth.password_req_number');
+    }
+    const tip = reqDiv.querySelector('.tip');
+    if (tip) tip.textContent = t('auth.password_tip');
+  });
+
+  document.querySelector('#register-form > button').textContent = t('auth.register_button');
+  document.querySelector('#register-form .auth-switch').innerHTML =
+    `${t('auth.already_have_account')} <a href="#" onclick="showLogin(); return false;">${t('auth.login_link')}</a>`;
+
+  // Forgot password form
+  document.querySelector('#forgot-password-form h2').textContent = t('auth.forgot_password_title');
+  document.querySelector('#forgot-password-form .help-text').textContent = t('auth.forgot_password_help');
+  document.querySelector('#forgot-password-input').placeholder = t('auth.username_or_email_placeholder');
+  document.querySelector('#forgot-password-form button:not(.auth-switch button)').textContent = t('auth.send_reset_link_button');
+  document.querySelector('#forgot-password-form .auth-switch a').textContent = t('auth.back_to_login');
+
+  // Reset password form
+  document.querySelector('#reset-password-form h2').textContent = t('auth.reset_password_title');
+  document.querySelector('#reset-password-form .help-text').textContent = t('auth.reset_password_help');
+  document.querySelector('#reset-password-new').placeholder = t('auth.new_password_placeholder');
+  document.querySelector('#reset-password-confirm').placeholder = t('auth.confirm_new_password_placeholder');
+  document.querySelector('#reset-password-form > button').textContent = t('auth.reset_password_button');
+  document.querySelector('#reset-password-form .auth-switch a').textContent = t('auth.back_to_login');
+
+  // Header
+  document.querySelector('header h1').textContent = t('auth.app_name');
+  document.querySelector('#search-input').placeholder = t('header.search_placeholder');
+  document.querySelector('#shared-toggle-text').textContent = showingShared ? t('header.hide_shared') : t('header.show_shared');
+  document.querySelector('#archive-toggle-text').textContent = showingArchived ? t('header.hide_archive') : t('header.show_archive');
+  document.querySelector('header button[onclick="logout()"]').textContent = t('header.logout_button');
+
+  // New note form
+  document.querySelector('#new-note-title').placeholder = t('notes.title_placeholder');
+  document.querySelector('#new-note-content').placeholder = t('notes.content_placeholder');
+  document.querySelector('#checklist-container button').textContent = t('notes.add_checklist_item');
+  document.querySelector('#new-note-form button.btn-icon[title]').title = t('notes.add_image_title');
+  document.querySelector('#new-note-form button[onclick="toggleChecklist()"]').title = t('notes.checklist_title');
+  document.querySelector('#new-note-form .color-picker button').title = t('notes.color_title');
+  document.querySelector('#new-note-form button.btn-primary').textContent = t('notes.save_button');
+
+  // Section labels
+  document.querySelector('#pinned-section .section-label').textContent = t('notes.pinned_label');
+  document.querySelector('#other-label').textContent = t('notes.other_label');
+
+  // Edit modal
+  document.querySelector('#edit-note-title').placeholder = t('notes.title_placeholder');
+  document.querySelector('#edit-note-content').placeholder = t('notes.content_placeholder');
+  document.querySelector('#edit-checklist-container button').textContent = t('notes.add_checklist_item');
+  document.querySelector('#edit-modal button.btn-icon[title]').title = t('notes.add_image_title');
+  document.querySelector('#edit-modal button[onclick="toggleEditChecklist()"]').title = t('notes.checklist_title');
+  document.querySelector('#edit-modal .color-picker button').title = t('notes.color_title');
+  document.querySelector('#share-note-btn').title = t('notes.share_title');
+  document.querySelector('#pin-note-btn').title = t('notes.pin_title');
+  document.querySelector('#archive-note-btn').title = t('notes.archive_title');
+  document.querySelector('#delete-note-btn').title = t('notes.delete_title');
+  document.querySelector('#update-note-btn').textContent = t('notes.update_button');
+
+  // Import modal
+  document.querySelector('#import-modal h2').textContent = t('import.title');
+  document.querySelector('#import-instructions h3').textContent = t('import.instructions_title');
+  const importSteps = document.querySelectorAll('#import-instructions ol li');
+  if (importSteps.length >= 5) {
+    importSteps[0].innerHTML = `${t('import.step1')} <a href="https://takeout.google.com/" target="_blank" rel="noopener">Google Takeout</a>`;
+    importSteps[1].textContent = t('import.step2');
+    importSteps[2].textContent = t('import.step3');
+    importSteps[3].textContent = t('import.step4');
+    importSteps[4].textContent = t('import.step5');
+  }
+  document.querySelector('#import-modal button.btn-primary:not(#import-button)').textContent = t('import.select_file_button');
+  document.querySelector('#import-modal button.btn-secondary').textContent = t('import.close_button');
+  document.querySelector('#import-button').textContent = t('import.import_button');
+
+  // Profile modal
+  document.querySelector('#profile-modal h2').textContent = t('profile.title');
+  document.querySelectorAll('#profile-modal .settings-label')[0].textContent = t('profile.select_avatar_color');
+  document.querySelectorAll('#profile-modal .settings-label')[1].textContent = t('profile.select_background');
+
+  // Background theme labels
+  const themeLabels = document.querySelectorAll('.theme-label');
+  const themeKeys = ['default', 'beige', 'blue', 'green', 'lavender', 'dark'];
+  themeLabels.forEach((label, index) => {
+    if (index < themeKeys.length) {
+      label.textContent = t(`profile.theme_${themeKeys[index]}`);
+    }
+  });
+
+  document.querySelector('#show-created-date-toggle + span').textContent = t('profile.show_created_date');
+  document.querySelector('.settings-heading').textContent = t('profile.data_backup_title');
+  document.querySelector('button[onclick="openImportModal()"]').textContent = t('profile.import_from_keep');
+  document.querySelector('button[onclick="exportBackup()"]').textContent = t('profile.export_backup');
+  document.querySelector('#profile-modal button.btn-secondary').textContent = t('profile.close_button');
+
+  // Share modal
+  document.querySelector('#share-modal h2').textContent = t('share.title');
+  const shareHeadings = document.querySelectorAll('#share-modal .settings-heading');
+  if (shareHeadings.length >= 2) {
+    shareHeadings[0].textContent = t('share.share_with_member');
+    shareHeadings[1].textContent = t('share.currently_shared_with');
+  }
+  document.querySelector('#share-modal button.btn-secondary').textContent = t('share.close_button');
+
+  // Footer
+  document.querySelector('.app-footer p').innerHTML = `${t('footer.version')} | <a href="https://github.com/cgillinger/keep" target="_blank" rel="noopener">GitHub</a> | ${t('footer.license')}`;
+
+  // Update meta tags
+  updateMetaTags();
+}
+
+// Change language and update UI
+async function changeLanguage(locale) {
+  const success = await loadTranslations(locale);
+  if (success) {
+    updateUITranslations();
+    renderNotes(); // Re-render notes with new language
+  }
+}
+
 // State
 let currentUser = null;
 let notes = [];
@@ -44,6 +242,10 @@ function getThemeAwareColor(lightColor) {
 
 // ===== INITIALIZATION =====
 window.addEventListener('DOMContentLoaded', async () => {
+  // Load translations first
+  await loadTranslations(currentLocale);
+  updateUITranslations();
+
   await fetchCSRFToken();
   await checkEmailConfig();
   checkForResetToken();
@@ -535,6 +737,12 @@ function openProfileModal() {
   const dateToggle = document.getElementById('show-created-date-toggle');
   if (dateToggle) {
     dateToggle.checked = showCreatedDate;
+  }
+
+  // Update language selector
+  const languageSelector = document.getElementById('language-selector');
+  if (languageSelector) {
+    languageSelector.value = currentLocale;
   }
 
   // Update profile picture preview with initials and color

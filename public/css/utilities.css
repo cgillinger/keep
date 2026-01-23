@@ -165,6 +165,34 @@
   font-weight: 500;
 }
 
+.language-selector {
+  width: 100%;
+  padding: var(--space-md);
+  border: 1px solid #ddd;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  background-color: var(--color-bg-white);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.language-selector:hover {
+  border-color: var(--color-secondary);
+}
+
+.language-selector:focus {
+  outline: none;
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px rgba(103, 58, 183, 0.1);
+}
+
+body.theme-dark .language-selector {
+  background-color: #303134;
+  color: #e8eaed;
+  border-color: #3c4043;
+}
+
 .checkbox-label {
   display: flex;
   align-items: center;
