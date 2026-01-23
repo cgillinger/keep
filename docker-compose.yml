@@ -13,6 +13,8 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      # Set FORCE_HTTPS=true in .env if running behind HTTPS reverse proxy
+      # Leave unset or false for HTTP-only deployments
     networks:
       - keep-network
 
