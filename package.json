@@ -1,7 +1,7 @@
 {
   "name": "keep-clone",
   "version": "1.0.0",
-  "description": "A self-hosted Google Keep clone for families",
+  "description": "Self-hosted Google Keep clone with real-time sync, images, color coding, and complete data control. Perfect for families who value privacy.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -10,7 +10,25 @@
   "keywords": [
     "notes",
     "keep",
-    "self-hosted"
+    "google-keep",
+    "self-hosted",
+    "note-taking",
+    "privacy",
+    "family",
+    "real-time",
+    "sync",
+    "websocket",
+    "sqlite",
+    "express",
+    "nodejs",
+    "open-source",
+    "markdown",
+    "todo",
+    "checklist",
+    "reminders",
+    "colors",
+    "dark-mode",
+    "docker"
   ],
   "author": "",
   "license": "MIT",
