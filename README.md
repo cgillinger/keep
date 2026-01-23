@@ -138,37 +138,79 @@ http://localhost:3000
 
 ## 📦 Docker (rekommenderat för produktion)
 
-### Med Docker Compose (enklast)
+Repot innehåller alla nödvändiga filer för Docker:
+- ✅ `Dockerfile` - Container-konfiguration
+- ✅ `docker-compose.yml` - Orkestrering och volumes
+- ✅ `.dockerignore` - Exkluderar onödiga filer
+- ✅ `.env.example` - Miljövariabel-mall
 
-1. **Skapa `.env`-fil:**
-Se installationsinstruktionerna ovan för att skapa `.env` med din SESSION_SECRET och eventuell e-postkonfiguration.
+### Med Docker Compose (REKOMMENDERAT)
 
-2. **Använd befintlig docker-compose.yml:**
+**Steg 1: Skapa .env-fil**
+
 ```bash
-# Starta
-docker-compose up -d
+# Kopiera exempel-filen
+cp .env.example .env
 
-# Se loggar
-docker-compose logs -f
-
-# Stoppa
-docker-compose down
-
-# Uppdatera (vid ny version)
-docker-compose pull
-docker-compose up -d
+# Generera säker SESSION_SECRET
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-3. **Åtkomst:**
+**Redigera `.env`** och sätt minst `SESSION_SECRET`:
+```env
+SESSION_SECRET=din_genererade_secret_här
+PORT=3000
+
+# Valfritt: E-post för lösenordsåterställning
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# ...
+```
+
+**Steg 2: Starta med Docker Compose**
+
+```bash
+# Bygg och starta (första gången)
+docker-compose up -d
+
+# Se loggar (realtid)
+docker-compose logs -f
+
+# Stoppa (behåller data)
+docker-compose down
+
+# Starta om efter kodändring
+docker-compose up -d --build
+```
+
+**Steg 3: Öppna i webbläsare**
 ```
 http://localhost:3000
 ```
 
-**Data sparas automatiskt i `./data/` på host-maskinen och överlever container-omstarter.**
+**Steg 4: Registrera första användaren**
+1. Klicka "Registrera dig"
+2. Skapa konto
+3. Börja använda!
 
-### Manuell Docker
+### Vad händer automatiskt?
 
-Om du inte vill använda docker-compose:
+**Data persistence:**
+- `./data/keep.db` - Databas (skapas automatiskt)
+- `./data/sessions/` - Sessioner
+- `./data/media/` - Importerade bilder
+
+All data lagras i `./data/` på din maskin och överlever:
+- ✅ Container-omstarter (`docker-compose restart`)
+- ✅ Container-uppdateringar (`docker-compose up -d`)
+- ✅ Docker Compose down/up
+- ❌ **VARNING:** `docker-compose down -v` tar bort volumes!
+
+**Backup:** Kopiera hela `./data/`-mappen för säkerhetskopiering.
+
+### Manuell Docker (utan docker-compose)
+
+Om du föredrar att köra Docker direkt:
 
 ```bash
 # Bygg image
@@ -183,39 +225,148 @@ docker run -d \
   -e NODE_ENV=production \
   --restart unless-stopped \
   keep-clone
+
+# Se loggar
+docker logs -f keep-clone
+
+# Stoppa och ta bort
+docker stop keep-clone
+docker rm keep-clone
 ```
 
-### Synology NAS
+**Tips för manuell Docker:**
+- Lägg till `-e PORT=8080` för annan port
+- Lägg till SMTP-variabler för e-post: `-e SMTP_HOST=...`
+- Använd `--env-file .env` för att läsa från .env-fil
 
-**Med Docker i DSM:**
+### Synology NAS med Container Manager
 
-1. Öppna Container Manager (Docker) i DSM
-2. Skapa projektmapp: `/docker/keep-clone`
-3. Ladda upp alla projektfiler till mappen via File Station eller git
-4. Skapa `.env`-fil i projektmappen:
-   ```env
-   SESSION_SECRET=din_säkra_secret_här
-   PORT=3000
-   ```
-5. I Container Manager:
-   - Project → Create
-   - Välj projektmappen
-   - Docker Compose kommer köras automatiskt
-6. Starta projektet
+**Metod 1: Med docker-compose.yml (enklast)**
+
+1. **Förbered projektmapp:**
+   - Öppna File Station
+   - Skapa mapp: `/docker/keep` (eller valfri plats)
+
+2. **Ladda upp filer:**
+   - Ladda upp **alla** filer från repot till mappen
+   - Eller använd Git (om installerat): `git clone https://github.com/cgillinger/keep.git`
+
+3. **Skapa .env-fil:**
+   - Skapa ny fil i projektmappen: `.env`
+   - Kopiera innehåll från `.env.example`
+   - Sätt minst: `SESSION_SECRET=din_säkra_secret`
+   - Generera secret på din dator: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+
+4. **Använd Container Manager:**
+   - Öppna Container Manager i DSM
+   - Gå till **Project** (inte Container eller Image)
+   - Klicka **Create**
+   - Välj projektmappen (`/docker/keep`)
+   - Container Manager hittar automatiskt `docker-compose.yml`
+   - Klicka **Next** → **Done**
+
+5. **Starta:**
+   - Projektet startar automatiskt
+   - Anslut via: `http://[synology-ip]:3000`
+
+**Metod 2: Manuell container (mer avancerat)**
+
+Om docker-compose inte fungerar:
+1. Container Manager → Image → Add → From file
+2. Välj `Dockerfile` från projektmappen
+3. Bygg image
+4. Container → Create
+5. Konfigurera:
+   - Port: 3000:3000
+   - Volume: Mappa `/docker/keep/data` → `/app/data`
+   - Environment: Lägg till `SESSION_SECRET`, `NODE_ENV=production`
 
 **Tips för Synology:**
-- Data lagras i projektmappen och inkluderas i Synology backups
-- Använd Synology Firewall för att begränsa åtkomst
-- Konfigurera omvänd proxy i DSM för HTTPS
+- ✅ Data i `./data/` inkluderas automatiskt i Hyper Backup
+- ✅ Använd Synology Firewall för säkerhet
+- ✅ Konfigurera omvänd proxy för HTTPS (valfritt)
+- ✅ Schemalägga omstart i Task Scheduler (valfritt)
 
-### Tailscale-åtkomst (rekommenderat)
+### Tailscale-åtkomst (rekommenderat för säkerhet)
 
 För säker fjärråtkomst utan att exponera servern publikt:
 
-1. Installera Tailscale på servern/NAS
-2. Installera Tailscale på dina enheter
-3. Anslut till Keep Clone via Tailscale IP: `http://[tailscale-ip]:3000`
-4. Ingen portforward eller DNS behövs - helt säkert!
+1. **Installera Tailscale:**
+   - På server/NAS: Följ instruktioner på tailscale.com
+   - På dina enheter: Ladda ner Tailscale-app
+
+2. **Anslut via Tailscale-nätverk:**
+   ```
+   http://[tailscale-ip]:3000
+   ```
+   - Hitta Tailscale IP i Tailscale-appen
+   - Ingen portforward behövs
+   - Krypterad anslutning automatiskt
+
+3. **Fördelar:**
+   - ✅ Ingen exponering mot internet
+   - ✅ End-to-end kryptering
+   - ✅ Fungerar bakom NAT/firewall
+   - ✅ Åtkomst från mobil/dator överallt
+
+### Docker Felsökning
+
+**Problem: Container startar inte**
+
+```bash
+# Visa detaljerade loggar
+docker-compose logs
+
+# Eller för manuell Docker
+docker logs keep-clone
+```
+
+**Vanliga fel:**
+
+**"SESSION_SECRET not configured"**
+- Lösning: Kontrollera att `.env` finns och innehåller SESSION_SECRET
+
+**"Port already in use"**
+- Lösning: Ändra extern port i docker-compose.yml:
+  ```yaml
+  ports:
+    - "8080:3000"  # Använd 8080 istället
+  ```
+
+**"Permission denied" för data-mapp**
+- Lösning (Linux):
+  ```bash
+  sudo chown -R $USER:$USER ./data
+  chmod -R 755 ./data
+  ```
+
+**Container stannar efter start**
+- Kontrollera loggar: `docker-compose logs`
+- Vanligt: Databasfil korrupt → Ta bort `data/keep.db` och starta om
+
+**Kan inte ansluta till container**
+- Kontrollera att containern körs: `docker-compose ps`
+- Kontrollera port: `docker-compose port keep-clone 3000`
+- Testa lokalt först: `curl http://localhost:3000`
+
+**Uppdatera till ny version**
+```bash
+# Stoppa container
+docker-compose down
+
+# Hämta senaste ändringar
+git pull
+
+# Bygg om och starta
+docker-compose up -d --build
+```
+
+**Återställ helt (RADERAR ALL DATA!)**
+```bash
+docker-compose down -v  # -v raderar volumes!
+rm -rf data/
+docker-compose up -d
+```
 
 ## 📚 Dokumentation
 
@@ -658,7 +809,8 @@ keep/
 ├── package.json           # Dependencies och scripts
 ├── .env.example           # Exempel på miljövariabler
 ├── docker-compose.yml     # Docker Compose-konfiguration
-├── Dockerfile             # Docker image
+├── Dockerfile             # Docker image-definition
+├── .dockerignore          # Docker build-exkluderingar
 ├── LICENSE                # MIT-licens
 ├── public/
 │   ├── index.html         # Frontend HTML (425 rader)
