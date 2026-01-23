@@ -44,10 +44,16 @@
 /* Modal size variants */
 .modal-content--small {
   max-width: var(--max-width-modal-sm);
+  height: auto; /* Allow height to be dynamic */
+  max-height: calc(100vh - 80px); /* Limit max height */
+  overflow-y: auto; /* Enable scrolling */
 }
 
 .modal-content--medium {
   max-width: var(--max-width-modal-md);
+  height: auto; /* Allow height to be dynamic */
+  max-height: calc(100vh - 80px); /* Limit max height */
+  overflow-y: auto; /* Enable scrolling */
 }
 
 .modal-close-btn {
