@@ -621,6 +621,8 @@ function applyBackgroundTheme(theme) {
   if (theme === 'dark') {
     // Add dark theme class (this sets all CSS variables)
     body.classList.add('theme-dark');
+    // Remove inline style to let CSS class take precedence
+    body.style.removeProperty('--bg-main');
   } else {
     // Set background color for light themes
     const color = themeColors[theme] || themeColors['default'];
