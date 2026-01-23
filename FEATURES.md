@@ -7,7 +7,7 @@ Detta dokument beskriver alla funktioner och säkerhetsåtgärder i Keep Clone.
 1. [Översikt](#översikt)
 2. [Säkerhetsfunktioner](#säkerhetsfunktioner)
 3. [Dela anteckningar](#dela-anteckningar)
-4. [Profilbilder](#profilbilder)
+4. [Profiler och teman](#profiler-och-teman)
 5. [Import från Google Keep](#import-från-google-keep)
 6. [Tekniska detaljer](#tekniska-detaljer)
 
@@ -17,12 +17,16 @@ Keep Clone är en säker, självhostad Google Keep-klon designad för familjer. 
 
 - ✅ Privata och delade anteckningar
 - ✅ Checklistor med avbockningsbara punkter
-- ✅ Färgkodning av anteckningar
+- ✅ Färgkodning av anteckningar (12 färger)
+- ✅ Fästa anteckningar
 - ✅ Arkivfunktion
 - ✅ Sökfunktion
 - ✅ Real-time synkronisering mellan enheter
 - ✅ Import från Google Keep
-- ✅ Profilbilder för användare
+- ✅ Export/backup av data
+- ✅ Anpassningsbara profiler (avatarfärger och bakgrundsteman)
+- ✅ WCAG-kompatibelt nattläge
+- ✅ Lösenordsåterställning via e-post (valfritt)
 - ✅ Företagsstandard säkerhet
 
 ## Säkerhetsfunktioner
@@ -56,8 +60,9 @@ Cross-Site Request Forgery (CSRF) protection på alla ändringsoperationer:
 **Påverkar:**
 - Skapa/uppdatera/ta bort anteckningar
 - Dela/sluta dela anteckningar
-- Ladda upp profilbilder
+- Ändra profilinställningar (avatarfärg, bakgrundstema)
 - Import av Google Keep-data
+- Export av backup
 
 ### 🚫 Rate limiting
 
@@ -122,7 +127,7 @@ Familjemedlemmar kan dela anteckningar med varandra med två behörighetsnivåer
 
 **Se vem du delat med:**
 - Under "Delar med" i delningsmodulen ser du alla nuvarande delningar
-- Varje person visas med namn, profilbild och behörighetsnivå
+- Varje person visas med namn, initialer med avatarfärg och behörighetsnivå
 
 **Ta bort delning:**
 - Klicka på ✕-knappen bredvid personens namn
@@ -165,33 +170,68 @@ Familjemedlemmar kan dela anteckningar med varandra med två behörighetsnivåer
 - Checklistor uppdateras i real-time
 - WebSocket-anslutning håller alla enheter synkroniserade
 
-## Profilbilder
+## Profiler och teman
 
-### Ladda upp profilbild
+### Personliga profiler
 
-1. Klicka på din profilbild-cirkel i headern (eller initialer om du inte har någon än)
-2. I profilmodulen, klicka på "📷 Välj profilbild"
-3. Välj en bildfil (JPG, PNG, etc.)
-4. Klicka "Ladda upp"
+Varje användare kan anpassa sin profil med:
 
-**Krav:**
-- Max filstorlek: 5MB
-- Bildformat: JPG, PNG, WebP, GIF, etc.
-- Bilden optimeras automatiskt till 200×200 pixlar
+**Avatarfärger (10 färger):**
+- Blå (#1a73e8)
+- Röd (#d93025)
+- Grön (#0f9d58)
+- Orange (#f29900)
+- Lila (#a142f4)
+- Rosa (#e91e63)
+- Cyan (#00acc1)
+- Ljusgrön (#7cb342)
+- Mörkorange (#ff6f00)
+- Djuplila (#5e35b1)
 
-### Var visas profilbilder?
+**Bakgrundsteman (6 teman):**
+- **Standard** - Vit bakgrund
+- **Varm beige** - Mjuk beige bakgrund (#f5f1e8)
+- **Mjuk blå** - Ljusblå bakgrund (#e8f4f8)
+- **Mint grön** - Ljusgrön bakgrund (#e8f5e9)
+- **Ljus lavendel** - Ljuslila bakgrund (#f3e5f5)
+- **Nattläge** - WCAG-kompatibelt mörkt tema (#1e1e1e)
 
-- **Header:** Din egen profilbild längst upp till höger
-- **Delningsmodal:** Alla familjemedlemmars profilbilder när du delar
-- **Delade anteckningar:** Ägarens profilbild på anteckningar som delats med dig
+### Anpassa din profil
+
+1. Klicka på dina initialer i headern
+2. Välj en avatarfärg från färgpaletten
+3. Välj ett bakgrundstema (inkl. nattläge)
+4. Aktivera/avaktivera "Visa när skapad" för datum på anteckningar
+
+### Nattläge (Dark Mode)
+
+**WCAG-kompatibel implementation:**
+- Dämpade färger för ögonvänlig läsning
+- Automatisk konvertering av anteckningsfärger till mörka varianter
+- Mörka input-fält och formulär
+- Reducerad ljusstyrka och kontrast
+- Färgkodning bibehålls men med subtila nyanser
+
+**Färgmappning i nattläge:**
+- Vit → Mörkgrå (#303134)
+- Röd → Mörk röd (#8c2f24)
+- Orange → Mörk orange (#996600)
+- Gul → Mörk gul (#7f6f0a)
+- Och så vidare...
+
+### Var visas profiler?
+
+- **Header:** Dina initialer med vald avatarfärg
+- **Delningsmodal:** Alla familjemedlemmars initialer med deras färger
+- **Delade anteckningar:** Ägarens initialer på anteckningar som delats med dig
+- **Bakgrundstema:** Appliceras på hela applikationen
 
 ### Teknisk implementation
 
-- Bilder processas med Sharp för optimal prestanda
-- Automatisk storleksändring till 200×200 px
-- Kvalitet: 90%
-- Lagras i `data/profile-pictures/`
-- Serveras via `/api/profile-picture/:filename`
+- Avatarfärger lagras i users-tabellen (avatar_color)
+- Bakgrundstema lagras i users-tabellen (background_theme)
+- Temabyte triggar automatisk återrendering av alla anteckningar
+- CSS-variabler används för smidig tema-switching
 
 ## Import från Google Keep
 
@@ -250,7 +290,11 @@ Se [IMPORT-GUIDE.md](./IMPORT-GUIDE.md) för detaljerad importguide.
 - id (PRIMARY KEY)
 - username (UNIQUE)
 - password_hash
-- profile_picture
+- email (nullable, för lösenordsåterställning)
+- avatar_color
+- background_theme
+- reset_token (nullable)
+- reset_token_expires (nullable)
 - created_at
 ```
 
@@ -263,6 +307,7 @@ Se [IMPORT-GUIDE.md](./IMPORT-GUIDE.md) för detaljerad importguide.
 - color
 - is_checklist
 - checklist_items (JSON)
+- images (JSON array)
 - is_archived
 - is_pinned
 - created_at
@@ -302,11 +347,12 @@ Se [IMPORT-GUIDE.md](./IMPORT-GUIDE.md) för detaljerad importguide.
 - `GET /api/users` - Lista alla användare
 
 **Profil:**
-- `POST /api/profile-picture` - Ladda upp profilbild
-- `GET /api/profile-picture/:filename` - Hämta profilbild
+- `POST /api/profile/avatar-color` - Ändra avatarfärg
+- `POST /api/profile/background-theme` - Ändra bakgrundstema
 
-**Import:**
+**Import/Export:**
 - `POST /api/import` - Importera Google Keep export
+- `GET /api/export` - Exportera backup (ZIP)
 
 ### WebSocket-protokoll
 
@@ -331,7 +377,7 @@ Alla WebSocket-meddelanden autentiseras via session-cookie.
 ### Filstruktur
 
 ```
-keep-clone/
+keep/
 ├── server.js              # Huvudserver med alla endpoints
 ├── database.js            # Databas-initialisering och schema
 ├── import-parser.js       # Google Keep import-parser
@@ -341,9 +387,9 @@ keep-clone/
 │   ├── app.js             # Frontend JavaScript
 │   └── styles.css         # CSS styling
 ├── data/
-│   ├── notes.db           # SQLite databas
-│   ├── media/             # Importerade bilagor
-│   └── profile-pictures/  # Profilbilder
+│   ├── keep.db            # SQLite databas
+│   ├── sessions/          # Sessionsdatabas
+│   └── media/             # Importerade bilagor
 └── docs/
     ├── FEATURES.md        # Denna fil
     └── IMPORT-GUIDE.md    # Importguide
@@ -357,10 +403,12 @@ keep-clone/
 - Automatisk återanslutning vid nätverksavbrott
 
 **Optimeringar:**
-- Profilbilder cachas i webbläsaren
-- Bilder optimeras till 200×200 px på server
+- Importerade bilder optimeras med Sharp
+- CSS-variabler för smidig tema-switching
+- Cachad rendering av anteckningar (renderedNotesMap)
 - SQLite-index på user_id och note_id
-- Begränsad antal API-anrop via rate limiting
+- Rate limiting skyddar mot överbelastning
+- WebSocket-anslutningar återanvänds
 
 ### Miljövariabler
 

@@ -75,3 +75,26 @@ main {
 #pinned-section {
   margin-bottom: var(--space-3xl);
 }
+
+/* ===== FOOTER ===== */
+.app-footer {
+  text-align: center;
+  padding: var(--space-3xl) var(--space-2xl) var(--space-2xl);
+  margin-top: var(--space-4xl);
+  color: var(--color-text-lighter);
+  font-size: var(--font-size-sm);
+}
+
+.app-footer p {
+  margin: 0;
+}
+
+.app-footer a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color var(--transition-normal);
+}
+
+.app-footer a:hover {
+  color: var(--color-primary);
+}
