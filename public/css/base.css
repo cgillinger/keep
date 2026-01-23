@@ -146,6 +146,19 @@ body.theme-dark {
   --color-note-gray: #3c3f43;
 }
 
+/* Input fields and textareas in dark mode */
+body.theme-dark input,
+body.theme-dark textarea {
+  background-color: #303134;
+  color: #e8eaed;
+  border-color: #3c4043;
+}
+
+body.theme-dark input::placeholder,
+body.theme-dark textarea::placeholder {
+  color: #9aa0a6;
+}
+
 /* Global button cursor */
 button {
   cursor: pointer;
