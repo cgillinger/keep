@@ -35,28 +35,42 @@ const PORT = process.env.PORT || 3000;
 
 // ===== SECURITY MIDDLEWARE =====
 
+// Check if running behind HTTPS (e.g., reverse proxy with TLS termination)
+const isHttps = process.env.FORCE_HTTPS === 'true';
+
 // Helmet for security headers
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
-      scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc)
-      styleSrc: ["'self'", "'unsafe-inline'"], // Inline styles needed for dynamic colors
-      imgSrc: ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'", "ws:", "wss:"],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"]
-    }
-  },
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true
-  }
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: false, // IMPORTANT: disables Helmet's implicit upgrade-insecure-requests
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc)
+        styleSrc: ["'self'", "'unsafe-inline'"], // Inline styles needed for dynamic colors
+        imgSrc: ["'self'", "data:", "blob:"],
+        connectSrc: ["'self'", "ws:", "wss:"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'self'"]
+        // NO upgrade-insecure-requests over HTTP
+      }
+    },
+
+    // Enable HSTS ONLY when HTTPS is actually used
+    hsts: isHttps
+      ? {
+          maxAge: 31536000,
+          includeSubDomains: true,
+          preload: true
+        }
+      : false
+  })
+);
 
 // Rate limiters
 // Development-friendly: More lenient limits for testing
@@ -1377,6 +1391,7 @@ app.use((err, req, res, next) => {
 // Start server
 server.listen(PORT, () => {
   console.log(`Keep Clone running on http://localhost:${PORT}`);
+  console.log(`HTTPS mode: ${isHttps ? 'ENABLED (HSTS active)' : 'DISABLED (HTTP mode)'}`);
   console.log('Security features enabled:');
   console.log('  - Helmet security headers');
   console.log('  - CSRF protection');
