@@ -35,8 +35,8 @@ En säker, självhostad Google Keep-klon med delningsfunktioner, anpassningsbara
 
 1. **Klona repository:**
 ```bash
-git clone https://github.com/yourusername/keep-clone.git
-cd keep-clone
+git clone https://github.com/cgillinger/keep.git
+cd keep
 ```
 
 2. **Installera dependencies:**
@@ -568,7 +568,7 @@ rm data/keep.db
 ## 📁 Projektstruktur
 
 ```
-keep-clone/
+keep/
 ├── server.js              # Huvudserver (1,391 rader)
 ├── database.js            # Databas-initialisering och schema
 ├── import-parser.js       # Google Keep import-parser
@@ -675,7 +675,7 @@ Detta är ett familje-projekt, men pull requests är välkomna!
 Om du har frågor eller problem:
 
 1. Läs dokumentationen i detta repo
-2. Sök bland [GitHub Issues](https://github.com/yourusername/keep-clone/issues)
+2. Sök bland [GitHub Issues](https://github.com/cgillinger/keep/issues)
 3. Öppna en ny issue med detaljer om ditt problem
 
 ## 👨‍👩‍👧‍👦 För familjer

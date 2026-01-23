@@ -14,6 +14,14 @@
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cgillinger/keep.git"
+  },
+  "homepage": "https://github.com/cgillinger/keep",
+  "bugs": {
+    "url": "https://github.com/cgillinger/keep/issues"
+  },
   "dependencies": {
     "adm-zip": "^0.5.10",
     "archiver": "^7.0.1",

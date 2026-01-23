@@ -377,7 +377,7 @@ Alla WebSocket-meddelanden autentiseras via session-cookie.
 ### Filstruktur
 
 ```
-keep-clone/
+keep/
 ├── server.js              # Huvudserver med alla endpoints
 ├── database.js            # Databas-initialisering och schema
 ├── import-parser.js       # Google Keep import-parser
