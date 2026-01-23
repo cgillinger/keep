@@ -35,6 +35,9 @@ const PORT = process.env.PORT || 3000;
 
 // ===== SECURITY MIDDLEWARE =====
 
+// Check if running behind HTTPS (e.g., reverse proxy with TLS termination)
+const isHttps = process.env.FORCE_HTTPS === 'true';
+
 // Helmet for security headers
 app.use(helmet({
   contentSecurityPolicy: {
@@ -48,14 +51,17 @@ app.use(helmet({
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'none'"]
+      frameSrc: ["'none'"],
+      // Only upgrade to HTTPS when actually running behind HTTPS
+      ...(isHttps ? { upgradeInsecureRequests: [] } : {})
     }
   },
-  hsts: {
+  // Only enable HSTS when running behind HTTPS
+  hsts: isHttps ? {
     maxAge: 31536000,
     includeSubDomains: true,
     preload: true
-  }
+  } : false
 }));
 
 // Rate limiters
