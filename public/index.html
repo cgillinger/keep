@@ -330,6 +330,38 @@
         </div>
       </div>
 
+      <div class="settings-section">
+        <label class="settings-label">
+          Välj bakgrundsfärg
+        </label>
+        <div class="background-color-grid">
+          <button class="bg-color-option" data-theme="default" onclick="selectBackgroundTheme('default')" title="Standard vit">
+            <span class="theme-preview" style="background: #ffffff;"></span>
+            <span class="theme-label">Standard</span>
+          </button>
+          <button class="bg-color-option" data-theme="warm-beige" onclick="selectBackgroundTheme('warm-beige')" title="Varm beige">
+            <span class="theme-preview" style="background: #f5f1e8;"></span>
+            <span class="theme-label">Beige</span>
+          </button>
+          <button class="bg-color-option" data-theme="soft-blue" onclick="selectBackgroundTheme('soft-blue')" title="Mjuk blå">
+            <span class="theme-preview" style="background: #e8f4f8;"></span>
+            <span class="theme-label">Blå</span>
+          </button>
+          <button class="bg-color-option" data-theme="mint-green" onclick="selectBackgroundTheme('mint-green')" title="Mint grön">
+            <span class="theme-preview" style="background: #e8f5e9;"></span>
+            <span class="theme-label">Grön</span>
+          </button>
+          <button class="bg-color-option" data-theme="light-lavender" onclick="selectBackgroundTheme('light-lavender')" title="Ljus lavendel">
+            <span class="theme-preview" style="background: #f3e5f5;"></span>
+            <span class="theme-label">Lavendel</span>
+          </button>
+          <button class="bg-color-option" data-theme="dark" onclick="selectBackgroundTheme('dark')" title="Nattläge">
+            <span class="theme-preview" style="background: #1e1e1e;"></span>
+            <span class="theme-label">Nattläge</span>
+          </button>
+        </div>
+      </div>
+
       <div class="settings-section-highlight">
         <label class="checkbox-label">
           <input type="checkbox" id="show-created-date-toggle" onchange="toggleShowCreatedDate()">

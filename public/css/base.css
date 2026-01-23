@@ -42,6 +42,13 @@
   --color-note-brown: #e6c9a8;
   --color-note-gray: #e8eaed;
 
+  /* Background themes */
+  --bg-main: #ffffff;
+  --bg-theme-warm-beige: #f5f1e8;
+  --bg-theme-soft-blue: #e8f4f8;
+  --bg-theme-mint-green: #e8f5e9;
+  --bg-theme-light-lavender: #f3e5f5;
+
   /* Spacing */
   --space-xs: 4px;
   --space-sm: 8px;
@@ -108,8 +115,35 @@
 
 body {
   font-family: var(--font-family);
-  background-color: var(--color-bg-white);
+  background-color: var(--bg-main);
   color: var(--color-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ===== DARK THEME (NATTLÄGE) ===== */
+body.theme-dark {
+  --bg-main: #1e1e1e;
+  --color-text: #e8eaed;
+  --color-text-muted: #9aa0a6;
+  --color-text-lighter: #80868b;
+  --color-border: #3c4043;
+  --color-bg-subtle: #292a2d;
+  --color-bg-light: #303134;
+  --color-bg-white: #25262a;
+
+  /* Keep note colors visible in dark mode with slight adjustments */
+  --color-note-white: #303134;
+  --color-note-red: #8c2f24;
+  --color-note-orange: #996600;
+  --color-note-yellow: #7f6f0a;
+  --color-note-green: #345920;
+  --color-note-teal: #0e5454;
+  --color-note-cyan: #1e4a52;
+  --color-note-blue: #1e3a5f;
+  --color-note-purple: #42275e;
+  --color-note-pink: #5b2245;
+  --color-note-brown: #442f19;
+  --color-note-gray: #3c3f43;
 }
 
 /* Global button cursor */

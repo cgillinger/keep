@@ -382,6 +382,7 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
             id: user.id,
             username: user.username,
             avatarColor: user.avatar_color || '#1a73e8',
+            backgroundTheme: user.background_theme || 'default',
             message: 'Inloggning lyckades'
           });
         });
@@ -405,7 +406,7 @@ app.post('/api/logout', requireAuth, (req, res) => {
 });
 
 app.get('/api/me', requireAuth, (req, res) => {
-  db.get('SELECT id, username, profile_picture, avatar_color, email FROM users WHERE id = ?', [req.session.userId], (err, user) => {
+  db.get('SELECT id, username, profile_picture, avatar_color, email, background_theme FROM users WHERE id = ?', [req.session.userId], (err, user) => {
     if (err || !user) {
       return res.status(500).json({ error: 'Kunde inte hämta användarinfo' });
     }
@@ -414,6 +415,7 @@ app.get('/api/me', requireAuth, (req, res) => {
       username: user.username,
       profilePicture: user.profile_picture,
       avatarColor: user.avatar_color || '#1a73e8',
+      backgroundTheme: user.background_theme || 'default',
       email: user.email
     });
   });
@@ -585,6 +587,28 @@ app.post('/api/profile/avatar-color', requireAuth, apiLimiter, csrfProtection, (
     res.json({
       avatarColor,
       message: 'Avatarfärg uppdaterad'
+    });
+  });
+});
+
+app.post('/api/profile/background-theme', requireAuth, apiLimiter, csrfProtection, (req, res) => {
+  const { theme } = req.body;
+
+  // Validate theme is one of the allowed values
+  const allowedThemes = ['default', 'warm-beige', 'soft-blue', 'mint-green', 'light-lavender', 'dark'];
+  if (!theme || !allowedThemes.includes(theme)) {
+    return res.status(400).json({ error: 'Ogiltigt tema' });
+  }
+
+  db.run('UPDATE users SET background_theme = ? WHERE id = ?', [theme, req.session.userId], (err) => {
+    if (err) {
+      console.error('Background theme update error:', err);
+      return res.status(500).json({ error: 'Kunde inte uppdatera bakgrundstema' });
+    }
+
+    res.json({
+      theme,
+      message: 'Bakgrundstema uppdaterat'
     });
   });
 });

@@ -597,6 +597,51 @@
 .avatar-color-option[data-color="#ff6f00"] { background: #ff6f00; }
 .avatar-color-option[data-color="#5e35b1"] { background: #5e35b1; }
 
+/* ===== BACKGROUND COLOR SELECTOR ===== */
+.background-color-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.bg-color-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border: 2px solid transparent;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.bg-color-option:hover {
+  border-color: var(--color-border);
+  background: var(--color-bg-subtle);
+}
+
+.bg-color-option.selected {
+  border-color: var(--color-primary);
+  background: var(--color-bg-light);
+}
+
+.theme-preview {
+  width: 60px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.theme-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
 /* ===== SHARE UI ===== */
 .share-users-list {
   max-height: 200px;

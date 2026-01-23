@@ -130,6 +130,17 @@ db.serialize(() => {
         }
       });
     }
+
+    const hasBackgroundTheme = columns.some(col => col.name === 'background_theme');
+    if (!hasBackgroundTheme) {
+      db.run(`ALTER TABLE users ADD COLUMN background_theme TEXT DEFAULT 'default'`, (err) => {
+        if (err) {
+          console.error('Error adding background_theme column:', err);
+        } else {
+          console.log('Added background_theme column to users table');
+        }
+      });
+    }
   });
 
   console.log('Database initialized');

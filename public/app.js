@@ -54,6 +54,7 @@ async function checkAuth() {
       loadNotes();
       connectWebSocket();
       updateProfilePicture();
+      applyBackgroundTheme(user.backgroundTheme || 'default');
     } else {
       currentUser = null; // Clear user on auth failure
       showAuthScreen();
@@ -139,6 +140,7 @@ async function login() {
       loadNotes();
       connectWebSocket();
       updateProfilePicture();
+      applyBackgroundTheme(data.backgroundTheme || 'default');
     } else {
       showAuthError(data.error || 'Inloggning misslyckades');
       // Refresh CSRF token on auth failure
@@ -202,6 +204,7 @@ async function register() {
       loadNotes();
       connectWebSocket();
       updateProfilePicture();
+      applyBackgroundTheme(data.backgroundTheme || 'default');
     } else {
       showAuthError(data.error || 'Registrering misslyckades');
       // Refresh CSRF token on auth failure
@@ -515,6 +518,10 @@ function openProfileModal() {
 
     // Highlight selected avatar color
     updateSelectedAvatarColor(avatarColor);
+
+    // Highlight selected background theme
+    const backgroundTheme = currentUser.backgroundTheme || 'default';
+    updateSelectedTheme(backgroundTheme);
   }
 
   document.getElementById('profile-modal').classList.add('active');
@@ -564,6 +571,71 @@ function updateSelectedAvatarColor(color) {
 
   // Add selected class to the chosen color
   const selectedBtn = document.querySelector(`.avatar-color-option[data-color="${color}"]`);
+  if (selectedBtn) {
+    selectedBtn.classList.add('selected');
+  }
+}
+
+// ===== BACKGROUND THEME FUNCTIONS =====
+
+async function selectBackgroundTheme(theme) {
+  try {
+    const response = await fetch('/api/profile/background-theme', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getCSRFHeaders()
+      },
+      body: JSON.stringify({ theme })
+    });
+
+    if (response.ok) {
+      currentUser.backgroundTheme = theme;
+      applyBackgroundTheme(theme);
+      updateSelectedTheme(theme);
+    } else {
+      alert('Kunde inte uppdatera bakgrundstema');
+    }
+  } catch (error) {
+    alert('Nätverksfel');
+  }
+}
+
+function applyBackgroundTheme(theme) {
+  const body = document.body;
+
+  // Remove all theme classes
+  body.classList.remove('theme-dark');
+
+  // Apply theme-specific styles
+  const themeColors = {
+    'default': '#ffffff',
+    'warm-beige': '#f5f1e8',
+    'soft-blue': '#e8f4f8',
+    'mint-green': '#e8f5e9',
+    'light-lavender': '#f3e5f5',
+    'dark': '#1e1e1e'
+  };
+
+  if (theme === 'dark') {
+    // Add dark theme class (this sets all CSS variables)
+    body.classList.add('theme-dark');
+  } else {
+    // Set background color for light themes
+    const color = themeColors[theme] || themeColors['default'];
+    body.style.setProperty('--bg-main', color);
+  }
+}
+
+function updateSelectedTheme(theme) {
+  // Remove selected class from all theme options
+  document.querySelectorAll('.bg-color-option').forEach(btn => {
+    btn.classList.remove('selected');
+  });
+
+  // Add selected class to the chosen theme
+  const selectedBtn = document.querySelector(`.bg-color-option[data-theme="${theme}"]`);
   if (selectedBtn) {
     selectedBtn.classList.add('selected');
   }
