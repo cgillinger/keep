@@ -1346,12 +1346,23 @@ function toggleChecklist() {
 
   if (isChecklistMode) {
     // Switching TO checklist mode
+    const existingContent = contentArea.value.trim();
+
+    // Warn user if converting existing text to checklist
+    if (existingContent && itemsContainer.children.length === 0) {
+      const confirmed = confirm('Detta omvandlar befintlig text till checklista. Vill du fortsätta?');
+      if (!confirmed) {
+        // User cancelled, revert the toggle
+        isChecklistMode = false;
+        return;
+      }
+    }
+
     container.style.display = 'block';
     contentArea.style.display = 'none';
     toggle.textContent = '☑';
 
     // Convert existing text content to checklist items
-    const existingContent = contentArea.value.trim();
     if (existingContent && itemsContainer.children.length === 0) {
       // Split content by newlines and create checklist items
       const lines = existingContent.split('\n').filter(line => line.trim() !== '');
@@ -1444,12 +1455,22 @@ function toggleEditChecklist() {
 
   if (container.style.display === 'none') {
     // Switching TO checklist mode
+    const existingContent = contentArea.value.trim();
+
+    // Warn user if converting existing text to checklist
+    if (existingContent && itemsContainer.children.length === 0) {
+      const confirmed = confirm('Detta omvandlar befintlig text till checklista. Vill du fortsätta?');
+      if (!confirmed) {
+        // User cancelled, don't switch to checklist mode
+        return;
+      }
+    }
+
     container.style.display = 'block';
     contentArea.style.display = 'none';
     toggle.textContent = '☑';
 
     // Convert existing text content to checklist items
-    const existingContent = contentArea.value.trim();
     if (existingContent && itemsContainer.children.length === 0) {
       // Split content by newlines and create checklist items
       const lines = existingContent.split('\n').filter(line => line.trim() !== '');
