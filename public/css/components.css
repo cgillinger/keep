@@ -629,6 +629,7 @@
 }
 
 .theme-preview {
+  display: block;
   width: 60px;
   height: 40px;
   border-radius: var(--radius-md);
