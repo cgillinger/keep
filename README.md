@@ -586,6 +586,11 @@ SESSION_SECRET=your_secure_secret_here
 PORT=3000
 NODE_ENV=production
 
+# HTTPS Configuration (optional)
+# Set to 'true' if running behind a reverse proxy with TLS termination
+# This enables HSTS (HTTP Strict Transport Security) headers
+FORCE_HTTPS=false
+
 # Email (optional, for password reset)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -594,6 +599,18 @@ SMTP_USER=family@gmail.com
 SMTP_PASS=app_password_here
 EMAIL_FROM=Keep Clone <family@gmail.com>
 ```
+
+**HTTPS Configuration:**
+
+- **`FORCE_HTTPS=false` (default)** - HTTP mode for local development
+  - HSTS headers are disabled
+  - No automatic HTTPS enforcement
+  - Works with `http://localhost:3000`
+
+- **`FORCE_HTTPS=true`** - HTTPS mode for production
+  - Enables HSTS (HTTP Strict Transport Security)
+  - Required when running behind a reverse proxy (nginx, Caddy, Traefik)
+  - Assumes TLS termination happens at the proxy level
 
 ### Change Port
 
@@ -1551,6 +1568,11 @@ SESSION_SECRET=din_säkra_secret_här
 PORT=3000
 NODE_ENV=production
 
+# HTTPS-konfiguration (valfritt)
+# Sätt till 'true' om du kör bakom en reverse proxy med TLS-terminering
+# Detta aktiverar HSTS (HTTP Strict Transport Security) headers
+FORCE_HTTPS=false
+
 # E-post (valfritt, för lösenordsåterställning)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -1559,6 +1581,18 @@ SMTP_USER=familj@gmail.com
 SMTP_PASS=applösenord_här
 EMAIL_FROM=Keep Clone <familj@gmail.com>
 ```
+
+**HTTPS-konfiguration:**
+
+- **`FORCE_HTTPS=false` (standard)** - HTTP-läge för lokal utveckling
+  - HSTS-headers är inaktiverade
+  - Ingen automatisk HTTPS-tvingande
+  - Fungerar med `http://localhost:3000`
+
+- **`FORCE_HTTPS=true`** - HTTPS-läge för produktion
+  - Aktiverar HSTS (HTTP Strict Transport Security)
+  - Krävs när du kör bakom en reverse proxy (nginx, Caddy, Traefik)
+  - Förutsätter att TLS-terminering sker på proxy-nivå
 
 ### Ändra port
 
