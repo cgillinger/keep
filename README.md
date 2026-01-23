@@ -1,8 +1,966 @@
+# Keep Clone - Private Google Keep for Families
+
+[🇸🇪 Svenska versionen](#svenska-swedish-version)
+
+A secure, self-hosted Google Keep clone with sharing features, customizable profiles, and import from Google Keep.
+
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)
+![Docker](https://img.shields.io/badge/docker-supported-2496ED?logo=docker&logoColor=white)
+![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-lightgrey)
+[![GitHub issues](https://img.shields.io/github/issues/cgillinger/keep)](https://github.com/cgillinger/keep/issues)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/cgillinger/keep/pulls)
+
+## ✨ Features
+
+- 📝 **Notes:** Create, edit, and organize notes
+- ☑️ **Checklists:** Checkable task lists
+- 🎨 **Color Coding:** 12 colors to choose from
+- 📌 **Pin Notes:** Keep important notes at the top
+- 📦 **Archive:** Archive notes you don't want to see right now
+- 🔍 **Search:** Find notes quickly
+- 👥 **Share:** Share notes with family members (view or edit)
+- 👤 **Personal Profiles:** Avatar colors, background themes, and initials
+- 🌙 **Night Mode:** WCAG-compliant dark theme for comfortable reading
+- 🎨 **Background Themes:** 5 light themes + night mode
+- 📥 **Import:** Import your existing notes from Google Keep
+- 📤 **Export:** Export backup of all your notes
+- 🔄 **Real-time:** Automatically syncs across all devices
+- 🔐 **Security:** Enterprise-grade security with CSRF, rate limiting, XSS protection, etc.
+- 🔑 **Password Reset:** Email-based recovery (optional)
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js 18 or later (recommended)
+- npm (included with Node.js)
+- Approximately 200 MB disk space (for dependencies and data)
+
+### Installation
+
+1. **Clone the repository:**
+```bash
+git clone https://github.com/cgillinger/keep.git
+cd keep
+```
+
+2. **Install dependencies:**
+```bash
+npm install
+```
+
+3. **Configure environment variables:**
+
+Create a `.env` file in the project's root directory:
+
+```bash
+cp .env.example .env
+```
+
+**Edit `.env` and configure:**
+
+**REQUIRED:**
+```env
+SESSION_SECRET=your_secure_random_string_here
+```
+
+Generate a secure secret:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+**OPTIONAL - Email for password reset:**
+
+If you want users to be able to reset forgotten passwords, configure SMTP:
+
+```env
+# Email for password reset (optional)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your.family@gmail.com
+SMTP_PASS=your_app_password_here
+EMAIL_FROM=Keep Clone <your.family@gmail.com>
+```
+
+**For Gmail:**
+1. Enable 2-factor authentication on your Google account
+2. Go to https://myaccount.google.com/apppasswords
+3. Create an app password for "Keep Clone"
+4. Use the app password (not your regular password) in `SMTP_PASS`
+
+**For other email services:**
+- **Outlook/Hotmail:** `smtp-mail.outlook.com`, port 587
+- **Yahoo:** `smtp.mail.yahoo.com`, port 587
+- **Custom SMTP:** Contact your email provider for settings
+
+**NOTE:** If email is not configured, the app works fully, but without password reset. Users who forget passwords must create new accounts.
+
+**Complete example `.env`:**
+```env
+# Required
+SESSION_SECRET=a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8
+
+# Optional
+PORT=3000
+
+# Email (optional, for password reset)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=family@gmail.com
+SMTP_PASS=abcd efgh ijkl mnop
+EMAIL_FROM=Keep Clone <family@gmail.com>
+```
+
+4. **Start the server:**
+```bash
+npm start
+```
+
+5. **Open in browser:**
+```
+http://localhost:3000
+```
+
+### First Use
+
+1. Click "Register"
+2. Create an account (minimum 3 characters username, 12+ characters password)
+3. Log in
+4. Customize your profile (click on your initials):
+   - Choose avatar color
+   - Choose background theme (including night mode)
+   - Enable/disable dates on notes
+5. Start creating notes!
+
+**What is created automatically:**
+- `data/keep.db` - SQLite database (created on first start)
+- `data/sessions/` - Session database
+- `data/media/` - Imported attachments from Google Keep
+
+**Tip:** Back up the `data/` folder regularly to save your notes!
+
+## 📦 Docker (recommended for production)
+
+The repo includes all necessary files for Docker:
+- ✅ `Dockerfile` - Container configuration
+- ✅ `docker-compose.yml` - Orchestration and volumes
+- ✅ `.dockerignore` - Excludes unnecessary files
+- ✅ `.env.example` - Environment variable template
+
+### With Docker Compose (RECOMMENDED)
+
+**Step 1: Create .env file**
+
+```bash
+# Copy example file
+cp .env.example .env
+
+# Generate secure SESSION_SECRET
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+**Edit `.env`** and set at least `SESSION_SECRET`:
+```env
+SESSION_SECRET=your_generated_secret_here
+PORT=3000
+
+# Optional: Email for password reset
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# ...
+```
+
+**Step 2: Start with Docker Compose**
+
+```bash
+# Build and start (first time)
+docker-compose up -d
+
+# View logs (real-time)
+docker-compose logs -f
+
+# Stop (keeps data)
+docker-compose down
+
+# Restart after code changes
+docker-compose up -d --build
+```
+
+**Step 3: Open in browser**
+```
+http://localhost:3000
+```
+
+**Step 4: Register first user**
+1. Click "Register"
+2. Create account
+3. Start using!
+
+### What happens automatically?
+
+**Data persistence:**
+- `./data/keep.db` - Database (created automatically)
+- `./data/sessions/` - Sessions
+- `./data/media/` - Imported images
+
+All data is stored in `./data/` on your machine and survives:
+- ✅ Container restarts (`docker-compose restart`)
+- ✅ Container updates (`docker-compose up -d`)
+- ✅ Docker Compose down/up
+- ❌ **WARNING:** `docker-compose down -v` removes volumes!
+
+**Backup:** Copy the entire `./data/` folder for backups.
+
+### Manual Docker (without docker-compose)
+
+If you prefer to run Docker directly:
+
+```bash
+# Build image
+docker build -t keep-clone .
+
+# Run container
+docker run -d \
+  --name keep-clone \
+  -p 3000:3000 \
+  -v $(pwd)/data:/app/data \
+  -e SESSION_SECRET="your_secure_secret_here" \
+  -e NODE_ENV=production \
+  --restart unless-stopped \
+  keep-clone
+
+# View logs
+docker logs -f keep-clone
+
+# Stop and remove
+docker stop keep-clone
+docker rm keep-clone
+```
+
+**Tips for manual Docker:**
+- Add `-e PORT=8080` for different port
+- Add SMTP variables for email: `-e SMTP_HOST=...`
+- Use `--env-file .env` to read from .env file
+
+### Synology NAS with Container Manager
+
+**Method 1: With docker-compose.yml (easiest)**
+
+1. **Prepare project folder:**
+   - Open File Station
+   - Create folder: `/docker/keep` (or any location)
+
+2. **Upload files:**
+   - Upload **all** files from repo to the folder
+   - Or use Git (if installed): `git clone https://github.com/cgillinger/keep.git`
+
+3. **Create .env file:**
+   - Create new file in project folder: `.env`
+   - Copy content from `.env.example`
+   - Set at least: `SESSION_SECRET=your_secure_secret`
+   - Generate secret on your computer: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+
+4. **Use Container Manager:**
+   - Open Container Manager in DSM
+   - Go to **Project** (not Container or Image)
+   - Click **Create**
+   - Select project folder (`/docker/keep`)
+   - Container Manager automatically finds `docker-compose.yml`
+   - Click **Next** → **Done**
+
+5. **Start:**
+   - Project starts automatically
+   - Connect via: `http://[synology-ip]:3000`
+
+**Method 2: Manual container (more advanced)**
+
+If docker-compose doesn't work:
+1. Container Manager → Image → Add → From file
+2. Select `Dockerfile` from project folder
+3. Build image
+4. Container → Create
+5. Configure:
+   - Port: 3000:3000
+   - Volume: Map `/docker/keep/data` → `/app/data`
+   - Environment: Add `SESSION_SECRET`, `NODE_ENV=production`
+
+**Tips for Synology:**
+- ✅ Data in `./data/` automatically included in Hyper Backup
+- ✅ Use Synology Firewall for security
+- ✅ Configure reverse proxy for HTTPS (optional)
+- ✅ Schedule restart in Task Scheduler (optional)
+
+### Tailscale Access (recommended for security)
+
+For secure remote access without exposing the server publicly:
+
+1. **Install Tailscale:**
+   - On server/NAS: Follow instructions at tailscale.com
+   - On your devices: Download Tailscale app
+
+2. **Connect via Tailscale network:**
+   ```
+   http://[tailscale-ip]:3000
+   ```
+   - Find Tailscale IP in Tailscale app
+   - No port forwarding needed
+   - Encrypted connection automatically
+
+3. **Benefits:**
+   - ✅ No internet exposure
+   - ✅ End-to-end encryption
+   - ✅ Works behind NAT/firewall
+   - ✅ Access from mobile/computer anywhere
+
+### Docker Troubleshooting
+
+**Problem: Container won't start**
+
+```bash
+# Show detailed logs
+docker-compose logs
+
+# Or for manual Docker
+docker logs keep-clone
+```
+
+**Common errors:**
+
+**"SESSION_SECRET not configured"**
+- Solution: Check that `.env` exists and contains SESSION_SECRET
+
+**"Port already in use"**
+- Solution: Change external port in docker-compose.yml:
+  ```yaml
+  ports:
+    - "8080:3000"  # Use 8080 instead
+  ```
+
+**"Permission denied" for data folder**
+- Solution (Linux):
+  ```bash
+  sudo chown -R $USER:$USER ./data
+  chmod -R 755 ./data
+  ```
+
+**Container stops after startup**
+- Check logs: `docker-compose logs`
+- Common: Database file corrupt → Delete `data/keep.db` and restart
+
+**Cannot connect to container**
+- Check that container is running: `docker-compose ps`
+- Check port: `docker-compose port keep-clone 3000`
+- Test locally first: `curl http://localhost:3000`
+
+**Update to new version**
+```bash
+# Stop container
+docker-compose down
+
+# Pull latest changes
+git pull
+
+# Rebuild and start
+docker-compose up -d --build
+```
+
+**Complete reset (DELETES ALL DATA!)**
+```bash
+docker-compose down -v  # -v deletes volumes!
+rm -rf data/
+docker-compose up -d
+```
+
+## 📚 Documentation
+
+- **[FEATURES.md](./FEATURES.md)** - Complete feature and security documentation
+- **[IMPORT-GUIDE.md](./IMPORT-GUIDE.md)** - Detailed guide for Google Keep import
+- **[INSTALL-SYSTEMD.md](./INSTALL-SYSTEMD.md)** - Installation as systemd service on Linux
+
+### Quick Guides
+
+**Customize your profile:**
+1. Click on your initials in the header
+2. Choose avatar color (10 colors)
+3. Choose background theme:
+   - Default (white)
+   - Warm beige
+   - Soft blue
+   - Mint green
+   - Light lavender
+   - Night mode (dark, WCAG-compliant)
+4. Enable "Show when created" to see creation date on notes
+
+**Share a note:**
+1. Open the note
+2. Click the share icon (👥)
+3. Choose "View" or "Edit" for family member
+4. They get immediate access with real-time sync!
+
+**Import from Google Keep:**
+1. Go to [Google Takeout](https://takeout.google.com/)
+2. Select only "Keep" and download
+3. Click on your profile → "📥 Import from Google Keep"
+4. Select zip file and import
+5. See [IMPORT-GUIDE.md](./IMPORT-GUIDE.md) for more details
+
+## 📥 Import from Google Keep
+
+Keep Clone has built-in import from Google Keep! Move all your notes easily.
+
+### Quick Instructions
+
+1. **Export from Google:** Go to [Google Takeout](https://takeout.google.com/), select only "Keep", download zip
+2. **Import:** Open profile → "📥 Import from Google Keep", select zip file, click "Import"
+3. **Done!** All notes imported with colors, checklists, and attachments
+
+### What is imported?
+
+✅ **Imported:**
+- Notes with titles and content
+- Checklists with checked status
+- Color coding (12 Google Keep colors mapped to corresponding)
+- Archived notes
+- Timestamps (created/updated)
+- Attachments (images, files)
+
+❌ **NOT imported:**
+- Trash
+- Labels/tags
+- Reminders
+- Shares (become private notes)
+
+For detailed guide and troubleshooting, see [IMPORT-GUIDE.md](./IMPORT-GUIDE.md)
+
+## 🔐 Security
+
+Keep Clone is built with security first, suitable for Tailscale access or private networks:
+
+- ✅ **Strong authentication:** Bcrypt hashing (12 rounds), 12+ character passwords
+- ✅ **CSRF protection:** All changes protected with tokens
+- ✅ **Rate limiting:** Prevents brute-force (5 login attempts/15 min in production)
+- ✅ **XSS protection:** DOMPurify sanitizes all user input
+- ✅ **Security headers:** Helmet with CSP, HSTS, X-Frame-Options
+- ✅ **Path traversal protection:** Safe file handling
+- ✅ **Secure sessions:** HTTP-only, SameSite strict cookies
+- ✅ **WebSocket auth:** Validated session on all WS connections
+- ✅ **SQL injection protection:** Parameterized queries
+
+**Rate limits (production):**
+- Login: 5 attempts / 15 minutes
+- Register: 3 registrations / hour
+- Import: 10 imports / hour
+- API: 100 calls / minute
+
+**Development mode has more generous limits for testing.**
+
+Read more in [FEATURES.md#security-features](./FEATURES.md#säkerhetsfunktioner)
+
+## 👥 Share Notes
+
+Share notes with family members:
+
+**Two permission levels:**
+- **View:** Can read and check checkboxes
+- **Edit:** Can make changes to the note
+
+**How to share:**
+1. Open the note
+2. Click the share icon (👥)
+3. Select family member and permission
+4. Done! Real-time synchronization activated
+
+**Features:**
+- See who has shared notes with you
+- Real-time updates when someone changes
+- Avatars show who owns/shares the note
+- Toggle between "My notes" and "Shared with me"
+
+## 🏗️ Architecture
+
+**Backend:**
+- Node.js + Express
+- SQLite for database
+- WebSocket (ws) for real-time sync
+- Session-based authentication
+
+**Frontend:**
+- Vanilla JavaScript (no framework)
+- Modular CSS architecture (6 files)
+- Responsive design
+- Real-time updates
+
+**Security:**
+- helmet - HTTP security headers
+- express-rate-limit - Rate limiting
+- csurf - CSRF protection
+- bcryptjs - Password hashing
+- dompurify + jsdom - XSS prevention
+- sharp - Safe image optimization
+
+## 📊 Database Structure
+
+```
+users
+  ├─ id
+  ├─ username (unique)
+  ├─ password_hash
+  ├─ email (nullable)
+  ├─ avatar_color
+  ├─ background_theme
+  ├─ reset_token (nullable)
+  ├─ reset_token_expires (nullable)
+  └─ created_at
+
+notes
+  ├─ id
+  ├─ user_id → users.id
+  ├─ title
+  ├─ content
+  ├─ color
+  ├─ is_checklist
+  ├─ checklist_items (JSON)
+  ├─ images (JSON array)
+  ├─ is_archived
+  ├─ is_pinned
+  ├─ created_at
+  └─ updated_at
+
+shares
+  ├─ id
+  ├─ note_id → notes.id (CASCADE)
+  ├─ shared_by_user_id → users.id
+  ├─ shared_with_user_id → users.id
+  ├─ permission (view/edit)
+  └─ created_at
+```
+
+## 🛠️ API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Log in
+- `POST /api/auth/logout` - Log out
+- `GET /api/me` - Check session
+- `GET /api/csrf-token` - Get CSRF token
+- `POST /api/auth/request-reset` - Request password reset
+- `POST /api/auth/reset-password` - Reset password
+
+### Notes
+- `GET /api/notes?archived=true&shared=true` - Get notes
+- `POST /api/notes` - Create note (CSRF)
+- `PUT /api/notes/:id` - Update note (CSRF)
+- `DELETE /api/notes/:id` - Delete note (CSRF)
+- `PUT /api/notes/:id/pin` - Pin/unpin note (CSRF)
+- `PUT /api/notes/:id/archive` - Archive/restore note (CSRF)
+
+### Sharing
+- `POST /api/notes/:id/share` - Share note (CSRF)
+- `DELETE /api/notes/:noteId/share/:userId` - Unshare (CSRF)
+- `GET /api/notes/:id/shares` - Get shares
+- `GET /api/users` - List users (for sharing)
+
+### Profile & Data
+- `POST /api/profile/avatar-color` - Change avatar color (CSRF)
+- `POST /api/profile/background-theme` - Change background theme (CSRF)
+- `POST /api/import` - Import Google Keep (CSRF)
+- `GET /api/export` - Export backup (ZIP)
+
+## 🔧 Configuration
+
+### Environment Variables
+
+All configurations are done via the `.env` file:
+
+```env
+# Required
+SESSION_SECRET=your_secure_secret_here
+
+# Optional
+PORT=3000
+NODE_ENV=production
+
+# Email (optional, for password reset)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=family@gmail.com
+SMTP_PASS=app_password_here
+EMAIL_FROM=Keep Clone <family@gmail.com>
+```
+
+### Change Port
+
+**Method 1: Via .env file (RECOMMENDED)**
+
+Edit `.env`:
+```env
+PORT=8080
+```
+
+Restart server:
+```bash
+npm start
+```
+
+App now runs on `http://localhost:8080`
+
+**Method 2: Via command line (temporary)**
+
+```bash
+PORT=8080 npm start
+```
+
+This applies only to this session.
+
+**For Docker (see Docker port configuration below)**
+
+### Docker Port Configuration
+
+Docker has two ports to configure:
+- **Internal port** - port inside Docker container (where app runs)
+- **External port** - port on your computer/server (where you connect)
+
+**Format:** `external:internal`
+
+**Example 1: Run app on port 8080 outside container**
+```yaml
+# docker-compose.yml
+services:
+  keep-clone:
+    ports:
+      - "8080:3000"  # External:Internal
+    # App runs on port 3000 inside container
+    # You connect via http://localhost:8080
+```
+
+**Example 2: Change both internal and external port**
+```yaml
+services:
+  keep-clone:
+    environment:
+      - PORT=8080      # Internal port changed
+    ports:
+      - "8080:8080"    # Both ports 8080
+```
+
+**Example 3: Use port 80 (standard HTTP)**
+```yaml
+services:
+  keep-clone:
+    ports:
+      - "80:3000"      # Connect via http://localhost (no port needed)
+```
+
+**Tips:**
+- Leave internal port as 3000 if possible (simpler)
+- Only change external port to avoid port conflicts
+- Port 80 requires root/admin on many systems
+
+### Data Location
+
+Data is stored in `./data/`:
+- `keep.db` - SQLite database
+- `sessions/` - Session database
+- `media/` - Imported attachments from Google Keep
+
+### Rate Limiting
+
+Adjust in `server.js` (production values):
+```javascript
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5 // 5 attempts
+});
+```
+
+## 🐛 Troubleshooting
+
+### Server won't start
+
+**Problem:** Port 3000 already in use
+
+**Solution:**
+
+**Option 1: Change port (recommended)**
+```bash
+# Add to .env
+echo "PORT=8080" >> .env
+npm start
+```
+
+**Option 2: Find and stop process on port 3000**
+```bash
+# Find process on port 3000
+lsof -i :3000
+# Kill process
+kill -9 <PID>
+```
+
+**Option 3: Temporary port change**
+```bash
+PORT=8080 npm start
+```
+
+**Problem:** "SESSION_SECRET not configured" or session errors
+
+**Solution:**
+- Check that you have created a `.env` file in project root
+- Make sure `SESSION_SECRET` is set to a long, random string
+- Generate a new secret: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+
+**Problem:** Missing modules or npm errors
+
+**Solution:**
+```bash
+# Clean and reinstall dependencies
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### Cannot log in
+
+**Problem:** Incorrect password or username
+
+**Solution:**
+- Check that username is correct (case-sensitive)
+- If you forgot password:
+  - With email configured: Use "Forgot password?"
+  - Without email: Create new account
+- Check that caps lock is not on
+
+### Import not working
+
+**Problem:** Wrong file format or corrupt zip
+
+**Solution:**
+- See [IMPORT-GUIDE.md](./IMPORT-GUIDE.md) for detailed troubleshooting
+- Check that file is a Google Takeout export (.zip)
+- Try unpacking locally first to verify integrity
+- Check that zip file contains a "Keep/" folder
+
+### WebSocket errors
+
+**Problem:** Real-time updates not working
+
+**Solution:**
+- Check that browser supports WebSocket
+- Refresh page (F5)
+- Check server console for errors
+- Some proxies block WebSocket - use direct connection or Tailscale
+
+### Email not working
+
+**Problem:** Password reset not sent
+
+**Solution:**
+- Check that SMTP settings are correct in `.env`
+- For Gmail: Use app password, not regular password
+- Test SMTP connection: `node -e "require('./mailer.js')"`
+- Check server console for SMTP errors
+- Some providers require approval for "less secure apps"
+
+## 🧪 Development
+
+### Development Mode with Auto-restart
+
+For development with automatic restart on file changes:
+
+```bash
+# Development mode
+npm run dev
+```
+
+### Development vs Production
+
+Keep Clone has different security settings for development and production:
+
+**Development Mode (NODE_ENV != 'production'):**
+- More generous rate limits for testing
+- Login: 50 attempts/minute
+- Register: 20 attempts/minute
+- API: 500 calls/minute
+
+**Production Mode:**
+```bash
+NODE_ENV=production npm start
+```
+- Stricter security
+- Login: 5 attempts/15 min
+- Register: 3 attempts/hour
+- API: 100 calls/minute
+
+**Recommendation:** Always run in production mode on servers!
+
+### Clear Database
+
+```bash
+rm data/keep.db
+# Server creates new database on next start
+```
+
+## 📁 Project Structure
+
+```
+keep/
+├── server.js              # Main server (1,391 lines)
+├── database.js            # Database initialization and schema
+├── import-parser.js       # Google Keep import parser
+├── export-generator.js    # Backup generator
+├── backup-parser.js       # Backup restoration
+├── mailer.js              # Email service for password reset
+├── package.json           # Dependencies and scripts
+├── .env.example           # Example environment variables
+├── docker-compose.yml     # Docker Compose configuration
+├── Dockerfile             # Docker image definition
+├── .dockerignore          # Docker build exclusions
+├── LICENSE                # MIT license
+├── public/
+│   ├── index.html         # Frontend HTML (425 lines)
+│   ├── app.js             # Frontend JavaScript (2,063 lines)
+│   └── css/               # Modular CSS architecture (1,615 lines)
+│       ├── base.css       # Variables, reset, dark mode
+│       ├── layout.css     # Header, grid
+│       ├── components.css # Buttons, cards, forms
+│       ├── modals.css     # Modal dialogs
+│       ├── utilities.css  # Utility classes
+│       └── debug.css      # Debug tools
+├── data/
+│   ├── keep.db            # SQLite database
+│   ├── sessions/          # Session database
+│   └── media/             # Imported attachments
+└── Documentation/
+    ├── README.md          # This file
+    ├── FEATURES.md        # Feature documentation (390 lines)
+    ├── IMPORT-GUIDE.md    # Import guide (293 lines)
+    └── INSTALL-SYSTEMD.md # Systemd installation
+
+Total codebase: ~7,000 lines (excluding dependencies)
+```
+
+## 📝 Changelog
+
+### Version 1.1.0 (2026-01-23)
+
+**Improvements:**
+- 🌍 Bilingual documentation (English + Swedish)
+- 📖 English as primary language for international audiences
+- 🔗 Quick navigation between language versions
+
+### Version 1.0.0 (2025-01-23)
+
+**New features:**
+- ✨ Share notes with family members (view/edit permissions)
+- 👤 Customizable profiles with avatar colors (10 colors)
+- 🎨 Background themes (5 light + night mode)
+- 🌙 WCAG-compliant night mode with muted colors
+- 📥 Import from Google Keep via Takeout
+- 📤 Export/backup to ZIP
+- 🔄 Real-time synchronization via WebSocket
+- 📌 Pin important notes
+- 🔑 Password reset via email (optional)
+- 📅 Optional display of creation date on notes
+- 🖼️ Image support for imported notes
+
+**Security:**
+- 🔐 CSRF protection on all modification operations
+- 🚫 Rate limiting on sensitive endpoints
+- 🛡️ XSS protection with DOMPurify
+- 🔒 Secure sessions and cookies
+- 📋 Strong password requirements (12+ characters, mixed case, numbers)
+- 🏗️ Security headers with Helmet (CSP, HSTS, etc.)
+
+**Improvements:**
+- ♻️ Complete backend rewrite for security
+- 🎨 Modular CSS architecture (6 files)
+- 📱 Responsive design for mobile devices
+- ⚡ Optimized image handling with Sharp
+- 🚀 Cached rendering for faster UI
+- 📊 Complete documentation (1,500+ lines)
+
+**Architecture:**
+- 🗄️ SQLite database with auto-migration
+- 🔌 WebSocket for real-time updates
+- 📦 Session-based authentication
+- 🐳 Docker support
+
+## 📄 License
+
+MIT License - See [LICENSE](./LICENSE) for details.
+
+Copyright (c) 2025 Keep Clone Contributors
+
+## 🤝 Contributing
+
+This is a family project, but pull requests are welcome!
+
+1. Fork the project
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 💡 Planned Features
+
+- [ ] Labels/tags for organization
+- [ ] Reminders
+- [ ] Attachments on new notes (not just import)
+- [ ] Markdown support
+- [ ] Export to different formats (PDF, Markdown)
+- [ ] Mobile app (PWA)
+- [ ] Two-factor authentication
+- [ ] Backup schedule
+- [ ] Collaborative editing with cursor sync
+
+## ❓ Support
+
+If you have questions or problems:
+
+1. Read the documentation in this repo
+2. Search [GitHub Issues](https://github.com/cgillinger/keep/issues)
+3. Open a new issue with details about your problem
+
+## 👨‍👩‍👧‍👦 For Families
+
+Keep Clone is specially designed for families who want to:
+- 🏠 Have full control over their data
+- 🔒 Not let Google read their notes
+- 💰 Save money (completely free, open source)
+- 🤝 Easily share notes with family
+- 📱 Sync across all devices
+- 🚀 Easy setup on home server or NAS
+- 🛡️ Have enterprise security without enterprise cost
+
+**Perfect for:**
+- Shopping lists
+- Recipes
+- Todo lists
+- Family planning
+- Travel plans
+- Meeting notes
+- Ideas and brainstorming
+- Passwords and important notes
+
+---
+
+**Built with ❤️ for families who value privacy and simplicity.**
+
+**Version 1.1.0** | [Changelog](#changelog) | [License](./LICENSE) | [Documentation](#documentation)
+
+---
+
+<a name="svenska-swedish-version"></a>
+# Svenska (Swedish Version)
+
 # Keep Clone - Privat Google Keep för familjer
 
 En säker, självhostad Google Keep-klon med delningsfunktioner, anpassningsbara profiler och import från Google Keep.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)
 ![Docker](https://img.shields.io/badge/docker-supported-2496ED?logo=docker&logoColor=white)
@@ -842,6 +1800,13 @@ Total kodbas: ~7,000 rader (utan dependencies)
 
 ## 📝 Changelog
 
+### Version 1.1.0 (2026-01-23)
+
+**Förbättringar:**
+- 🌍 Tvåspråkig dokumentation (English + Swedish)
+- 📖 Engelska som huvudspråk för internationell publik
+- 🔗 Snabb navigation mellan språkversioner
+
 ### Version 1.0.0 (2025-01-23)
 
 **Nya funktioner:**
@@ -940,4 +1905,4 @@ Keep Clone är särskilt designad för familjer som vill:
 
 **Byggd med ❤️ för familjer som värdesätter integritet och enkelhet.**
 
-**Version 1.0.0** | [Changelog](#changelog) | [Licens](./LICENSE) | [Dokumentation](#dokumentation)
+**Version 1.1.0** | [Changelog](#changelog-1) | [Licens](./LICENSE) | [Dokumentation](#dokumentation)

@@ -207,7 +207,7 @@
 
       <!-- Footer -->
       <footer class="app-footer">
-        <p>Keep Clone v1.0.0 | <a href="https://github.com/cgillinger/keep" target="_blank" rel="noopener">GitHub</a> | MIT License</p>
+        <p>Keep Clone v1.1.0 | <a href="https://github.com/cgillinger/keep" target="_blank" rel="noopener">GitHub</a> | MIT License</p>
       </footer>
     </main>
   </div>
@@ -392,6 +392,16 @@
           <input type="checkbox" id="show-created-date-toggle" onchange="toggleShowCreatedDate()">
           <span>Visa när skapad</span>
         </label>
+      </div>
+
+      <div class="settings-section">
+        <label class="settings-label">
+          Välj språk
+        </label>
+        <select id="language-selector" onchange="changeLanguage(this.value)" class="language-selector">
+          <option value="en">English</option>
+          <option value="sv">Svenska</option>
+        </select>
       </div>
 
       <div class="settings-section-highlight">
