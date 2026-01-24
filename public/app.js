@@ -1204,7 +1204,7 @@ function renderNoteHTML(note) {
     pinIndicator = '<div class="pin-indicator">📌</div>';
   }
 
-  // Show owner if this is a shared note
+  // Show owner and green share indicator if this is a note shared WITH me
   if (note.isShared && note.owner_username) {
     const initials = note.owner_username.substring(0, 2).toUpperCase();
     const avatarColor = note.owner_avatar_color || '#1a73e8';
@@ -1213,14 +1213,16 @@ function renderNoteHTML(note) {
     ownerIndicator = `
       <div class="note-owner">
         ${ownerAvatar}
-        <span>${note.owner_username}</span>
+        <span>${escapeHtml(note.owner_username)}</span>
       </div>
     `;
+    // Green share indicator for notes shared with me
+    shareIndicator = `<span class="share-indicator share-indicator--received" title="${t('notes.shared_by')} ${escapeHtml(note.owner_username)}">👥</span>`;
   }
 
-  // Show share count if owned by user
+  // Show blue share count if owned by user and shared with others
   if (!note.isShared && note.share_count > 0) {
-    shareIndicator = `<span class="share-indicator" title="Delad med ${note.share_count} ${note.share_count === 1 ? 'person' : 'personer'}">👥 ${note.share_count}</span>`;
+    shareIndicator = `<span class="share-indicator share-indicator--sent" title="${t('notes.shared_with')} ${note.share_count} ${note.share_count === 1 ? t('notes.person') : t('notes.persons')}">👥 ${note.share_count}</span>`;
   }
 
   if (note.is_checklist && note.checklist_items) {
@@ -1636,8 +1638,8 @@ function toggleArchived() {
   showingArchived = !showingArchived;
   showingShared = false;
   document.getElementById('archive-toggle-text').textContent =
-    showingArchived ? 'Visa aktiva' : 'Visa arkiv';
-  document.getElementById('shared-toggle-text').textContent = 'Visa delade';
+    showingArchived ? t('header.show_active') : t('header.show_archive');
+  document.getElementById('shared-toggle-text').textContent = t('header.show_shared');
   loadNotes();
 }
 
@@ -1645,8 +1647,8 @@ function toggleShared() {
   showingShared = !showingShared;
   showingArchived = false;
   document.getElementById('shared-toggle-text').textContent =
-    showingShared ? 'Visa mina' : 'Visa delade';
-  document.getElementById('archive-toggle-text').textContent = 'Visa arkiv';
+    showingShared ? t('header.show_all') : t('header.show_shared');
+  document.getElementById('archive-toggle-text').textContent = t('header.show_archive');
   loadNotes();
 }
 
