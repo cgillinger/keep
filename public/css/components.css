@@ -828,6 +828,126 @@
   background: var(--color-error-bg);
 }
 
+/* Share user item states */
+.share-user-item.shared {
+  background: var(--color-success-bg);
+}
+
+.share-user-item.shared:hover {
+  background: #c8e6c9;
+}
+
+.share-user-item.pending-add {
+  background: #fff3e0;
+}
+
+.share-user-item.pending-remove {
+  background: #ffebee;
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.share-check {
+  color: var(--color-success);
+  font-weight: bold;
+  font-size: var(--font-size-lg);
+}
+
+/* Current share item in modal */
+.current-share-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-light);
+  margin-bottom: var(--space-sm);
+}
+
+.current-share-item:last-child {
+  margin-bottom: 0;
+}
+
+.current-share-item .username {
+  flex: 1;
+  font-weight: 500;
+}
+
+.current-share-item select {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-white);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.current-share-item .btn-icon {
+  background: transparent;
+  border: none;
+  font-size: var(--font-size-lg);
+  cursor: pointer;
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-normal);
+}
+
+.current-share-item .btn-icon:hover {
+  background: var(--color-error-bg);
+}
+
+/* Modal header with close button */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-xl);
+  padding-right: var(--space-md);
+}
+
+.modal-header h2 {
+  margin: 0;
+}
+
+.modal-header .modal-close-btn {
+  position: static;
+  flex-shrink: 0;
+}
+
+/* Modal action buttons */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-md);
+  padding: var(--space-xl) 0;
+  margin-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+/* Pending changes indicator */
+.share-pending-changes {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: #fff3e0;
+  border-radius: var(--radius-md);
+  margin-top: var(--space-lg);
+  font-size: var(--font-size-sm);
+  color: #e65100;
+}
+
+.pending-indicator {
+  color: #ff9800;
+  font-size: var(--font-size-lg);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* Share indicator on note cards */
 .note-card .share-indicator {
   display: flex;
@@ -951,4 +1071,44 @@
 
 .note-card .note-images img:hover {
   transform: scale(1.05) translateZ(0);
+}
+
+/* ===== TOAST NOTIFICATIONS ===== */
+.toast-notification {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #323232;
+  color: white;
+  padding: 14px 24px;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-base);
+  z-index: 10000;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  max-width: 90%;
+  text-align: center;
+}
+
+.toast-notification.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+.toast-notification.toast-success {
+  background: #2e7d32;
+}
+
+.toast-notification.toast-error {
+  background: #c62828;
+}
+
+.toast-notification.toast-warning {
+  background: #ef6c00;
+}
+
+.toast-notification.toast-info {
+  background: #1565c0;
 }

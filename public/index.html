@@ -520,26 +520,36 @@
   <!-- Share Modal -->
   <div id="share-modal" class="modal" onclick="closeShareModal(event)">
     <div class="modal-content modal-content--medium" onclick="event.stopPropagation()">
-      <h2>Dela anteckning</h2>
+      <div class="modal-header">
+        <h2>Dela anteckning</h2>
+        <button class="modal-close-btn" onclick="cancelShareModal()" aria-label="Stäng">✕</button>
+      </div>
 
       <!-- Share with new users -->
       <div class="settings-section">
-        <h3 class="settings-heading">Dela med familjemedlem</h3>
+        <h3 class="settings-heading">Välj vem du vill dela med</h3>
         <div id="share-users-list" class="share-users-list">
           <!-- Users will be inserted here -->
         </div>
       </div>
 
-      <!-- Current shares -->
-      <div class="settings-section">
-        <h3 class="settings-heading">Delar med</h3>
+      <!-- Current shares with permission controls -->
+      <div class="settings-section" id="current-shares-section" style="display: none;">
+        <h3 class="settings-heading">Nuvarande delningar</h3>
         <div id="current-shares-list" class="current-shares-list">
           <!-- Current shares will be inserted here -->
         </div>
       </div>
 
-      <div class="note-form-actions settings-section">
-        <button class="btn-secondary" onclick="closeShareModal()">Stäng</button>
+      <!-- Pending changes indicator -->
+      <div id="share-pending-changes" class="share-pending-changes" style="display: none;">
+        <span class="pending-indicator">●</span>
+        <span id="share-pending-text">Ändringar ej sparade</span>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="cancelShareModal()">Avbryt</button>
+        <button class="btn-primary" id="save-shares-btn" onclick="saveShares()">Spara delning</button>
       </div>
     </div>
   </div>

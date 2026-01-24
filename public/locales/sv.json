@@ -118,12 +118,19 @@
   },
   "share": {
     "title": "Dela anteckning",
-    "share_with_member": "Dela med familjemedlem",
-    "currently_shared_with": "Delar med",
-    "close_button": "Stäng",
-    "can_view": "kan visa",
-    "can_edit": "kan redigera",
-    "remove": "Ta bort"
+    "share_with_member": "Välj vem du vill dela med",
+    "currently_shared_with": "Nuvarande delningar",
+    "close_button": "Avbryt",
+    "save_button": "Spara delning",
+    "can_view": "Kan visa",
+    "can_edit": "Kan redigera",
+    "remove": "Ta bort",
+    "unsaved_changes": "Ändringar ej sparade",
+    "confirm_discard": "Du har osparade ändringar. Vill du stänga utan att spara?",
+    "shares_saved": "Delningar sparade",
+    "save_error": "Kunde inte spara delningar",
+    "new_share_notification": "Ny anteckning delad med dig",
+    "permission_changed": "Din behörighet ändrades"
   },
   "messages": {
     "note_created": "Anteckning skapad",

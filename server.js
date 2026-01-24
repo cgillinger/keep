@@ -783,7 +783,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
   const showShared = req.query.shared === 'true';
 
   if (showShared) {
-    // Get notes shared with this user
+    // Get notes shared with this user (exclude archived notes)
     db.all(
       `SELECT
         notes.*,
@@ -794,6 +794,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
        JOIN shares ON notes.id = shares.note_id
        JOIN users ON notes.user_id = users.id
        WHERE shares.shared_with_user_id = ?
+         AND notes.is_archived = 0
        ORDER BY notes.is_pinned DESC, notes.updated_at DESC`,
       [req.session.userId],
       (err, notes) => {
@@ -1146,31 +1147,81 @@ app.post('/api/notes/:id/share', requireAuth, apiLimiter, csrfProtection, (req, 
         return res.status(404).json({ error: 'Användare hittades inte' });
       }
 
-      // Create share
-      db.run(
-        `INSERT OR REPLACE INTO shares (note_id, shared_by_user_id, shared_with_user_id, permission)
-         VALUES (?, ?, ?, ?)`,
-        [id, req.session.userId, userId, validatedPermission],
-        function(err) {
+      // Check if share already exists (to differentiate between new share and permission update)
+      db.get(
+        'SELECT * FROM shares WHERE note_id = ? AND shared_with_user_id = ?',
+        [id, userId],
+        (err, existingShare) => {
           if (err) {
-            logger.error('Share note error:', err);
-            return res.status(500).json({ error: 'Kunde inte dela anteckning' });
+            logger.error('Check existing share error:', err);
+            return res.status(500).json({ error: 'Kunde inte kontrollera befintlig delning' });
           }
 
-          // Notify target user via WebSocket
-          broadcastToUser(userId, {
-            type: 'note_shared',
-            note: {
-              ...note,
-              owner_username: req.session.username,
-              permission: validatedPermission
-            }
-          });
+          const isNewShare = !existingShare;
+          const isPermissionChange = existingShare && existingShare.permission !== validatedPermission;
 
-          res.json({
-            message: `Delad med ${targetUser.username}`,
-            sharedWith: targetUser
-          });
+          // Create or update share
+          db.run(
+            `INSERT OR REPLACE INTO shares (note_id, shared_by_user_id, shared_with_user_id, permission)
+             VALUES (?, ?, ?, ?)`,
+            [id, req.session.userId, userId, validatedPermission],
+            function(err) {
+              if (err) {
+                logger.error('Share note error:', err);
+                return res.status(500).json({ error: 'Kunde inte dela anteckning' });
+              }
+
+              // Parse note data for WebSocket
+              const noteData = { ...note };
+              if (noteData.checklist_items) {
+                try {
+                  noteData.checklist_items = JSON.parse(noteData.checklist_items);
+                } catch (e) {
+                  noteData.checklist_items = [];
+                }
+              }
+              if (noteData.images) {
+                try {
+                  noteData.images = JSON.parse(noteData.images);
+                } catch (e) {
+                  noteData.images = [];
+                }
+              }
+
+              if (isNewShare) {
+                // Notify target user about new share
+                broadcastToUser(userId, {
+                  type: 'note_shared',
+                  note: {
+                    ...noteData,
+                    owner_username: req.session.username,
+                    owner_avatar_color: req.session.avatarColor || '#1a73e8',
+                    permission: validatedPermission,
+                    isShared: true
+                  }
+                });
+
+                // Notify owner that share count changed
+                broadcastToUser(req.session.userId, {
+                  type: 'share_count_updated',
+                  noteId: parseInt(id)
+                });
+              } else if (isPermissionChange) {
+                // Notify target user about permission change
+                broadcastToUser(userId, {
+                  type: 'permission_changed',
+                  noteId: parseInt(id),
+                  permission: validatedPermission
+                });
+              }
+
+              res.json({
+                message: isNewShare ? `Delad med ${targetUser.username}` : 'Behörighet uppdaterad',
+                sharedWith: targetUser,
+                isNew: isNewShare
+              });
+            }
+          );
         }
       );
     });
@@ -1195,9 +1246,15 @@ app.delete('/api/notes/:noteId/share/:userId', requireAuth, apiLimiter, csrfProt
           return res.status(500).json({ error: 'Kunde inte ta bort delning' });
         }
 
-        // Notify user via WebSocket
+        // Notify target user that share was removed
         broadcastToUser(parseInt(userId), {
           type: 'note_unshared',
+          noteId: parseInt(noteId)
+        });
+
+        // Notify owner that share count changed
+        broadcastToUser(req.session.userId, {
+          type: 'share_count_updated',
           noteId: parseInt(noteId)
         });
 
