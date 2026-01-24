@@ -778,161 +778,188 @@ app.get('/api/users', requireAuth, apiLimiter, (req, res) => {
 
 // ===== NOTES ROUTES =====
 
+// Default page size for infinite scroll
+const DEFAULT_PAGE_SIZE = 20;
+
 app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
   const showArchived = req.query.archived === 'true';
   const showSharedOnly = req.query.shared === 'true';
+  const limit = Math.min(parseInt(req.query.limit) || DEFAULT_PAGE_SIZE, 100); // Max 100
+  const offset = parseInt(req.query.offset) || 0;
+
+  // Helper to parse JSON fields and prepare notes
+  const prepareNotes = (notes, isSharedView = false) => {
+    notes.forEach(note => {
+      if (note.checklist_items) {
+        try {
+          note.checklist_items = JSON.parse(note.checklist_items);
+        } catch (e) {
+          note.checklist_items = [];
+        }
+      }
+      if (note.images) {
+        try {
+          note.images = JSON.parse(note.images);
+        } catch (e) {
+          note.images = [];
+        }
+      }
+      if (isSharedView) {
+        note.isShared = true;
+      } else if (note.isShared !== undefined) {
+        note.isShared = !!note.isShared;
+      }
+    });
+    return notes;
+  };
 
   if (showSharedOnly) {
     // Get ONLY notes shared with this user (exclude archived notes)
-    db.all(
-      `SELECT
-        notes.*,
-        users.username as owner_username,
-        users.avatar_color as owner_avatar_color,
-        shares.permission
-       FROM notes
+    // First get total count
+    db.get(
+      `SELECT COUNT(*) as total FROM notes
        JOIN shares ON notes.id = shares.note_id
-       JOIN users ON notes.user_id = users.id
-       WHERE shares.shared_with_user_id = ?
-         AND notes.is_archived = 0
-       ORDER BY notes.is_pinned DESC, notes.updated_at DESC`,
+       WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0`,
       [req.session.userId],
-      (err, notes) => {
+      (err, countResult) => {
         if (err) {
-          logger.error('Get shared notes error:', err);
+          logger.error('Count shared notes error:', err);
           return res.status(500).json({ error: 'Kunde inte hämta delade anteckningar' });
         }
 
-        notes.forEach(note => {
-          if (note.checklist_items) {
-            try {
-              note.checklist_items = JSON.parse(note.checklist_items);
-            } catch (e) {
-              note.checklist_items = [];
-            }
-          }
-          if (note.images) {
-            try {
-              note.images = JSON.parse(note.images);
-            } catch (e) {
-              note.images = [];
-            }
-          }
-          note.isShared = true;
-        });
+        const total = countResult?.total || 0;
 
-        res.json(notes);
-      }
-    );
-  } else if (showArchived) {
-    // Get user's own archived notes only
-    db.all(
-      `SELECT notes.*,
-        (SELECT COUNT(*) FROM shares WHERE shares.note_id = notes.id) as share_count
-       FROM notes
-       WHERE user_id = ? AND is_archived = 1
-       ORDER BY is_pinned DESC, updated_at DESC`,
-      [req.session.userId],
-      (err, notes) => {
-        if (err) {
-          logger.error('Get archived notes error:', err);
-          return res.status(500).json({ error: 'Kunde inte hämta arkiverade anteckningar' });
-        }
-
-        notes.forEach(note => {
-          if (note.checklist_items) {
-            try {
-              note.checklist_items = JSON.parse(note.checklist_items);
-            } catch (e) {
-              note.checklist_items = [];
-            }
-          }
-          if (note.images) {
-            try {
-              note.images = JSON.parse(note.images);
-            } catch (e) {
-              note.images = [];
-            }
-          }
-        });
-
-        res.json(notes);
-      }
-    );
-  } else {
-    // Default: Get user's own notes AND notes shared with them
-    // First get own notes
-    db.all(
-      `SELECT notes.*,
-        (SELECT COUNT(*) FROM shares WHERE shares.note_id = notes.id) as share_count,
-        NULL as owner_username,
-        NULL as owner_avatar_color,
-        NULL as permission,
-        0 as isShared
-       FROM notes
-       WHERE user_id = ? AND is_archived = 0
-       ORDER BY is_pinned DESC, updated_at DESC`,
-      [req.session.userId],
-      (err, ownNotes) => {
-        if (err) {
-          logger.error('Get own notes error:', err);
-          return res.status(500).json({ error: 'Kunde inte hämta anteckningar' });
-        }
-
-        // Then get shared notes
         db.all(
           `SELECT
             notes.*,
             users.username as owner_username,
             users.avatar_color as owner_avatar_color,
-            shares.permission,
-            0 as share_count,
-            1 as isShared
+            shares.permission
            FROM notes
            JOIN shares ON notes.id = shares.note_id
            JOIN users ON notes.user_id = users.id
            WHERE shares.shared_with_user_id = ?
              AND notes.is_archived = 0
-           ORDER BY notes.is_pinned DESC, notes.updated_at DESC`,
-          [req.session.userId],
-          (err, sharedNotes) => {
+           ORDER BY notes.is_pinned DESC, notes.updated_at DESC
+           LIMIT ? OFFSET ?`,
+          [req.session.userId, limit, offset],
+          (err, notes) => {
             if (err) {
               logger.error('Get shared notes error:', err);
               return res.status(500).json({ error: 'Kunde inte hämta delade anteckningar' });
             }
 
-            // Combine and sort all notes
-            const allNotes = [...ownNotes, ...sharedNotes];
-
-            // Parse JSON fields
-            allNotes.forEach(note => {
-              if (note.checklist_items) {
-                try {
-                  note.checklist_items = JSON.parse(note.checklist_items);
-                } catch (e) {
-                  note.checklist_items = [];
-                }
-              }
-              if (note.images) {
-                try {
-                  note.images = JSON.parse(note.images);
-                } catch (e) {
-                  note.images = [];
-                }
-              }
-              // Convert isShared from 0/1 to boolean
-              note.isShared = !!note.isShared;
+            prepareNotes(notes, true);
+            res.json({
+              notes,
+              hasMore: offset + notes.length < total,
+              total
             });
+          }
+        );
+      }
+    );
+  } else if (showArchived) {
+    // Get user's own archived notes only
+    db.get(
+      `SELECT COUNT(*) as total FROM notes WHERE user_id = ? AND is_archived = 1`,
+      [req.session.userId],
+      (err, countResult) => {
+        if (err) {
+          logger.error('Count archived notes error:', err);
+          return res.status(500).json({ error: 'Kunde inte hämta arkiverade anteckningar' });
+        }
 
-            // Sort: pinned first, then by updated_at
-            allNotes.sort((a, b) => {
-              if (a.is_pinned !== b.is_pinned) {
-                return b.is_pinned - a.is_pinned;
-              }
-              return new Date(b.updated_at) - new Date(a.updated_at);
+        const total = countResult?.total || 0;
+
+        db.all(
+          `SELECT notes.*,
+            (SELECT COUNT(*) FROM shares WHERE shares.note_id = notes.id) as share_count
+           FROM notes
+           WHERE user_id = ? AND is_archived = 1
+           ORDER BY is_pinned DESC, updated_at DESC
+           LIMIT ? OFFSET ?`,
+          [req.session.userId, limit, offset],
+          (err, notes) => {
+            if (err) {
+              logger.error('Get archived notes error:', err);
+              return res.status(500).json({ error: 'Kunde inte hämta arkiverade anteckningar' });
+            }
+
+            prepareNotes(notes);
+            res.json({
+              notes,
+              hasMore: offset + notes.length < total,
+              total
             });
+          }
+        );
+      }
+    );
+  } else {
+    // Default: Get user's own notes AND notes shared with them using UNION
+    // First get total count from both sources
+    db.get(
+      `SELECT
+        (SELECT COUNT(*) FROM notes WHERE user_id = ? AND is_archived = 0) +
+        (SELECT COUNT(*) FROM notes
+         JOIN shares ON notes.id = shares.note_id
+         WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0) as total`,
+      [req.session.userId, req.session.userId],
+      (err, countResult) => {
+        if (err) {
+          logger.error('Count all notes error:', err);
+          return res.status(500).json({ error: 'Kunde inte hämta anteckningar' });
+        }
 
-            res.json(allNotes);
+        const total = countResult?.total || 0;
+
+        // Use UNION to combine own and shared notes with pagination
+        db.all(
+          `SELECT * FROM (
+            SELECT
+              notes.id, notes.user_id, notes.title, notes.content, notes.color,
+              notes.is_checklist, notes.checklist_items, notes.images,
+              notes.is_archived, notes.is_pinned, notes.created_at, notes.updated_at,
+              (SELECT COUNT(*) FROM shares WHERE shares.note_id = notes.id) as share_count,
+              NULL as owner_username,
+              NULL as owner_avatar_color,
+              NULL as permission,
+              0 as isShared
+            FROM notes
+            WHERE user_id = ? AND is_archived = 0
+
+            UNION ALL
+
+            SELECT
+              notes.id, notes.user_id, notes.title, notes.content, notes.color,
+              notes.is_checklist, notes.checklist_items, notes.images,
+              notes.is_archived, notes.is_pinned, notes.created_at, notes.updated_at,
+              0 as share_count,
+              users.username as owner_username,
+              users.avatar_color as owner_avatar_color,
+              shares.permission,
+              1 as isShared
+            FROM notes
+            JOIN shares ON notes.id = shares.note_id
+            JOIN users ON notes.user_id = users.id
+            WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0
+          )
+          ORDER BY is_pinned DESC, updated_at DESC
+          LIMIT ? OFFSET ?`,
+          [req.session.userId, req.session.userId, limit, offset],
+          (err, notes) => {
+            if (err) {
+              logger.error('Get all notes error:', err);
+              return res.status(500).json({ error: 'Kunde inte hämta anteckningar' });
+            }
+
+            prepareNotes(notes);
+            res.json({
+              notes,
+              hasMore: offset + notes.length < total,
+              total
+            });
           }
         );
       }
