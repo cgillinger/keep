@@ -389,19 +389,28 @@ async function login() {
     const data = await response.json();
 
     if (response.ok) {
-      currentUser = data;
-      showApp();
-      loadNotes();
-      connectWebSocket();
-      updateProfilePicture();
-      applyBackgroundTheme(data.backgroundTheme || 'default');
+      // Show success message briefly
+      showAuthSuccess(t('messages.login_success'));
+
+      // Clear password field for security
+      document.getElementById('login-password').value = '';
+
+      // Wait 800ms to show success message, then transition to app
+      setTimeout(() => {
+        currentUser = data;
+        showApp();
+        loadNotes();
+        connectWebSocket();
+        updateProfilePicture();
+        applyBackgroundTheme(data.backgroundTheme || 'default');
+      }, 800);
     } else {
-      showAuthError(data.error || 'Inloggning misslyckades');
+      showAuthError(data.error || t('messages.login_failed'));
       // Refresh CSRF token on auth failure
       await fetchCSRFToken();
     }
   } catch (error) {
-    showAuthError('Nätverksfel. Kontrollera din anslutning.');
+    showAuthError(t('messages.network_error'));
   }
 }
 
@@ -453,19 +462,31 @@ async function register() {
     const data = await response.json();
 
     if (response.ok) {
-      currentUser = data;
-      showApp();
-      loadNotes();
-      connectWebSocket();
-      updateProfilePicture();
-      applyBackgroundTheme(data.backgroundTheme || 'default');
+      // Show success message
+      showAuthSuccess(t('messages.register_success') + ' ' + t('messages.login_success'));
+
+      // Clear form fields
+      document.getElementById('register-username').value = '';
+      document.getElementById('register-email').value = '';
+      document.getElementById('register-password').value = '';
+      document.getElementById('register-password-confirm').value = '';
+
+      // Wait 1.5 seconds to show success message, then transition to app
+      setTimeout(() => {
+        currentUser = data;
+        showApp();
+        loadNotes();
+        connectWebSocket();
+        updateProfilePicture();
+        applyBackgroundTheme(data.backgroundTheme || 'default');
+      }, 1500);
     } else {
-      showAuthError(data.error || 'Registrering misslyckades');
+      showAuthError(data.error || t('messages.register_failed'));
       // Refresh CSRF token on auth failure
       await fetchCSRFToken();
     }
   } catch (error) {
-    showAuthError('Nätverksfel. Kontrollera din anslutning.');
+    showAuthError(t('messages.network_error'));
   }
 }
 
