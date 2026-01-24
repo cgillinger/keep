@@ -949,6 +949,60 @@ Make the script executable: `chmod +x delete-user.sh`
 
 Usage: `./delete-user.sh 5` (deletes user with ID 5)
 
+**7. Delete ALL users and start fresh:**
+
+If you want to completely reset the application and remove all users, notes, and data, the simplest method is to delete the database file. The server will automatically create a new empty database on next start.
+
+**Method 1: Delete database (simplest)**
+```bash
+# Stop the server first (Ctrl+C if running)
+
+# Delete the database
+rm data/keep.db
+
+# Optional: Clear sessions
+rm -rf data/sessions/*
+
+# Start server - new database created automatically
+npm start
+```
+
+**Method 2: Backup before deleting (recommended)**
+```bash
+# Backup existing database
+cp data/keep.db "data/keep.db.backup-$(date +%Y%m%d-%H%M%S)"
+
+# Delete database
+rm data/keep.db
+
+# Start server
+npm start
+```
+
+**Method 3: Delete only data, keep database file**
+```bash
+sqlite3 data/keep.db "DELETE FROM users; DELETE FROM notes; DELETE FROM shares; VACUUM;"
+```
+
+**For Docker:**
+```bash
+# Stop container
+docker-compose down
+
+# Delete database
+rm data/keep.db
+rm -rf data/sessions/*
+
+# Start again
+docker-compose up -d
+```
+
+**What happens when database is deleted:**
+- ✅ `database.js` automatically creates new `keep.db` with correct schema
+- ✅ All tables (`users`, `notes`, `shares`) created from scratch
+- ✅ No users exist - you can register new ones immediately
+- ✅ No notes or shares exist - completely fresh start
+
 ## 🧪 Development
 
 ### Development Mode with Auto-restart
@@ -2096,6 +2150,60 @@ echo "Backup sparad. Starta om servern för att rensa sessioner."
 Gör skriptet körbart: `chmod +x delete-user.sh`
 
 Användning: `./delete-user.sh 5` (raderar användare med ID 5)
+
+**7. Radera ALLA användare och börja om från början:**
+
+Om du vill helt återställa applikationen och ta bort alla användare, anteckningar och data är den enklaste metoden att radera databasfilen. Servern kommer automatiskt skapa en ny tom databas vid nästa start.
+
+**Metod 1: Radera databasen (enklast)**
+```bash
+# Stoppa servern först (Ctrl+C om den körs)
+
+# Radera databasen
+rm data/keep.db
+
+# Valfritt: Rensa sessioner
+rm -rf data/sessions/*
+
+# Starta servern - ny databas skapas automatiskt
+npm start
+```
+
+**Metod 2: Säkerhetskopiera innan radering (rekommenderat)**
+```bash
+# Säkerhetskopiera befintlig databas
+cp data/keep.db "data/keep.db.backup-$(date +%Y%m%d-%H%M%S)"
+
+# Radera databasen
+rm data/keep.db
+
+# Starta servern
+npm start
+```
+
+**Metod 3: Radera bara innehållet, behåll databasfilen**
+```bash
+sqlite3 data/keep.db "DELETE FROM users; DELETE FROM notes; DELETE FROM shares; VACUUM;"
+```
+
+**För Docker:**
+```bash
+# Stoppa containern
+docker-compose down
+
+# Radera databasen
+rm data/keep.db
+rm -rf data/sessions/*
+
+# Starta igen
+docker-compose up -d
+```
+
+**Vad händer när databasen raderas:**
+- ✅ `database.js` skapar automatiskt ny `keep.db` med korrekt schema
+- ✅ Alla tabeller (`users`, `notes`, `shares`) skapas från början
+- ✅ Inga användare finns - du kan registrera nya direkt
+- ✅ Inga anteckningar eller delningar finns - helt ny start
 
 ## 🧪 Utveckling
 
