@@ -2159,6 +2159,7 @@ async function startImport() {
       document.getElementById('import-button').disabled = false;
     });
 
+    xhr.withCredentials = true; // Include session cookies
     xhr.open('POST', '/api/import/keep');
     xhr.send(formData);
 
