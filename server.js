@@ -780,10 +780,10 @@ app.get('/api/users', requireAuth, apiLimiter, (req, res) => {
 
 app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
   const showArchived = req.query.archived === 'true';
-  const showShared = req.query.shared === 'true';
+  const showSharedOnly = req.query.shared === 'true';
 
-  if (showShared) {
-    // Get notes shared with this user (exclude archived notes)
+  if (showSharedOnly) {
+    // Get ONLY notes shared with this user (exclude archived notes)
     db.all(
       `SELECT
         notes.*,
@@ -824,19 +824,19 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
         res.json(notes);
       }
     );
-  } else {
-    // Get user's own notes
+  } else if (showArchived) {
+    // Get user's own archived notes only
     db.all(
       `SELECT notes.*,
         (SELECT COUNT(*) FROM shares WHERE shares.note_id = notes.id) as share_count
        FROM notes
-       WHERE user_id = ? AND is_archived = ?
+       WHERE user_id = ? AND is_archived = 1
        ORDER BY is_pinned DESC, updated_at DESC`,
-      [req.session.userId, showArchived ? 1 : 0],
+      [req.session.userId],
       (err, notes) => {
         if (err) {
-          logger.error('Get notes error:', err);
-          return res.status(500).json({ error: 'Kunde inte hämta anteckningar' });
+          logger.error('Get archived notes error:', err);
+          return res.status(500).json({ error: 'Kunde inte hämta arkiverade anteckningar' });
         }
 
         notes.forEach(note => {
@@ -857,6 +857,84 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
         });
 
         res.json(notes);
+      }
+    );
+  } else {
+    // Default: Get user's own notes AND notes shared with them
+    // First get own notes
+    db.all(
+      `SELECT notes.*,
+        (SELECT COUNT(*) FROM shares WHERE shares.note_id = notes.id) as share_count,
+        NULL as owner_username,
+        NULL as owner_avatar_color,
+        NULL as permission,
+        0 as isShared
+       FROM notes
+       WHERE user_id = ? AND is_archived = 0
+       ORDER BY is_pinned DESC, updated_at DESC`,
+      [req.session.userId],
+      (err, ownNotes) => {
+        if (err) {
+          logger.error('Get own notes error:', err);
+          return res.status(500).json({ error: 'Kunde inte hämta anteckningar' });
+        }
+
+        // Then get shared notes
+        db.all(
+          `SELECT
+            notes.*,
+            users.username as owner_username,
+            users.avatar_color as owner_avatar_color,
+            shares.permission,
+            0 as share_count,
+            1 as isShared
+           FROM notes
+           JOIN shares ON notes.id = shares.note_id
+           JOIN users ON notes.user_id = users.id
+           WHERE shares.shared_with_user_id = ?
+             AND notes.is_archived = 0
+           ORDER BY notes.is_pinned DESC, notes.updated_at DESC`,
+          [req.session.userId],
+          (err, sharedNotes) => {
+            if (err) {
+              logger.error('Get shared notes error:', err);
+              return res.status(500).json({ error: 'Kunde inte hämta delade anteckningar' });
+            }
+
+            // Combine and sort all notes
+            const allNotes = [...ownNotes, ...sharedNotes];
+
+            // Parse JSON fields
+            allNotes.forEach(note => {
+              if (note.checklist_items) {
+                try {
+                  note.checklist_items = JSON.parse(note.checklist_items);
+                } catch (e) {
+                  note.checklist_items = [];
+                }
+              }
+              if (note.images) {
+                try {
+                  note.images = JSON.parse(note.images);
+                } catch (e) {
+                  note.images = [];
+                }
+              }
+              // Convert isShared from 0/1 to boolean
+              note.isShared = !!note.isShared;
+            });
+
+            // Sort: pinned first, then by updated_at
+            allNotes.sort((a, b) => {
+              if (a.is_pinned !== b.is_pinned) {
+                return b.is_pinned - a.is_pinned;
+              }
+              return new Date(b.updated_at) - new Date(a.updated_at);
+            });
+
+            res.json(allNotes);
+          }
+        );
       }
     );
   }

@@ -49,9 +49,9 @@
   "header": {
     "search_placeholder": "Sök anteckningar...",
     "show_shared": "Visa delade",
-    "hide_shared": "Dölj delade",
+    "show_all": "Visa alla",
     "show_archive": "Visa arkiv",
-    "hide_archive": "Dölj arkiv",
+    "show_active": "Visa aktiva",
     "logout_button": "Logga ut"
   },
   "notes": {
@@ -65,6 +65,10 @@
     "update_button": "Uppdatera",
     "share_title": "Dela",
     "pin_title": "Fäst",
+    "shared_by": "Delad av",
+    "shared_with": "Delad med",
+    "person": "person",
+    "persons": "personer",
     "unpin_title": "Ta bort fästning",
     "archive_title": "Arkivera",
     "unarchive_title": "Ta bort från arkiv",

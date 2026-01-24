@@ -950,14 +950,26 @@
 
 /* Share indicator on note cards */
 .note-card .share-indicator {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   margin-top: var(--space-sm);
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--color-border);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* Blue indicator: Notes I have shared with others */
+.note-card .share-indicator--sent {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+/* Green indicator: Notes shared with me */
+.note-card .share-indicator--received {
+  background: #e8f5e9;
+  color: #2e7d32;
 }
 
 .note-card .owner-info {
@@ -970,6 +982,18 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
   font-style: italic;
+}
+
+/* Note owner header for shared notes */
+.note-card .note-owner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
 }
 
 /* ===== NOTE IMAGES ===== */

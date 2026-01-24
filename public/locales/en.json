@@ -49,9 +49,9 @@
   "header": {
     "search_placeholder": "Search notes...",
     "show_shared": "Show shared",
-    "hide_shared": "Hide shared",
+    "show_all": "Show all",
     "show_archive": "Show archive",
-    "hide_archive": "Hide archive",
+    "show_active": "Show active",
     "logout_button": "Log out"
   },
   "notes": {
@@ -65,6 +65,10 @@
     "update_button": "Update",
     "share_title": "Share",
     "pin_title": "Pin",
+    "shared_by": "Shared by",
+    "shared_with": "Shared with",
+    "person": "person",
+    "persons": "people",
     "unpin_title": "Unpin",
     "archive_title": "Archive",
     "unarchive_title": "Unarchive",
