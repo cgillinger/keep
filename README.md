@@ -382,6 +382,8 @@ docker-compose up -d
 - **[FEATURES.md](./FEATURES.md)** - Complete feature and security documentation
 - **[IMPORT-GUIDE.md](./IMPORT-GUIDE.md)** - Detailed guide for Google Keep import
 - **[INSTALL-SYSTEMD.md](./INSTALL-SYSTEMD.md)** - Installation as systemd service on Linux
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - 🔒 HTTPS/HTTP configuration guide for different environments
+- **[LOGGING.md](./LOGGING.md)** - 📊 Logging, monitoring, and troubleshooting guide
 
 ### Quick Guides
 

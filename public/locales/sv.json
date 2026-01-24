@@ -147,6 +147,8 @@
     "export_failed": "Export misslyckades",
     "import_success": "Import lyckades",
     "import_failed": "Import misslyckades",
+    "import_processing": "Importerar anteckningar... detta kan ta flera minuter",
+    "import_uploading": "Laddar upp fil...",
     "error": "Ett fel uppstod",
     "network_error": "Nätverksfel",
     "loading": "Laddar...",

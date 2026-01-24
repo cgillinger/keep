@@ -2123,46 +2123,58 @@ function handleImportFile() {
 async function startImport() {
   if (!selectedImportFile) return;
 
+  // Show upload progress
   document.getElementById('import-instructions').style.display = 'none';
   document.getElementById('import-progress').style.display = 'block';
+  document.getElementById('import-processing').style.display = 'none';
   document.getElementById('import-button').disabled = true;
 
   const formData = new FormData();
   formData.append('zipfile', selectedImportFile);
 
   try {
-    updateImportProgress(0, 'Laddar upp fil...');
+    updateImportProgress(0, t('messages.import_uploading'));
 
     const xhr = new XMLHttpRequest();
 
+    // Upload progress (0-100%)
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable) {
-        const percent = (e.loaded / e.total) * 50;
-        updateImportProgress(percent, 'Laddar upp fil...');
+        const percent = (e.loaded / e.total) * 100;
+        updateImportProgress(percent, t('messages.import_uploading'));
       }
     });
 
+    // When upload is complete, show processing state
+    xhr.upload.addEventListener('load', () => {
+      // Upload done, now server is processing
+      document.getElementById('import-progress').style.display = 'none';
+      document.getElementById('import-processing').style.display = 'block';
+      document.getElementById('import-processing-status').textContent = t('messages.import_processing');
+    });
+
+    // When server responds
     xhr.addEventListener('load', () => {
       if (xhr.status === 200) {
         const result = JSON.parse(xhr.responseText);
-        updateImportProgress(100, 'Import klar!');
+        // Hide processing, show results
+        document.getElementById('import-processing').style.display = 'none';
         showImportResults(result);
         loadNotes();
       } else {
         const error = JSON.parse(xhr.responseText);
-        updateImportProgress(0, 'Fel vid import');
+        // Hide processing, show error
+        document.getElementById('import-processing').style.display = 'none';
         alert(`Import misslyckades: ${error.message || error.error}`);
         document.getElementById('import-instructions').style.display = 'block';
-        document.getElementById('import-progress').style.display = 'none';
         document.getElementById('import-button').disabled = false;
       }
     });
 
     xhr.addEventListener('error', () => {
-      updateImportProgress(0, 'Nätverksfel');
+      document.getElementById('import-processing').style.display = 'none';
       alert('Nätverksfel vid import. Försök igen.');
       document.getElementById('import-instructions').style.display = 'block';
-      document.getElementById('import-progress').style.display = 'none';
       document.getElementById('import-button').disabled = false;
     });
 
@@ -2170,14 +2182,12 @@ async function startImport() {
     xhr.open('POST', '/api/import/keep');
     xhr.send(formData);
 
-    setTimeout(() => updateImportProgress(60, 'Extraherar filer...'), 500);
-    setTimeout(() => updateImportProgress(80, 'Importerar anteckningar...'), 1500);
-
   } catch (error) {
     console.error('Import error:', error);
     alert('Ett fel uppstod vid import.');
     document.getElementById('import-instructions').style.display = 'block';
     document.getElementById('import-progress').style.display = 'none';
+    document.getElementById('import-processing').style.display = 'none';
     document.getElementById('import-button').disabled = false;
   }
 }

@@ -147,6 +147,8 @@
     "export_failed": "Export failed",
     "import_success": "Import successful",
     "import_failed": "Import failed",
+    "import_processing": "Importing notes... this may take several minutes",
+    "import_uploading": "Uploading file...",
     "error": "An error occurred",
     "network_error": "Network error",
     "loading": "Loading...",
