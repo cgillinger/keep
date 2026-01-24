@@ -164,13 +164,13 @@ app.use(express.static(path.join(__dirname, 'public'), {
   lastModified: true, // Enable Last-Modified header
   immutable: true, // Tell browsers the file won't change
   setHeaders: (res, filePath) => {
-    // For HTML files, use shorter cache to allow quick updates
+    // For HTML files, use no-cache to always revalidate
     if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour for HTML
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     }
-    // For JS and CSS with version query params, use long cache
+    // For JS and CSS, use moderate cache
     else if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // 1 year
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour
     }
   }
 }));
@@ -324,29 +324,24 @@ app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
           return res.status(500).json({ error: 'Registrering misslyckades' });
         }
 
-        // Regenerate session to prevent fixation
-        req.session.regenerate((err) => {
+        // Set session data directly (no regeneration to avoid timing issues)
+        req.session.userId = this.lastID;
+        req.session.username = sanitizedUsername;
+
+        // Save session before sending response
+        req.session.save((err) => {
           if (err) {
-            console.error('Session regeneration error:', err);
+            console.error('Session save error:', err);
             return res.status(500).json({ error: 'Registrering misslyckades' });
           }
 
-          req.session.userId = this.lastID;
-          req.session.username = sanitizedUsername;
+          console.log(`User ${sanitizedUsername} registered successfully with session ${req.sessionID}`);
 
-          // Save session before sending response
-          req.session.save((err) => {
-            if (err) {
-              console.error('Session save error:', err);
-              return res.status(500).json({ error: 'Registrering misslyckades' });
-            }
-
-            res.json({
-              id: this.lastID,
-              username: sanitizedUsername,
-              email: sanitizedEmail,
-              message: 'Registrering lyckades'
-            });
+          res.json({
+            id: this.lastID,
+            username: sanitizedUsername,
+            email: sanitizedEmail,
+            message: 'Registrering lyckades'
           });
         });
       }
@@ -383,30 +378,25 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
         return res.status(401).json({ error: 'Ogiltiga inloggningsuppgifter' });
       }
 
-      // Regenerate session to prevent fixation
-      req.session.regenerate((err) => {
+      // Set session data directly (no regeneration to avoid timing issues)
+      req.session.userId = user.id;
+      req.session.username = user.username;
+
+      // Save session before sending response
+      req.session.save((err) => {
         if (err) {
-          console.error('Session regeneration error:', err);
+          console.error('Session save error:', err);
           return res.status(500).json({ error: 'Inloggning misslyckades' });
         }
 
-        req.session.userId = user.id;
-        req.session.username = user.username;
+        console.log(`User ${user.username} logged in successfully with session ${req.sessionID}`);
 
-        // Save session before sending response
-        req.session.save((err) => {
-          if (err) {
-            console.error('Session save error:', err);
-            return res.status(500).json({ error: 'Inloggning misslyckades' });
-          }
-
-          res.json({
-            id: user.id,
-            username: user.username,
-            avatarColor: user.avatar_color || '#1a73e8',
-            backgroundTheme: user.background_theme || 'default',
-            message: 'Inloggning lyckades'
-          });
+        res.json({
+          id: user.id,
+          username: user.username,
+          avatarColor: user.avatar_color || '#1a73e8',
+          backgroundTheme: user.background_theme || 'default',
+          message: 'Inloggning lyckades'
         });
       });
     } catch (error) {

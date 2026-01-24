@@ -400,21 +400,19 @@ async function login() {
       // Set current user immediately so session is available
       currentUser = data;
 
-      // Show success message
-      showAuthSuccess(t('messages.login_success'));
-
       // Clear password field for security
       document.getElementById('login-password').value = '';
 
-      // Brief delay before transitioning to app to show success message
-      setTimeout(() => {
-        console.log('[LOGIN] Transitioning to app...');
-        showApp();
-        loadNotes();
-        connectWebSocket();
-        updateProfilePicture();
-        applyBackgroundTheme(data.backgroundTheme || 'default');
-      }, 800);
+      console.log('[LOGIN] Transitioning to app...');
+      // Show app immediately
+      showApp();
+      loadNotes();
+      connectWebSocket();
+      updateProfilePicture();
+      applyBackgroundTheme(data.backgroundTheme || 'default');
+
+      // Show success message after transition
+      showAuthSuccess(t('messages.login_success'));
     } else {
       console.log('[LOGIN] Login failed:', data.error);
       showAuthError(data.error || t('messages.login_failed'));
@@ -478,23 +476,21 @@ async function register() {
       // Set current user immediately so session is available
       currentUser = data;
 
-      // Show success message
-      showAuthSuccess(t('messages.register_success') + ' ' + t('messages.login_success'));
-
       // Clear form fields
       document.getElementById('register-username').value = '';
       document.getElementById('register-email').value = '';
       document.getElementById('register-password').value = '';
       document.getElementById('register-password-confirm').value = '';
 
-      // Brief delay before transitioning to app to show success message
-      setTimeout(() => {
-        showApp();
-        loadNotes();
-        connectWebSocket();
-        updateProfilePicture();
-        applyBackgroundTheme(data.backgroundTheme || 'default');
-      }, 1500);
+      // Show app immediately
+      showApp();
+      loadNotes();
+      connectWebSocket();
+      updateProfilePicture();
+      applyBackgroundTheme(data.backgroundTheme || 'default');
+
+      // Show success message after transition
+      showAuthSuccess(t('messages.register_success'));
     } else {
       showAuthError(data.error || t('messages.register_failed'));
       // Refresh CSRF token on auth failure
