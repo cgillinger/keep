@@ -47,7 +47,15 @@
       <div id="login-form" class="auth-form">
         <h2>Logga in</h2>
         <input type="text" id="login-username" placeholder="Användarnamn" autocomplete="username">
-        <input type="password" id="login-password" placeholder="Lösenord" autocomplete="current-password">
+        <div class="password-input-container">
+          <input type="password" id="login-password" placeholder="Lösenord" autocomplete="current-password">
+          <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('login-password')" aria-label="Visa lösenord">
+            <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
         <button onclick="login()">Logga in</button>
         <p class="auth-switch">
           Ny användare? <a href="#" onclick="showRegister(); return false;">Registrera dig</a>
@@ -61,8 +69,24 @@
         <h2>Registrera</h2>
         <input type="text" id="register-username" placeholder="Användarnamn (minst 3 tecken)" autocomplete="username">
         <input type="email" id="register-email" placeholder="E-post (valfritt, för återställning)" autocomplete="email">
-        <input type="password" id="register-password" placeholder="Lösenord" autocomplete="new-password">
-        <input type="password" id="register-password-confirm" placeholder="Bekräfta lösenord" autocomplete="new-password">
+        <div class="password-input-container">
+          <input type="password" id="register-password" placeholder="Lösenord" autocomplete="new-password">
+          <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('register-password')" aria-label="Visa lösenord">
+            <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+        <div class="password-input-container">
+          <input type="password" id="register-password-confirm" placeholder="Bekräfta lösenord" autocomplete="new-password">
+          <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('register-password-confirm')" aria-label="Visa lösenord">
+            <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
         <div class="password-requirements">
           <p>Lösenordskrav:</p>
           <ul>
@@ -72,7 +96,7 @@
             <li>Minst en siffra (0-9)</li>
           </ul>
           <p class="tip">
-            💡 Tips: Lägg till en e-postadress för att kunna återställa lösenordet om du glömmer det.
+            💡 <strong>Viktigt:</strong> Om du lägger till en e-postadress kan du återställa ditt lösenord via e-post om du glömmer det. Utan e-post finns ingen möjlighet till återställning.
           </p>
         </div>
         <button onclick="register()">Registrera</button>
@@ -98,8 +122,24 @@
         <p class="help-text">
           Ange ditt nya lösenord nedan.
         </p>
-        <input type="password" id="reset-password-new" placeholder="Nytt lösenord" autocomplete="new-password">
-        <input type="password" id="reset-password-confirm" placeholder="Bekräfta nytt lösenord" autocomplete="new-password">
+        <div class="password-input-container">
+          <input type="password" id="reset-password-new" placeholder="Nytt lösenord" autocomplete="new-password">
+          <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('reset-password-new')" aria-label="Visa lösenord">
+            <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+        <div class="password-input-container">
+          <input type="password" id="reset-password-confirm" placeholder="Bekräfta nytt lösenord" autocomplete="new-password">
+          <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('reset-password-confirm')" aria-label="Visa lösenord">
+            <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
         <div class="password-requirements">
           <p>Lösenordskrav:</p>
           <ul>
@@ -408,6 +448,43 @@
           <option value="en">English</option>
           <option value="sv">Svenska</option>
         </select>
+      </div>
+
+      <div class="settings-section-highlight">
+        <h3 class="settings-heading">Byt lösenord</h3>
+        <div id="change-password-form" class="flex-col gap-1">
+          <div class="password-input-container">
+            <input type="password" id="current-password" placeholder="Nuvarande lösenord" autocomplete="current-password">
+            <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('current-password')" aria-label="Visa lösenord">
+              <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+          <div class="password-input-container">
+            <input type="password" id="new-password" placeholder="Nytt lösenord" autocomplete="new-password">
+            <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('new-password')" aria-label="Visa lösenord">
+              <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+          <div class="password-input-container">
+            <input type="password" id="confirm-new-password" placeholder="Bekräfta nytt lösenord" autocomplete="new-password">
+            <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('confirm-new-password')" aria-label="Visa lösenord">
+              <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+          <button class="btn-primary w-full justify-center" onclick="changePassword()">
+            🔑 Byt lösenord
+          </button>
+          <div id="change-password-message" class="message hidden"></div>
+        </div>
       </div>
 
       <div class="settings-section-highlight">
