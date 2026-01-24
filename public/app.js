@@ -389,15 +389,17 @@ async function login() {
     const data = await response.json();
 
     if (response.ok) {
-      // Show success message briefly
+      // Set current user immediately so session is available
+      currentUser = data;
+
+      // Show success message
       showAuthSuccess(t('messages.login_success'));
 
       // Clear password field for security
       document.getElementById('login-password').value = '';
 
-      // Wait 800ms to show success message, then transition to app
+      // Brief delay before transitioning to app to show success message
       setTimeout(() => {
-        currentUser = data;
         showApp();
         loadNotes();
         connectWebSocket();
@@ -462,6 +464,9 @@ async function register() {
     const data = await response.json();
 
     if (response.ok) {
+      // Set current user immediately so session is available
+      currentUser = data;
+
       // Show success message
       showAuthSuccess(t('messages.register_success') + ' ' + t('messages.login_success'));
 
@@ -471,9 +476,8 @@ async function register() {
       document.getElementById('register-password').value = '';
       document.getElementById('register-password-confirm').value = '';
 
-      // Wait 1.5 seconds to show success message, then transition to app
+      // Brief delay before transitioning to app to show success message
       setTimeout(() => {
-        currentUser = data;
         showApp();
         loadNotes();
         connectWebSocket();
