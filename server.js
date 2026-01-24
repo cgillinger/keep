@@ -144,7 +144,7 @@ const sessionConfig = {
   resave: false, // SQLite store handles persistence - don't save on every request
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+    secure: false, // Allow cookies over HTTP (set to true only if using HTTPS)
     httpOnly: true, // Prevent JavaScript access
     sameSite: 'lax', // Balance between security and compatibility
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
