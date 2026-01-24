@@ -1136,3 +1136,38 @@
 .toast-notification.toast-info {
   background: #1565c0;
 }
+
+/* ===== SKELETON LOADING ===== */
+.skeleton-card {
+  min-height: 120px;
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-light) 25%,
+    var(--color-bg-subtle) 50%,
+    var(--color-bg-light) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Dark mode skeleton */
+.theme-dark .skeleton-card {
+  background: linear-gradient(
+    90deg,
+    #2d2d2d 25%,
+    #3d3d3d 50%,
+    #2d2d2d 75%
+  );
+  background-size: 200% 100%;
+}

@@ -241,6 +241,17 @@ let editNoteImages = []; // Filenames of images for editing note
 let showCreatedDate = localStorage.getItem('showCreatedDate') === 'true'; // User preference for showing created date
 let renderedNotesMap = new Map(); // Cache of rendered notes by ID for incremental updates
 
+// ===== NOTES CACHE =====
+// Cache for different views to enable instant switching
+const notesCache = {
+  all: null,      // Default view (own + shared)
+  archived: null, // Archived notes
+  shared: null,   // Only shared notes
+  timestamp: {}   // Track when each cache was last updated
+};
+const CACHE_TTL = 30000; // Cache valid for 30 seconds
+let isLoadingNotes = false; // Prevent multiple simultaneous loads
+
 // ===== COLOR THEME MAPPING =====
 // Maps light note colors to dark mode equivalents (following WCAG accessibility guidelines)
 function getThemeAwareColor(lightColor) {
@@ -335,6 +346,8 @@ async function checkAuth() {
       connectWebSocket();
       updateProfilePicture();
       applyBackgroundTheme(user.backgroundTheme || 'default');
+      // Pre-fetch archived notes in background for faster switching
+      setTimeout(prefetchArchivedNotes, 2000);
     } else {
       currentUser = null; // Clear user on auth failure
       showAuthScreen();
@@ -1277,22 +1290,102 @@ function renderNoteHTML(note) {
   `;
 }
 
-async function loadNotes() {
-  try {
-    const url = showingArchived
-      ? '/api/notes?archived=true'
-      : showingShared
-        ? '/api/notes?shared=true'
-        : '/api/notes';
+async function loadNotes(options = {}) {
+  const { forceRefresh = false, showLoading = true } = options;
 
+  // Determine which cache key to use
+  const cacheKey = showingArchived ? 'archived' : showingShared ? 'shared' : 'all';
+  const url = showingArchived
+    ? '/api/notes?archived=true'
+    : showingShared
+      ? '/api/notes?shared=true'
+      : '/api/notes';
+
+  // Check cache first (if not forcing refresh)
+  const cachedData = notesCache[cacheKey];
+  const cacheTime = notesCache.timestamp[cacheKey] || 0;
+  const cacheValid = cachedData && (Date.now() - cacheTime < CACHE_TTL) && !forceRefresh;
+
+  if (cacheValid) {
+    // Use cached data immediately
+    notes = cachedData;
+    renderNotes();
+    return;
+  }
+
+  // Prevent multiple simultaneous loads
+  if (isLoadingNotes) return;
+  isLoadingNotes = true;
+
+  // Show loading indicator immediately
+  if (showLoading) {
+    showNotesLoading();
+  }
+
+  try {
     const response = await apiFetch(url);
     if (response.ok) {
       notes = await response.json();
+
+      // Update cache
+      notesCache[cacheKey] = notes;
+      notesCache.timestamp[cacheKey] = Date.now();
+
       renderNotes();
     }
   } catch (error) {
     console.error('Failed to load notes:', error);
+  } finally {
+    isLoadingNotes = false;
   }
+}
+
+// Show loading state in notes grid
+function showNotesLoading() {
+  const regularContainer = document.getElementById('notes-grid');
+  const pinnedContainer = document.getElementById('pinned-notes-grid');
+  const pinnedSection = document.getElementById('pinned-section');
+
+  // Hide pinned section during load
+  pinnedSection.style.display = 'none';
+
+  // Show skeleton loading cards
+  regularContainer.innerHTML = `
+    <div class="note-card skeleton-card"></div>
+    <div class="note-card skeleton-card"></div>
+    <div class="note-card skeleton-card"></div>
+    <div class="note-card skeleton-card"></div>
+  `;
+}
+
+// Invalidate cache for a specific key or all
+function invalidateNotesCache(cacheKey = null) {
+  if (cacheKey) {
+    notesCache[cacheKey] = null;
+    notesCache.timestamp[cacheKey] = 0;
+  } else {
+    // Invalidate all caches
+    notesCache.all = null;
+    notesCache.archived = null;
+    notesCache.shared = null;
+    notesCache.timestamp = {};
+  }
+}
+
+// Pre-fetch archived notes in background (for faster switching)
+function prefetchArchivedNotes() {
+  if (notesCache.archived) return; // Already cached
+
+  // Fetch silently in background
+  apiFetch('/api/notes?archived=true')
+    .then(response => response.ok ? response.json() : null)
+    .then(data => {
+      if (data) {
+        notesCache.archived = data;
+        notesCache.timestamp.archived = Date.now();
+      }
+    })
+    .catch(() => {}); // Silently ignore errors
 }
 
 function renderNotes() {
@@ -1420,7 +1513,8 @@ async function saveNote() {
       document.getElementById('images-preview').innerHTML = '';
       document.getElementById('new-note-form').style.backgroundColor = getThemeAwareColor('#ffffff');
       document.getElementById('checklist-items').innerHTML = '';
-      loadNotes();
+      invalidateNotesCache();
+      loadNotes({ forceRefresh: true });
     } else if (response.status === 403) {
       // CSRF token expired, refresh and retry
       await fetchCSRFToken();
@@ -1536,7 +1630,8 @@ async function updateNote() {
 
     if (response.ok) {
       closeEditModal();
-      loadNotes();
+      invalidateNotesCache();
+      loadNotes({ forceRefresh: true });
     } else if (response.status === 403) {
       await fetchCSRFToken();
       alert('Session expired, please try again');
@@ -1562,7 +1657,8 @@ async function deleteNote() {
 
     if (response.ok) {
       closeEditModal();
-      loadNotes();
+      invalidateNotesCache();
+      loadNotes({ forceRefresh: true });
     } else if (response.status === 403) {
       await fetchCSRFToken();
       alert('Session expired, please try again');
@@ -1624,7 +1720,8 @@ async function toggleArchiveNote() {
 
     if (response.ok) {
       closeEditModal();
-      loadNotes();
+      invalidateNotesCache(); // Both active and archived views need refresh
+      loadNotes({ forceRefresh: true });
     } else if (response.status === 403) {
       await fetchCSRFToken();
       alert('Session expired, please try again');
