@@ -277,9 +277,13 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ===== CSRF TOKEN =====
+function getCSRFHeaders() {
+  return csrfToken ? { 'CSRF-Token': csrfToken } : {};
+}
+
 async function fetchCSRFToken() {
   try {
-    const response = await fetch('/api/csrf-token', {
+    const response = await apiFetch('/api/csrf-token', {
       credentials: 'include'
     });
     if (response.ok) {
@@ -291,16 +295,31 @@ async function fetchCSRFToken() {
   }
 }
 
-function getCSRFHeaders() {
-  return csrfToken ? { 'CSRF-Token': csrfToken } : {};
+// ===== API FETCH WRAPPER =====
+// Global fetch wrapper that always includes credentials for session cookies
+async function apiFetch(url, options = {}) {
+  const defaultOptions = {
+    credentials: 'include', // Always include cookies/session
+    headers: {
+      'Content-Type': 'application/json',
+      ...getCSRFHeaders(), // Include CSRF token if available
+      ...(options.headers || {})
+    },
+    ...options
+  };
+
+  // If body is provided and is an object, stringify it
+  if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
+    defaultOptions.body = JSON.stringify(options.body);
+  }
+
+  return fetch(url, defaultOptions);
 }
 
 // ===== AUTH FUNCTIONS =====
 async function checkAuth() {
   try {
-    const response = await fetch('/api/me', {
-      credentials: 'include'
-    });
+    const response = await apiFetch('/api/me');
     if (response.ok) {
       const user = await response.json();
       currentUser = user;
@@ -381,14 +400,9 @@ async function login() {
 
   try {
     console.log('[LOGIN] Sending login request...');
-    const response = await fetch('/api/login', {
+    const response = await apiFetch('/api/login', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
-      body: JSON.stringify({ username, password })
+      body: { username, password }
     });
 
     console.log('[LOGIN] Response status:', response.status);
@@ -460,14 +474,9 @@ async function register() {
   }
 
   try {
-    const response = await fetch('/api/register', {
+    const response = await apiFetch('/api/register', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
-      body: JSON.stringify({ username, password, email: email || null })
+      body: { username, password, email: email || null }
     });
 
     const data = await response.json();
@@ -502,9 +511,8 @@ async function register() {
 }
 
 async function logout() {
-  await fetch('/api/logout', {
-    method: 'POST',
-    credentials: 'include'
+  await apiFetch('/api/logout', {
+    method: 'POST'
   });
   if (ws) ws.close();
   currentUser = null;
@@ -557,9 +565,7 @@ function showAuthSuccess(message) {
 // Check if email is configured on the server
 async function checkEmailConfig() {
   try {
-    const response = await fetch('/api/password-reset/check-config', {
-      credentials: 'include'
-    });
+    const response = await apiFetch('/api/password-reset/check-config');
     const data = await response.json();
 
     // Show/hide "Forgot password" link based on email configuration
@@ -601,7 +607,7 @@ async function requestPasswordReset() {
   }
 
   try {
-    const response = await fetch('/api/password-reset/request', {
+    const response = await apiFetch('/api/password-reset/request', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -670,7 +676,7 @@ async function resetPassword() {
   }
 
   try {
-    const response = await fetch('/api/password-reset/verify', {
+    const response = await apiFetch('/api/password-reset/verify', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -833,7 +839,7 @@ function closeProfileModal(event) {
 // ===== AVATAR COLOR =====
 async function selectAvatarColor(color) {
   try {
-    const response = await fetch('/api/profile/avatar-color', {
+    const response = await apiFetch('/api/profile/avatar-color', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -872,7 +878,7 @@ function updateSelectedAvatarColor(color) {
 
 async function selectBackgroundTheme(theme) {
   try {
-    const response = await fetch('/api/profile/background-theme', {
+    const response = await apiFetch('/api/profile/background-theme', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -1000,7 +1006,7 @@ async function changePassword() {
   }
 
   try {
-    const response = await fetch('/api/profile/change-password', {
+    const response = await apiFetch('/api/profile/change-password', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -1251,9 +1257,7 @@ async function loadNotes() {
         ? '/api/notes?shared=true'
         : '/api/notes';
 
-    const response = await fetch(url, {
-      credentials: 'include'
-    });
+    const response = await apiFetch(url);
     if (response.ok) {
       notes = await response.json();
       renderNotes();
@@ -1360,7 +1364,7 @@ async function saveNote() {
   }
 
   try {
-    const response = await fetch('/api/notes', {
+    const response = await apiFetch('/api/notes', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -1484,7 +1488,7 @@ async function updateNote() {
   }
 
   try {
-    const response = await fetch(`/api/notes/${currentEditingNote.id}`, {
+    const response = await apiFetch(`/api/notes/${currentEditingNote.id}`, {
       method: 'PUT',
       credentials: 'include',
       headers: {
@@ -1522,7 +1526,7 @@ async function deleteNote() {
   }
 
   try {
-    const response = await fetch(`/api/notes/${currentEditingNote.id}`, {
+    const response = await apiFetch(`/api/notes/${currentEditingNote.id}`, {
       method: 'DELETE',
       credentials: 'include',
       headers: getCSRFHeaders()
@@ -1544,7 +1548,7 @@ async function togglePinNote() {
   if (!currentEditingNote) return;
 
   try {
-    const response = await fetch(`/api/notes/${currentEditingNote.id}/pin`, {
+    const response = await apiFetch(`/api/notes/${currentEditingNote.id}/pin`, {
       method: 'POST',
       credentials: 'include',
       headers: getCSRFHeaders()
@@ -1577,7 +1581,7 @@ async function toggleArchiveNote() {
   currentEditingNote.is_archived = currentEditingNote.is_archived ? 0 : 1;
 
   try {
-    const response = await fetch(`/api/notes/${currentEditingNote.id}`, {
+    const response = await apiFetch(`/api/notes/${currentEditingNote.id}`, {
       method: 'PUT',
       credentials: 'include',
       headers: {
@@ -1637,7 +1641,7 @@ async function openShareModal() {
 
   try {
     // Load available users
-    const usersResponse = await fetch('/api/users', {
+    const usersResponse = await apiFetch('/api/users', {
       credentials: 'include'
     });
     if (usersResponse.ok) {
@@ -1645,7 +1649,7 @@ async function openShareModal() {
     }
 
     // Load current shares
-    const sharesResponse = await fetch(`/api/notes/${currentEditingNote.id}/shares`, {
+    const sharesResponse = await apiFetch(`/api/notes/${currentEditingNote.id}/shares`, {
       credentials: 'include'
     });
     if (sharesResponse.ok) {
@@ -1722,7 +1726,7 @@ async function addShare(userId, username) {
   if (!currentEditingNote) return;
 
   try {
-    const response = await fetch(`/api/notes/${currentEditingNote.id}/share`, {
+    const response = await apiFetch(`/api/notes/${currentEditingNote.id}/share`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -1737,7 +1741,7 @@ async function addShare(userId, username) {
 
     if (response.ok) {
       // Reload share modal
-      const sharesResponse = await fetch(`/api/notes/${currentEditingNote.id}/shares`, {
+      const sharesResponse = await apiFetch(`/api/notes/${currentEditingNote.id}/shares`, {
         credentials: 'include'
       });
       if (sharesResponse.ok) {
@@ -1761,7 +1765,7 @@ async function removeShare(userId, username) {
   }
 
   try {
-    const response = await fetch(`/api/notes/${currentEditingNote.id}/share/${userId}`, {
+    const response = await apiFetch(`/api/notes/${currentEditingNote.id}/share/${userId}`, {
       method: 'DELETE',
       credentials: 'include',
       headers: getCSRFHeaders()
@@ -1769,7 +1773,7 @@ async function removeShare(userId, username) {
 
     if (response.ok) {
       // Reload share modal
-      const sharesResponse = await fetch(`/api/notes/${currentEditingNote.id}/shares`, {
+      const sharesResponse = await apiFetch(`/api/notes/${currentEditingNote.id}/shares`, {
         credentials: 'include'
       });
       if (sharesResponse.ok) {
@@ -1789,7 +1793,7 @@ async function updateSharePermission(userId, permission) {
   if (!currentEditingNote) return;
 
   try {
-    const response = await fetch(`/api/notes/${currentEditingNote.id}/share`, {
+    const response = await apiFetch(`/api/notes/${currentEditingNote.id}/share`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -2214,7 +2218,7 @@ async function exportBackup() {
   }
 
   try {
-    const response = await fetch('/api/backup/export', {
+    const response = await apiFetch('/api/backup/export', {
       method: 'GET',
       credentials: 'include',
       headers: getCSRFHeaders()
@@ -2335,7 +2339,7 @@ async function handleNewNoteImageSelect() {
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await fetch('/api/notes/image', {
+      const response = await apiFetch('/api/notes/image', {
         method: 'POST',
         credentials: 'include',
         headers: getCSRFHeaders(),
@@ -2391,7 +2395,7 @@ async function handleEditNoteImageSelect() {
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await fetch('/api/notes/image', {
+      const response = await apiFetch('/api/notes/image', {
         method: 'POST',
         credentials: 'include',
         headers: getCSRFHeaders(),
