@@ -184,9 +184,16 @@ function updateUITranslations() {
   if (settingsHeadings.length >= 2) {
     settingsHeadings[settingsHeadings.length - 1].textContent = t('profile.data_backup_title');
   }
-  document.querySelector('button[onclick="openImportModal()"]').textContent = '📥 ' + t('profile.import_from_keep');
-  document.querySelector('button[onclick="exportBackup()"]').textContent = '📤 ' + t('profile.export_backup');
-  document.querySelector('#profile-modal button[onclick="closeProfileModal()"]').textContent = t('profile.close_button');
+  // Import/Export buttons already have emojis in HTML, just update text
+  const importBtn = document.querySelector('button[onclick="openImportModal()"]');
+  if (importBtn) {
+    importBtn.innerHTML = `📥 ${t('profile.import_from_keep')}`;
+  }
+  const exportBtn = document.querySelector('button[onclick="exportBackup()"]');
+  if (exportBtn) {
+    exportBtn.innerHTML = `📤 ${t('profile.export_backup')}`;
+  }
+  // Profile modal now only has X button in top-right corner (no footer close button)
 
   // Share modal
   document.querySelector('#share-modal h2').textContent = t('share.title');

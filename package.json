@@ -60,6 +60,8 @@
     "nodemailer": "^6.9.0",
     "sharp": "^0.33.2",
     "sqlite3": "^5.1.6",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0",
     "ws": "^8.14.2"
   },
   "devDependencies": {

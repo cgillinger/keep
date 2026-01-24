@@ -25,6 +25,7 @@ const KeepImportParser = require('./import-parser');
 const BackupGenerator = require('./export-generator');
 const mailer = require('./mailer');
 const crypto = require('crypto');
+const logger = require('./logger');
 
 // Initialize DOMPurify with jsdom
 const window = new JSDOM('').window;
@@ -138,7 +139,9 @@ const sessionConfig = {
     concurrentDB: true // Enable WAL mode for better concurrency
   }),
   secret: process.env.SESSION_SECRET || (() => {
-    console.error('WARNING: Using default session secret! Set SESSION_SECRET environment variable!');
+    logger.logSecurity('Using default session secret', {
+      message: 'Set SESSION_SECRET environment variable in production'
+    });
     return 'keep-clone-secret-change-in-production';
   })(),
   resave: false, // SQLite store handles persistence - don't save on every request
@@ -235,24 +238,24 @@ wss.on('connection', (ws, req) => {
   // Parse session from cookie
   sessionParser(req, mockRes, () => {
     if (!req.session || !req.session.userId) {
-      console.log('WebSocket connection rejected: No valid session');
+      logger.logWS('Connection rejected', null, { reason: 'No valid session' });
       ws.close(1008, 'Authentication required');
       return;
     }
 
     const userId = req.session.userId;
-    console.log(`WebSocket authenticated for user ${userId}`);
+    logger.logWS('Connection authenticated', userId);
 
     // Store connection
     clients.set(userId, ws);
 
     ws.on('close', () => {
-      console.log(`WebSocket closed for user ${userId}`);
+      logger.logWS('Connection closed', userId);
       clients.delete(userId);
     });
 
     ws.on('error', (error) => {
-      console.error(`WebSocket error for user ${userId}:`, error);
+      logger.logWS('Connection error', userId, { error: error.message });
       clients.delete(userId);
     });
   });
@@ -264,7 +267,7 @@ function broadcastToUser(userId, data) {
     try {
       client.send(JSON.stringify(data));
     } catch (error) {
-      console.error('Error broadcasting to user:', error);
+      logger.error('Error broadcasting to user:', error);
     }
   }
 }
@@ -320,7 +323,7 @@ app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
           if (err.message.includes('UNIQUE constraint failed')) {
             return res.status(400).json({ error: 'Användarnamnet är upptaget' });
           }
-          console.error('Registration error:', err);
+          logger.error('Registration error:', err);
           return res.status(500).json({ error: 'Registrering misslyckades' });
         }
 
@@ -331,11 +334,11 @@ app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
         // Save session before sending response
         req.session.save((err) => {
           if (err) {
-            console.error('Session save error:', err);
+            logger.error('Session save error:', err);
             return res.status(500).json({ error: 'Registrering misslyckades' });
           }
 
-          console.log(`User ${sanitizedUsername} registered successfully with session ${req.sessionID}`);
+          logger.logAuth('User registered', sanitizedUsername, { sessionId: req.sessionID });
 
           res.json({
             id: this.lastID,
@@ -347,7 +350,7 @@ app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
       }
     );
   } catch (error) {
-    console.error('Registration error:', error);
+    logger.error('Registration error:', error);
     res.status(500).json({ error: 'Serverfel' });
   }
 });
@@ -363,7 +366,7 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
 
   db.get('SELECT * FROM users WHERE username = ?', [sanitizedUsername], async (err, user) => {
     if (err) {
-      console.error('Login error:', err);
+      logger.error('Login error:', err);
       return res.status(500).json({ error: 'Serverfel' });
     }
 
@@ -385,11 +388,11 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
       // Save session before sending response
       req.session.save((err) => {
         if (err) {
-          console.error('Session save error:', err);
+          logger.error('Session save error:', err);
           return res.status(500).json({ error: 'Inloggning misslyckades' });
         }
 
-        console.log(`User ${user.username} logged in successfully with session ${req.sessionID}`);
+        logger.logAuth('User logged in', user.username, { sessionId: req.sessionID });
 
         res.json({
           id: user.id,
@@ -400,7 +403,7 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
         });
       });
     } catch (error) {
-      console.error('Password comparison error:', error);
+      logger.error('Password comparison error:', error);
       res.status(500).json({ error: 'Serverfel' });
     }
   });
@@ -409,7 +412,7 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
 app.post('/api/logout', requireAuth, (req, res) => {
   req.session.destroy((err) => {
     if (err) {
-      console.error('Logout error:', err);
+      logger.error('Logout error:', err);
       return res.status(500).json({ error: 'Utloggning misslyckades' });
     }
     res.clearCookie('sessionId');
@@ -466,7 +469,7 @@ app.post('/api/password-reset/request', passwordResetLimiter, csrfProtection, as
     [sanitizedInput, sanitizedInput.toLowerCase()],
     async (err, user) => {
       if (err) {
-        console.error('Password reset request error:', err);
+        logger.error('Password reset request error:', err);
         // Generic success message to prevent user enumeration
         return res.json({ message: 'Om kontot finns kommer ett återställningsmail att skickas.' });
       }
@@ -486,7 +489,7 @@ app.post('/api/password-reset/request', passwordResetLimiter, csrfProtection, as
         [resetToken, resetTokenExpires.toISOString(), user.id],
         async (err) => {
           if (err) {
-            console.error('Error saving reset token:', err);
+            logger.error('Error saving reset token:', err);
             return res.json({ message: 'Om kontot finns kommer ett återställningsmail att skickas.' });
           }
 
@@ -504,9 +507,9 @@ app.post('/api/password-reset/request', passwordResetLimiter, csrfProtection, as
           );
 
           if (emailSent) {
-            console.log(`Password reset email sent to ${user.email}`);
+            logger.info(`Password reset email sent to ${user.email}`);
           } else {
-            console.error('Failed to send password reset email');
+            logger.error('Failed to send password reset email');
           }
 
           // Always return generic success message
@@ -537,7 +540,7 @@ app.post('/api/password-reset/verify', passwordResetLimiter, csrfProtection, asy
     [token],
     async (err, user) => {
       if (err) {
-        console.error('Password reset verify error:', err);
+        logger.error('Password reset verify error:', err);
         return res.status(500).json({ error: 'Serverfel' });
       }
 
@@ -564,16 +567,16 @@ app.post('/api/password-reset/verify', passwordResetLimiter, csrfProtection, asy
           [hashedPassword, user.id],
           (err) => {
             if (err) {
-              console.error('Error updating password:', err);
+              logger.error('Error updating password:', err);
               return res.status(500).json({ error: 'Kunde inte uppdatera lösenordet' });
             }
 
-            console.log(`Password successfully reset for user: ${user.username}`);
+            logger.info(`Password successfully reset for user: ${user.username}`);
             res.json({ message: 'Lösenordet har återställts. Du kan nu logga in.' });
           }
         );
       } catch (error) {
-        console.error('Password hashing error:', error);
+        logger.error('Password hashing error:', error);
         res.status(500).json({ error: 'Serverfel' });
       }
     }
@@ -592,7 +595,7 @@ app.post('/api/profile/avatar-color', requireAuth, apiLimiter, csrfProtection, (
 
   db.run('UPDATE users SET avatar_color = ? WHERE id = ?', [avatarColor, req.session.userId], (err) => {
     if (err) {
-      console.error('Avatar color update error:', err);
+      logger.error('Avatar color update error:', err);
       return res.status(500).json({ error: 'Kunde inte uppdatera avatarfärg' });
     }
 
@@ -614,7 +617,7 @@ app.post('/api/profile/background-theme', requireAuth, apiLimiter, csrfProtectio
 
   db.run('UPDATE users SET background_theme = ? WHERE id = ?', [theme, req.session.userId], (err) => {
     if (err) {
-      console.error('Background theme update error:', err);
+      logger.error('Background theme update error:', err);
       return res.status(500).json({ error: 'Kunde inte uppdatera bakgrundstema' });
     }
 
@@ -643,7 +646,7 @@ app.post('/api/profile/change-password', requireAuth, apiLimiter, csrfProtection
     // Get user's current password hash
     db.get('SELECT password FROM users WHERE id = ?', [req.session.userId], async (err, user) => {
       if (err) {
-        console.error('Password fetch error:', err);
+        logger.error('Password fetch error:', err);
         return res.status(500).json({ error: 'Kunde inte byta lösenord' });
       }
 
@@ -663,7 +666,7 @@ app.post('/api/profile/change-password', requireAuth, apiLimiter, csrfProtection
       // Update password
       db.run('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, req.session.userId], (err) => {
         if (err) {
-          console.error('Password update error:', err);
+          logger.error('Password update error:', err);
           return res.status(500).json({ error: 'Kunde inte uppdatera lösenord' });
         }
 
@@ -671,7 +674,7 @@ app.post('/api/profile/change-password', requireAuth, apiLimiter, csrfProtection
       });
     });
   } catch (error) {
-    console.error('Change password error:', error);
+    logger.error('Change password error:', error);
     return res.status(500).json({ error: 'Kunde inte byta lösenord' });
   }
 });
@@ -737,7 +740,7 @@ app.post('/api/notes/image', requireAuth, csrfProtection, apiLimiter, noteImageU
       message: 'Bild uppladdad'
     });
   } catch (error) {
-    console.error('Note image processing error:', error);
+    logger.error('Note image processing error:', error);
     // Clean up temp file if exists
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
@@ -765,7 +768,7 @@ app.get('/api/users', requireAuth, apiLimiter, (req, res) => {
     [req.session.userId],
     (err, users) => {
       if (err) {
-        console.error('Get users error:', err);
+        logger.error('Get users error:', err);
         return res.status(500).json({ error: 'Kunde inte hämta användare' });
       }
       res.json(users);
@@ -795,7 +798,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
       [req.session.userId],
       (err, notes) => {
         if (err) {
-          console.error('Get shared notes error:', err);
+          logger.error('Get shared notes error:', err);
           return res.status(500).json({ error: 'Kunde inte hämta delade anteckningar' });
         }
 
@@ -831,7 +834,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
       [req.session.userId, showArchived ? 1 : 0],
       (err, notes) => {
         if (err) {
-          console.error('Get notes error:', err);
+          logger.error('Get notes error:', err);
           return res.status(500).json({ error: 'Kunde inte hämta anteckningar' });
         }
 
@@ -897,7 +900,7 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, (req, res) => {
     [req.session.userId, sanitizedTitle, sanitizedContent, validatedColor, is_checklist ? 1 : 0, checklistData, imagesData],
     function(err) {
       if (err) {
-        console.error('Create note error:', err);
+        logger.error('Create note error:', err);
         return res.status(500).json({ error: 'Kunde inte skapa anteckning' });
       }
 
@@ -943,7 +946,7 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
     [req.session.userId, id, req.session.userId],
     (err, note) => {
       if (err) {
-        console.error('Check note permission error:', err);
+        logger.error('Check note permission error:', err);
         return res.status(500).json({ error: 'Kunde inte uppdatera anteckning' });
       }
 
@@ -996,7 +999,7 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
         ],
         function(err) {
           if (err) {
-            console.error('Update note error:', err);
+            logger.error('Update note error:', err);
             return res.status(500).json({ error: 'Kunde inte uppdatera anteckning' });
           }
 
@@ -1049,7 +1052,7 @@ app.delete('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res)
   // Only owner can delete
   db.get('SELECT user_id FROM notes WHERE id = ?', [id], (err, note) => {
     if (err) {
-      console.error('Check note owner error:', err);
+      logger.error('Check note owner error:', err);
       return res.status(500).json({ error: 'Kunde inte radera anteckning' });
     }
 
@@ -1063,7 +1066,7 @@ app.delete('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res)
 
       db.run('DELETE FROM notes WHERE id = ?', [id], function(err) {
         if (err) {
-          console.error('Delete note error:', err);
+          logger.error('Delete note error:', err);
           return res.status(500).json({ error: 'Kunde inte radera anteckning' });
         }
 
@@ -1094,7 +1097,7 @@ app.post('/api/notes/:id/pin', requireAuth, apiLimiter, csrfProtection, (req, re
   // Only owner can pin/unpin
   db.get('SELECT id, user_id, is_pinned FROM notes WHERE id = ?', [id], (err, note) => {
     if (err) {
-      console.error('Check note owner error:', err);
+      logger.error('Check note owner error:', err);
       return res.status(500).json({ error: 'Kunde inte fästa anteckning' });
     }
 
@@ -1107,7 +1110,7 @@ app.post('/api/notes/:id/pin', requireAuth, apiLimiter, csrfProtection, (req, re
 
     db.run('UPDATE notes SET is_pinned = ? WHERE id = ?', [newPinnedState, id], function(err) {
       if (err) {
-        console.error('Pin note error:', err);
+        logger.error('Pin note error:', err);
         return res.status(500).json({ error: 'Kunde inte fästa anteckning' });
       }
 
@@ -1150,7 +1153,7 @@ app.post('/api/notes/:id/share', requireAuth, apiLimiter, csrfProtection, (req, 
         [id, req.session.userId, userId, validatedPermission],
         function(err) {
           if (err) {
-            console.error('Share note error:', err);
+            logger.error('Share note error:', err);
             return res.status(500).json({ error: 'Kunde inte dela anteckning' });
           }
 
@@ -1188,7 +1191,7 @@ app.delete('/api/notes/:noteId/share/:userId', requireAuth, apiLimiter, csrfProt
       [noteId, userId],
       function(err) {
         if (err) {
-          console.error('Unshare note error:', err);
+          logger.error('Unshare note error:', err);
           return res.status(500).json({ error: 'Kunde inte ta bort delning' });
         }
 
@@ -1221,7 +1224,7 @@ app.get('/api/notes/:id/shares', requireAuth, apiLimiter, (req, res) => {
       [id],
       (err, shares) => {
         if (err) {
-          console.error('Get shares error:', err);
+          logger.error('Get shares error:', err);
           return res.status(500).json({ error: 'Kunde inte hämta delningar' });
         }
         res.json(shares);
@@ -1266,15 +1269,15 @@ app.post('/api/import/keep', requireAuth, importLimiter, upload.single('zipfile'
   const extractPath = path.join(uploadsDir, `extract_${Date.now()}_${req.session.userId}`);
 
   try {
-    console.log('Extracting zip file...');
+    logger.info('Extracting zip file...');
     const zip = new AdmZip(zipPath);
     zip.extractAllTo(extractPath, true);
 
-    console.log('Parsing Google Keep data...');
+    logger.info('Parsing Google Keep data...');
     const parser = new KeepImportParser(extractPath, req.session.userId, mediaDir);
     const { notes, stats } = await parser.parse();
 
-    console.log(`Importing ${notes.length} notes...`);
+    logger.info(`Importing ${notes.length} notes...`);
     let imported = 0;
     let failed = 0;
 
@@ -1284,7 +1287,7 @@ app.post('/api/import/keep', requireAuth, importLimiter, upload.single('zipfile'
         imported++;
       } catch (error) {
         failed++;
-        console.error('Import note error:', error);
+        logger.error('Import note error:', error);
         stats.errors.push({
           note: note.title || note.source_file,
           error: error.message
@@ -1304,14 +1307,14 @@ app.post('/api/import/keep', requireAuth, importLimiter, upload.single('zipfile'
     });
 
   } catch (error) {
-    console.error('Import error:', error);
+    logger.error('Import error:', error);
 
     // Clean up on error
     try {
       if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
       if (fs.existsSync(extractPath)) fs.rmSync(extractPath, { recursive: true, force: true });
     } catch (cleanupError) {
-      console.error('Cleanup error:', cleanupError);
+      logger.error('Cleanup error:', cleanupError);
     }
 
     res.status(500).json({
@@ -1367,7 +1370,7 @@ app.get('/api/backup/export', requireAuth, async (req, res) => {
   const outputPath = path.join(uploadsDir, outputFilename);
 
   try {
-    console.log('Generating backup for user:', req.session.userId);
+    logger.info('Generating backup for user:', req.session.userId);
 
     const generator = new BackupGenerator(req.session.userId, db, dataDir, outputPath);
     const result = await generator.generate();
@@ -1376,7 +1379,7 @@ app.get('/api/backup/export', requireAuth, async (req, res) => {
       throw new Error('Backup generation failed');
     }
 
-    console.log('Backup generated:', result.stats);
+    logger.info('Backup generated:', result.stats);
 
     // Send file
     res.download(outputPath, outputFilename, (err) => {
@@ -1386,16 +1389,16 @@ app.get('/api/backup/export', requireAuth, async (req, res) => {
           fs.unlinkSync(outputPath);
         }
       } catch (cleanupError) {
-        console.error('Failed to cleanup backup file:', cleanupError);
+        logger.error('Failed to cleanup backup file:', cleanupError);
       }
 
       if (err) {
-        console.error('Error sending backup:', err);
+        logger.error('Error sending backup:', err);
       }
     });
 
   } catch (error) {
-    console.error('Export error:', error);
+    logger.error('Export error:', error);
 
     // Clean up on error
     try {
@@ -1403,7 +1406,7 @@ app.get('/api/backup/export', requireAuth, async (req, res) => {
         fs.unlinkSync(outputPath);
       }
     } catch (cleanupError) {
-      console.error('Cleanup error:', cleanupError);
+      logger.error('Cleanup error:', cleanupError);
     }
 
     res.status(500).json({
@@ -1416,7 +1419,7 @@ app.get('/api/backup/export', requireAuth, async (req, res) => {
 // ===== ERROR HANDLING =====
 
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  logger.error('Error:', err);
 
   if (err.code === 'EBADCSRFTOKEN') {
     return res.status(403).json({ error: 'Ogiltig förfrågan. Ladda om sidan och försök igen.' });
@@ -1439,17 +1442,16 @@ app.use((err, req, res, next) => {
 
 // Start server
 server.listen(PORT, () => {
-  console.log(`Keep Clone running on http://localhost:${PORT}`);
-  console.log(`HTTPS mode: ${isHttps ? 'ENABLED (HSTS active)' : 'DISABLED (HTTP mode)'}`);
-  console.log('Security features enabled:');
-  console.log('  - Helmet security headers');
-  console.log('  - CSRF protection');
-  console.log('  - Rate limiting');
-  console.log('  - Secure WebSocket authentication');
-  console.log('  - Input sanitization');
-  console.log('  - Path traversal protection');
+  logger.info(`Keep Clone running on http://localhost:${PORT}`);
+  logger.info(`HTTPS mode: ${isHttps ? 'ENABLED (HSTS active)' : 'DISABLED (HTTP mode)'}`);
+  logger.info('Security features enabled:');
+  logger.info('  - Helmet security headers');
+  logger.info('  - CSRF protection');
+  logger.info('  - Rate limiting');
+  logger.info('  - Secure WebSocket authentication');
+  logger.info('  - Input sanitization');
+  logger.info('  - Path traversal protection');
   if (!process.env.SESSION_SECRET) {
-    console.warn('\n⚠️  WARNING: Using default session secret!');
-    console.warn('   Set SESSION_SECRET environment variable for production!\n');
+    logger.warn('⚠️  Using default session secret - Set SESSION_SECRET environment variable for production!');
   }
 });
