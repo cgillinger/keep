@@ -118,12 +118,19 @@
   },
   "share": {
     "title": "Share note",
-    "share_with_member": "Share with family member",
-    "currently_shared_with": "Sharing with",
-    "close_button": "Close",
-    "can_view": "can view",
-    "can_edit": "can edit",
-    "remove": "Remove"
+    "share_with_member": "Select who to share with",
+    "currently_shared_with": "Current shares",
+    "close_button": "Cancel",
+    "save_button": "Save sharing",
+    "can_view": "Can view",
+    "can_edit": "Can edit",
+    "remove": "Remove",
+    "unsaved_changes": "Unsaved changes",
+    "confirm_discard": "You have unsaved changes. Close without saving?",
+    "shares_saved": "Shares saved",
+    "save_error": "Could not save shares",
+    "new_share_notification": "New note shared with you",
+    "permission_changed": "Your permission was changed"
   },
   "messages": {
     "note_created": "Note created",

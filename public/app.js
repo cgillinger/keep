@@ -747,9 +747,28 @@ function connectWebSocket() {
         notes = notes.filter(n => n.id !== data.noteId);
         removeSingleNote(data.noteId);
       } else if (data.type === 'note_shared') {
-        // Reload notes to show newly shared note
+        // A note was shared with us - show notification and reload if viewing shared
+        showToast('Ny anteckning delad med dig', 'info');
         if (showingShared) {
           loadNotes();
+        }
+      } else if (data.type === 'share_count_updated') {
+        // Our note's share count changed - reload to update the indicator
+        if (!showingShared && !showingArchived) {
+          loadNotes();
+        }
+      } else if (data.type === 'permission_changed') {
+        // Our permission on a shared note changed
+        const noteIndex = notes.findIndex(n => n.id === data.noteId);
+        if (noteIndex >= 0) {
+          notes[noteIndex].permission = data.permission;
+          // If we're currently editing this note, update the UI
+          if (currentEditingNote && currentEditingNote.id === data.noteId) {
+            currentEditingNote.permission = data.permission;
+            // Re-render edit modal to reflect new permissions
+            openEditModal(data.noteId);
+          }
+          showToast(`Din behörighet ändrades till: ${data.permission === 'edit' ? 'Redigera' : 'Visa'}`, 'info');
         }
       }
     } catch (e) {
@@ -1641,10 +1660,16 @@ function searchNotes() {
 }
 
 // ===== SHARING FUNCTIONS =====
+// State management for sharing
 let availableUsers = [];
+let originalShares = []; // Shares as they exist on server
+let pendingShares = [];  // Current state in the modal (what will be saved)
+let shareModalNoteId = null; // Track which note we're sharing
 
 async function openShareModal() {
   if (!currentEditingNote) return;
+
+  shareModalNoteId = currentEditingNote.id;
 
   try {
     // Load available users
@@ -1655,173 +1680,357 @@ async function openShareModal() {
       availableUsers = await usersResponse.json();
     }
 
-    // Load current shares
-    const sharesResponse = await apiFetch(`/api/notes/${currentEditingNote.id}/shares`, {
+    // Load current shares from server
+    const sharesResponse = await apiFetch(`/api/notes/${shareModalNoteId}/shares`, {
       credentials: 'include'
     });
     if (sharesResponse.ok) {
-      const shares = await sharesResponse.json();
-      renderShareModal(shares);
+      originalShares = await sharesResponse.json();
+      // Deep copy to pending shares
+      pendingShares = originalShares.map(s => ({
+        shared_with_user_id: s.shared_with_user_id,
+        username: s.username,
+        avatar_color: s.avatar_color,
+        permission: s.permission
+      }));
+    } else {
+      originalShares = [];
+      pendingShares = [];
     }
 
+    renderShareModal();
+    updatePendingChangesIndicator();
     document.getElementById('share-modal').classList.add('active');
+
+    // Setup event delegation for user list clicks
+    setupShareModalEventListeners();
   } catch (error) {
     console.error('Failed to load sharing data:', error);
+    showToast('Kunde inte ladda delningsinformation', 'error');
   }
+}
+
+function setupShareModalEventListeners() {
+  // Event delegation for user list
+  const usersContainer = document.getElementById('share-users-list');
+  usersContainer.onclick = function(e) {
+    const userItem = e.target.closest('.share-user-item');
+    if (userItem) {
+      const userId = parseInt(userItem.dataset.userId, 10);
+      const username = userItem.dataset.username;
+      toggleSharePending(userId, username);
+    }
+  };
+
+  // Event delegation for current shares
+  const sharesContainer = document.getElementById('current-shares-list');
+  sharesContainer.onclick = function(e) {
+    // Handle remove button click
+    const removeBtn = e.target.closest('.share-remove-btn');
+    if (removeBtn) {
+      const userId = parseInt(removeBtn.dataset.userId, 10);
+      removeSharePending(userId);
+      return;
+    }
+  };
+
+  sharesContainer.onchange = function(e) {
+    // Handle permission change
+    if (e.target.tagName === 'SELECT') {
+      const userId = parseInt(e.target.dataset.userId, 10);
+      const permission = e.target.value;
+      updateSharePermissionPending(userId, permission);
+    }
+  };
 }
 
 function closeShareModal(event) {
   if (event && event.target.id !== 'share-modal') return;
   document.getElementById('share-modal').classList.remove('active');
+  resetShareModalState();
 }
 
-function renderShareModal(currentShares) {
+function cancelShareModal() {
+  // Check if there are unsaved changes
+  if (hasShareChanges()) {
+    if (!confirm('Du har osparade ändringar. Vill du stänga utan att spara?')) {
+      return;
+    }
+  }
+  document.getElementById('share-modal').classList.remove('active');
+  resetShareModalState();
+}
+
+function resetShareModalState() {
+  shareModalNoteId = null;
+  originalShares = [];
+  pendingShares = [];
+  availableUsers = [];
+}
+
+function hasShareChanges() {
+  if (originalShares.length !== pendingShares.length) return true;
+
+  for (const pending of pendingShares) {
+    const original = originalShares.find(o => o.shared_with_user_id === pending.shared_with_user_id);
+    if (!original) return true; // New share
+    if (original.permission !== pending.permission) return true; // Permission changed
+  }
+
+  for (const original of originalShares) {
+    const pending = pendingShares.find(p => p.shared_with_user_id === original.shared_with_user_id);
+    if (!pending) return true; // Share removed
+  }
+
+  return false;
+}
+
+function updatePendingChangesIndicator() {
+  const indicator = document.getElementById('share-pending-changes');
+  const saveBtn = document.getElementById('save-shares-btn');
+
+  if (hasShareChanges()) {
+    indicator.style.display = 'flex';
+    saveBtn.disabled = false;
+    saveBtn.classList.add('btn-primary');
+    saveBtn.classList.remove('btn-secondary');
+  } else {
+    indicator.style.display = 'none';
+    saveBtn.disabled = false;
+    saveBtn.classList.remove('btn-primary');
+    saveBtn.classList.add('btn-secondary');
+  }
+}
+
+function renderShareModal() {
   const usersContainer = document.getElementById('share-users-list');
   const sharesContainer = document.getElementById('current-shares-list');
+  const sharesSection = document.getElementById('current-shares-section');
 
-  // Render available users
+  // Render available users with data attributes (no inline onclick - XSS safe)
   usersContainer.innerHTML = availableUsers.map(user => {
-    const isShared = currentShares.some(s => s.shared_with_user_id === user.id);
+    const isPending = pendingShares.some(s => s.shared_with_user_id === user.id);
+    const wasOriginal = originalShares.some(s => s.shared_with_user_id === user.id);
     const initials = user.username.substring(0, 2).toUpperCase();
     const avatarColor = user.avatar_color || '#1a73e8';
-    const profileAvatar = `<div class="profile-initials-small" style="background-color: ${avatarColor};">${initials}</div>`;
+
+    // Determine visual state
+    let stateClass = '';
+    if (isPending && !wasOriginal) {
+      stateClass = 'pending-add'; // Will be added
+    } else if (!isPending && wasOriginal) {
+      stateClass = 'pending-remove'; // Will be removed
+    } else if (isPending) {
+      stateClass = 'shared'; // Already shared
+    }
 
     return `
-      <div class="share-user-item ${isShared ? 'shared' : ''}" onclick="toggleShare(${user.id}, '${user.username}', ${isShared})">
-        ${profileAvatar}
-        <span>${escapeHtml(user.username)}</span>
-        ${isShared ? '<span class="share-check">✓</span>' : ''}
+      <div class="share-user-item ${stateClass}"
+           data-user-id="${user.id}"
+           data-username="${escapeHtml(user.username)}">
+        <div class="profile-initials-small" style="background-color: ${avatarColor};">${initials}</div>
+        <span class="username">${escapeHtml(user.username)}</span>
+        ${isPending ? '<span class="share-check">✓</span>' : ''}
       </div>
     `;
   }).join('');
 
-  // Render current shares
-  if (currentShares.length > 0) {
-    sharesContainer.innerHTML = currentShares.map(share => {
+  // Render current/pending shares
+  if (pendingShares.length > 0) {
+    sharesSection.style.display = 'block';
+    sharesContainer.innerHTML = pendingShares.map(share => {
       const initials = share.username.substring(0, 2).toUpperCase();
       const avatarColor = share.avatar_color || '#1a73e8';
-      const profileAvatar = `<div class="profile-initials-small" style="background-color: ${avatarColor};">${initials}</div>`;
+      const isNew = !originalShares.some(o => o.shared_with_user_id === share.shared_with_user_id);
 
       return `
-        <div class="current-share-item">
-          ${profileAvatar}
-          <span>${escapeHtml(share.username)}</span>
-          <select onchange="updateSharePermission(${share.shared_with_user_id}, this.value)">
-            <option value="view" ${share.permission === 'view' ? 'selected' : ''}>Visa</option>
-            <option value="edit" ${share.permission === 'edit' ? 'selected' : ''}>Redigera</option>
+        <div class="current-share-item ${isNew ? 'pending-add' : ''}">
+          <div class="profile-initials-small" style="background-color: ${avatarColor};">${initials}</div>
+          <span class="username">${escapeHtml(share.username)}</span>
+          <select data-user-id="${share.shared_with_user_id}">
+            <option value="view" ${share.permission === 'view' ? 'selected' : ''}>Kan visa</option>
+            <option value="edit" ${share.permission === 'edit' ? 'selected' : ''}>Kan redigera</option>
           </select>
-          <button onclick="removeShare(${share.shared_with_user_id}, '${share.username}')" class="btn-icon">🗑️</button>
+          <button class="btn-icon share-remove-btn" data-user-id="${share.shared_with_user_id}" title="Ta bort delning">✕</button>
         </div>
       `;
     }).join('');
   } else {
-    sharesContainer.innerHTML = '<p style="text-align: center; color: #5f6368;">Ingen delning ännu</p>';
+    sharesSection.style.display = 'none';
+    sharesContainer.innerHTML = '';
   }
 }
 
-async function toggleShare(userId, username, isCurrentlyShared) {
-  if (!currentEditingNote) return;
+function toggleSharePending(userId, username) {
+  const existingIndex = pendingShares.findIndex(s => s.shared_with_user_id === userId);
 
-  if (isCurrentlyShared) {
-    await removeShare(userId, username);
+  if (existingIndex >= 0) {
+    // Remove from pending
+    pendingShares.splice(existingIndex, 1);
   } else {
-    await addShare(userId, username);
+    // Add to pending with default permission
+    const user = availableUsers.find(u => u.id === userId);
+    pendingShares.push({
+      shared_with_user_id: userId,
+      username: username,
+      avatar_color: user?.avatar_color || '#1a73e8',
+      permission: 'view'
+    });
   }
+
+  renderShareModal();
+  updatePendingChangesIndicator();
 }
 
-async function addShare(userId, username) {
-  if (!currentEditingNote) return;
+function removeSharePending(userId) {
+  pendingShares = pendingShares.filter(s => s.shared_with_user_id !== userId);
+  renderShareModal();
+  updatePendingChangesIndicator();
+}
+
+function updateSharePermissionPending(userId, permission) {
+  const share = pendingShares.find(s => s.shared_with_user_id === userId);
+  if (share) {
+    share.permission = permission;
+  }
+  updatePendingChangesIndicator();
+}
+
+async function saveShares() {
+  if (!shareModalNoteId) return;
+
+  const saveBtn = document.getElementById('save-shares-btn');
+  const originalBtnText = saveBtn.textContent;
+  saveBtn.textContent = 'Sparar...';
+  saveBtn.disabled = true;
 
   try {
-    const response = await apiFetch(`/api/notes/${currentEditingNote.id}/share`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
-      body: JSON.stringify({
-        userId: userId,
-        permission: 'view'
-      })
+    // Determine what to add, remove, and update
+    const toAdd = pendingShares.filter(p =>
+      !originalShares.some(o => o.shared_with_user_id === p.shared_with_user_id)
+    );
+    const toRemove = originalShares.filter(o =>
+      !pendingShares.some(p => p.shared_with_user_id === o.shared_with_user_id)
+    );
+    const toUpdate = pendingShares.filter(p => {
+      const original = originalShares.find(o => o.shared_with_user_id === p.shared_with_user_id);
+      return original && original.permission !== p.permission;
     });
 
-    if (response.ok) {
-      // Reload share modal
-      const sharesResponse = await apiFetch(`/api/notes/${currentEditingNote.id}/shares`, {
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Process additions and updates
+    for (const share of [...toAdd, ...toUpdate]) {
+      try {
+        const response = await apiFetch(`/api/notes/${shareModalNoteId}/share`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getCSRFHeaders()
+          },
+          body: JSON.stringify({
+            userId: share.shared_with_user_id,
+            permission: share.permission
+          })
+        });
+
+        if (response.ok) {
+          successCount++;
+        } else if (response.status === 403) {
+          await fetchCSRFToken();
+          errorCount++;
+        } else {
+          errorCount++;
+        }
+      } catch (error) {
+        console.error('Failed to save share:', error);
+        errorCount++;
+      }
+    }
+
+    // Process removals
+    for (const share of toRemove) {
+      try {
+        const response = await apiFetch(`/api/notes/${shareModalNoteId}/share/${share.shared_with_user_id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: getCSRFHeaders()
+        });
+
+        if (response.ok) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      } catch (error) {
+        console.error('Failed to remove share:', error);
+        errorCount++;
+      }
+    }
+
+    // Show result and close modal
+    if (errorCount === 0) {
+      const totalChanges = toAdd.length + toRemove.length + toUpdate.length;
+      if (totalChanges > 0) {
+        showToast('Delningar sparade', 'success');
+      }
+      document.getElementById('share-modal').classList.remove('active');
+      resetShareModalState();
+      // Reload notes to update share_count indicator
+      loadNotes();
+    } else {
+      showToast(`${errorCount} fel uppstod vid sparning`, 'error');
+      // Reload shares to get current state
+      const sharesResponse = await apiFetch(`/api/notes/${shareModalNoteId}/shares`, {
         credentials: 'include'
       });
       if (sharesResponse.ok) {
-        const shares = await sharesResponse.json();
-        renderShareModal(shares);
+        originalShares = await sharesResponse.json();
+        pendingShares = originalShares.map(s => ({
+          shared_with_user_id: s.shared_with_user_id,
+          username: s.username,
+          avatar_color: s.avatar_color,
+          permission: s.permission
+        }));
+        renderShareModal();
+        updatePendingChangesIndicator();
       }
-    } else if (response.status === 403) {
-      await fetchCSRFToken();
-      alert('Session expired, please try again');
     }
   } catch (error) {
-    console.error('Failed to share note:', error);
+    console.error('Failed to save shares:', error);
+    showToast('Kunde inte spara delningar', 'error');
+  } finally {
+    saveBtn.textContent = originalBtnText;
+    saveBtn.disabled = false;
   }
 }
 
-async function removeShare(userId, username) {
-  if (!currentEditingNote) return;
-
-  if (!confirm(`Ta bort delning med ${username}?`)) {
-    return;
+// Toast notification system
+function showToast(message, type = 'info') {
+  // Remove existing toast if any
+  const existingToast = document.querySelector('.toast-notification');
+  if (existingToast) {
+    existingToast.remove();
   }
 
-  try {
-    const response = await apiFetch(`/api/notes/${currentEditingNote.id}/share/${userId}`, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: getCSRFHeaders()
-    });
+  const toast = document.createElement('div');
+  toast.className = `toast-notification toast-${type}`;
+  toast.textContent = message;
 
-    if (response.ok) {
-      // Reload share modal
-      const sharesResponse = await apiFetch(`/api/notes/${currentEditingNote.id}/shares`, {
-        credentials: 'include'
-      });
-      if (sharesResponse.ok) {
-        const shares = await sharesResponse.json();
-        renderShareModal(shares);
-      }
-    } else if (response.status === 403) {
-      await fetchCSRFToken();
-      alert('Session expired, please try again');
-    }
-  } catch (error) {
-    console.error('Failed to remove share:', error);
-  }
-}
+  document.body.appendChild(toast);
 
-async function updateSharePermission(userId, permission) {
-  if (!currentEditingNote) return;
+  // Trigger animation
+  requestAnimationFrame(() => {
+    toast.classList.add('show');
+  });
 
-  try {
-    const response = await apiFetch(`/api/notes/${currentEditingNote.id}/share`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
-      body: JSON.stringify({
-        userId: userId,
-        permission: permission
-      })
-    });
-
-    if (response.ok) {
-      console.log('Permission updated');
-    } else if (response.status === 403) {
-      await fetchCSRFToken();
-      alert('Session expired, please try again');
-    }
-  } catch (error) {
-    console.error('Failed to update permission:', error);
-  }
+  // Auto-remove after 3 seconds
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
 }
 
 // ===== CHECKLIST FUNCTIONS =====
