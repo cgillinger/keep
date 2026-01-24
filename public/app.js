@@ -905,6 +905,96 @@ function updateSelectedTheme(theme) {
   }
 }
 
+// Change password
+async function changePassword() {
+  const currentPassword = document.getElementById('current-password').value;
+  const newPassword = document.getElementById('new-password').value;
+  const confirmNewPassword = document.getElementById('confirm-new-password').value;
+  const messageDiv = document.getElementById('change-password-message');
+
+  // Clear previous messages
+  messageDiv.className = 'message hidden';
+  messageDiv.textContent = '';
+
+  if (!currentPassword || !newPassword || !confirmNewPassword) {
+    messageDiv.textContent = t('profile.password_all_fields_required');
+    messageDiv.className = 'message error-message';
+    return;
+  }
+
+  if (newPassword !== confirmNewPassword) {
+    messageDiv.textContent = t('profile.password_mismatch');
+    messageDiv.className = 'message error-message';
+    return;
+  }
+
+  // Client-side validation matching server requirements
+  if (newPassword.length < 12) {
+    messageDiv.textContent = t('auth.password_min_12');
+    messageDiv.className = 'message error-message';
+    return;
+  }
+  if (!/[A-Z]/.test(newPassword)) {
+    messageDiv.textContent = t('auth.password_uppercase');
+    messageDiv.className = 'message error-message';
+    return;
+  }
+  if (!/[a-z]/.test(newPassword)) {
+    messageDiv.textContent = t('auth.password_lowercase');
+    messageDiv.className = 'message error-message';
+    return;
+  }
+  if (!/[0-9]/.test(newPassword)) {
+    messageDiv.textContent = t('auth.password_number');
+    messageDiv.className = 'message error-message';
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/profile/change-password', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getCSRFHeaders()
+      },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      messageDiv.textContent = t('profile.password_changed_success');
+      messageDiv.className = 'message success-message';
+      // Clear form
+      document.getElementById('current-password').value = '';
+      document.getElementById('new-password').value = '';
+      document.getElementById('confirm-new-password').value = '';
+    } else {
+      messageDiv.textContent = data.error || t('profile.password_change_failed');
+      messageDiv.className = 'message error-message';
+    }
+  } catch (error) {
+    messageDiv.textContent = t('errors.network_error');
+    messageDiv.className = 'message error-message';
+  }
+}
+
+// Toggle password visibility
+function togglePasswordVisibility(inputId) {
+  const input = document.getElementById(inputId);
+  const container = input.parentElement;
+  const button = container.querySelector('.password-toggle-btn');
+
+  if (input.type === 'password') {
+    input.type = 'text';
+    button.classList.add('active');
+  } else {
+    input.type = 'password';
+    button.classList.remove('active');
+  }
+}
+
 // Format created date for display
 function formatCreatedDate(dateString) {
   if (!dateString) return '';

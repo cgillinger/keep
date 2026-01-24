@@ -117,6 +117,59 @@
   display: block; /* Show when has content */
 }
 
+/* Password input with toggle visibility */
+.password-input-container {
+  position: relative;
+  width: 100%;
+}
+
+.password-input-container input {
+  width: 100%;
+  padding-right: 45px; /* Make room for the eye icon */
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #5f6368;
+  transition: color var(--transition-normal);
+}
+
+.password-toggle-btn:hover {
+  color: var(--color-primary);
+}
+
+.password-toggle-btn.active {
+  color: var(--color-primary);
+}
+
+.password-toggle-btn .eye-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Message styles for change password form */
+.message {
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+.message.hidden {
+  display: none;
+}
+
 /* ===== BUTTONS ===== */
 .btn-primary {
   background: var(--color-primary);

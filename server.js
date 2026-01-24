@@ -632,6 +632,57 @@ app.post('/api/profile/background-theme', requireAuth, apiLimiter, csrfProtectio
   });
 });
 
+// Change password
+app.post('/api/profile/change-password', requireAuth, apiLimiter, csrfProtection, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Både nuvarande och nytt lösenord krävs' });
+  }
+
+  // Validate new password
+  const passwordError = validatePassword(newPassword);
+  if (passwordError) {
+    return res.status(400).json({ error: passwordError });
+  }
+
+  try {
+    // Get user's current password hash
+    db.get('SELECT password FROM users WHERE id = ?', [req.session.userId], async (err, user) => {
+      if (err) {
+        console.error('Password fetch error:', err);
+        return res.status(500).json({ error: 'Kunde inte byta lösenord' });
+      }
+
+      if (!user) {
+        return res.status(404).json({ error: 'Användare hittades inte' });
+      }
+
+      // Verify current password
+      const validPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!validPassword) {
+        return res.status(400).json({ error: 'Nuvarande lösenord är felaktigt' });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+      // Update password
+      db.run('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, req.session.userId], (err) => {
+        if (err) {
+          console.error('Password update error:', err);
+          return res.status(500).json({ error: 'Kunde inte uppdatera lösenord' });
+        }
+
+        res.json({ message: 'Lösenord uppdaterat' });
+      });
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
+    return res.status(500).json({ error: 'Kunde inte byta lösenord' });
+  }
+});
+
 // ===== NOTE IMAGE ROUTES =====
 
 const noteImageUpload = multer({

@@ -829,6 +829,126 @@ docker-compose up -d
 
 See [Environment Variables](#environment-variables) section for more details.
 
+### Database Administration
+
+**Problem:** Need to manually manage users (delete inactive accounts, reset user data, etc.)
+
+**Solution:**
+
+Keep Clone uses SQLite, which can be managed directly using the `sqlite3` command-line tool.
+
+**Install sqlite3 (if not already installed):**
+```bash
+# Ubuntu/Debian
+sudo apt-get install sqlite3
+
+# macOS (usually pre-installed)
+brew install sqlite3
+
+# Windows
+# Download from https://www.sqlite.org/download.html
+```
+
+**Access the database:**
+```bash
+# Navigate to your Keep Clone directory
+cd /path/to/keep
+
+# Open database
+sqlite3 data/keep.db
+```
+
+**Common administrative tasks:**
+
+**1. List all users:**
+```sql
+SELECT id, username, email, created_at FROM users;
+```
+
+**2. Delete a specific user (and all their data):**
+```sql
+-- First, check what will be deleted
+SELECT COUNT(*) FROM notes WHERE user_id = 1;  -- Replace 1 with user ID
+SELECT COUNT(*) FROM shares WHERE shared_by_user_id = 1 OR shared_with_user_id = 1;
+
+-- Delete user's notes
+DELETE FROM notes WHERE user_id = 1;
+
+-- Delete user's shares (both given and received)
+DELETE FROM shares WHERE shared_by_user_id = 1 OR shared_with_user_id = 1;
+
+-- Delete the user
+DELETE FROM users WHERE id = 1;
+```
+
+**3. Delete a user by username:**
+```sql
+-- Find the user ID first
+SELECT id, username, email FROM users WHERE username = 'johndoe';
+
+-- Then follow steps in #2 above with the correct user ID
+```
+
+**4. Reset a user's password (force them to use password reset):**
+```sql
+-- Clear password and set reset token
+UPDATE users SET password = NULL, reset_token = NULL, reset_token_expires = NULL WHERE username = 'johndoe';
+```
+
+**Note:** SQLite does not support bcrypt directly, so you cannot manually set passwords. Users must use the password reset feature or register a new account.
+
+**5. View database schema:**
+```sql
+.schema users
+.schema notes
+.schema shares
+```
+
+**6. Exit sqlite3:**
+```sql
+.quit
+```
+
+**⚠️ Important warnings:**
+- **Always backup the database before making changes:** `cp data/keep.db data/keep.db.backup`
+- **Stop the server before manual edits** to prevent database corruption
+- **SQLite has no authentication** - anyone with file access can modify the database
+- **Test queries with SELECT first** before using DELETE or UPDATE
+- **User sessions may remain active** after deletion - users will be logged out on next page refresh
+
+**Complete user deletion script:**
+```bash
+#!/bin/bash
+# delete-user.sh - Safe user deletion with backup
+
+USER_ID=$1
+
+if [ -z "$USER_ID" ]; then
+  echo "Usage: ./delete-user.sh <user_id>"
+  exit 1
+fi
+
+# Backup database
+cp data/keep.db "data/keep.db.backup-$(date +%Y%m%d-%H%M%S)"
+
+# Delete user and associated data
+sqlite3 data/keep.db <<EOF
+BEGIN TRANSACTION;
+DELETE FROM notes WHERE user_id = $USER_ID;
+DELETE FROM shares WHERE shared_by_user_id = $USER_ID OR shared_with_user_id = $USER_ID;
+DELETE FROM users WHERE id = $USER_ID;
+COMMIT;
+SELECT 'User deleted successfully. Rows affected:';
+SELECT changes();
+EOF
+
+echo "Backup saved. Restart the server to clear sessions."
+```
+
+Make the script executable: `chmod +x delete-user.sh`
+
+Usage: `./delete-user.sh 5` (deletes user with ID 5)
+
 ## 🧪 Development
 
 ### Development Mode with Auto-restart
@@ -1856,6 +1976,126 @@ docker-compose up -d
 - För direkt HTTP-åtkomst (Docker, LAN, Tailscale utan HTTPS): lämna som `false`
 
 Se [Miljövariabler](#miljövariabler) för mer information.
+
+### Databasadministration
+
+**Problem:** Behöver manuellt hantera användare (radera inaktiva konton, återställa användardata, etc.)
+
+**Lösning:**
+
+Keep Clone använder SQLite, som kan hanteras direkt med `sqlite3` kommandoradsverktyget.
+
+**Installera sqlite3 (om det inte redan är installerat):**
+```bash
+# Ubuntu/Debian
+sudo apt-get install sqlite3
+
+# macOS (vanligtvis förinstallerat)
+brew install sqlite3
+
+# Windows
+# Ladda ner från https://www.sqlite.org/download.html
+```
+
+**Öppna databasen:**
+```bash
+# Navigera till din Keep Clone-katalog
+cd /sökväg/till/keep
+
+# Öppna databasen
+sqlite3 data/keep.db
+```
+
+**Vanliga administrativa uppgifter:**
+
+**1. Lista alla användare:**
+```sql
+SELECT id, username, email, created_at FROM users;
+```
+
+**2. Radera en specifik användare (och all deras data):**
+```sql
+-- Först, kontrollera vad som kommer raderas
+SELECT COUNT(*) FROM notes WHERE user_id = 1;  -- Ersätt 1 med användar-ID
+SELECT COUNT(*) FROM shares WHERE shared_by_user_id = 1 OR shared_with_user_id = 1;
+
+-- Radera användarens anteckningar
+DELETE FROM notes WHERE user_id = 1;
+
+-- Radera användarens delningar (både givna och mottagna)
+DELETE FROM shares WHERE shared_by_user_id = 1 OR shared_with_user_id = 1;
+
+-- Radera användaren
+DELETE FROM users WHERE id = 1;
+```
+
+**3. Radera en användare via användarnamn:**
+```sql
+-- Hitta användar-ID först
+SELECT id, username, email FROM users WHERE username = 'johndoe';
+
+-- Följ sedan stegen i #2 ovan med korrekt användar-ID
+```
+
+**4. Återställ en användares lösenord (tvinga dem att använda lösenordsåterställning):**
+```sql
+-- Rensa lösenord och nollställ reset token
+UPDATE users SET password = NULL, reset_token = NULL, reset_token_expires = NULL WHERE username = 'johndoe';
+```
+
+**Obs:** SQLite stödjer inte bcrypt direkt, så du kan inte manuellt sätta lösenord. Användare måste använda lösenordsåterställningsfunktionen eller registrera ett nytt konto.
+
+**5. Visa databasschema:**
+```sql
+.schema users
+.schema notes
+.schema shares
+```
+
+**6. Avsluta sqlite3:**
+```sql
+.quit
+```
+
+**⚠️ Viktiga varningar:**
+- **Säkerhetskopiera alltid databasen innan ändringar:** `cp data/keep.db data/keep.db.backup`
+- **Stoppa servern innan manuella ändringar** för att undvika databaskorruption
+- **SQLite har ingen autentisering** - vem som helst med filåtkomst kan ändra databasen
+- **Testa frågor med SELECT först** innan du använder DELETE eller UPDATE
+- **Användarsessioner kan förbli aktiva** efter radering - användare loggas ut vid nästa siduppdatering
+
+**Komplett skript för användarradering:**
+```bash
+#!/bin/bash
+# delete-user.sh - Säker användarradering med backup
+
+USER_ID=$1
+
+if [ -z "$USER_ID" ]; then
+  echo "Användning: ./delete-user.sh <användar_id>"
+  exit 1
+fi
+
+# Säkerhetskopiera databas
+cp data/keep.db "data/keep.db.backup-$(date +%Y%m%d-%H%M%S)"
+
+# Radera användare och associerad data
+sqlite3 data/keep.db <<EOF
+BEGIN TRANSACTION;
+DELETE FROM notes WHERE user_id = $USER_ID;
+DELETE FROM shares WHERE shared_by_user_id = $USER_ID OR shared_with_user_id = $USER_ID;
+DELETE FROM users WHERE id = $USER_ID;
+COMMIT;
+SELECT 'Användare raderad. Påverkade rader:';
+SELECT changes();
+EOF
+
+echo "Backup sparad. Starta om servern för att rensa sessioner."
+```
+
+Gör skriptet körbart: `chmod +x delete-user.sh`
+
+Användning: `./delete-user.sh 5` (raderar användare med ID 5)
 
 ## 🧪 Utveckling
 
