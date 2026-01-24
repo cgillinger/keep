@@ -48,7 +48,7 @@
   font-size: var(--font-size-base);
 }
 
-.auth-form button {
+.auth-form button:not(.password-toggle-btn) {
   width: 100%;
   padding: var(--space-md);
   background: var(--color-secondary);
@@ -60,7 +60,7 @@
   transition: background var(--transition-slow);
 }
 
-.auth-form button:hover {
+.auth-form button:not(.password-toggle-btn):hover {
   background: var(--color-secondary-hover);
 }
 
@@ -121,11 +121,17 @@
 .password-input-container {
   position: relative;
   width: 100%;
+  margin-bottom: 15px;
 }
 
 .password-input-container input {
   width: 100%;
+  padding: var(--space-md);
   padding-right: 45px; /* Make room for the eye icon */
+  margin-bottom: 0; /* Override default input margin */
+  border: 1px solid #ddd;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
 }
 
 .password-toggle-btn {
@@ -133,8 +139,8 @@
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  background: transparent;
-  border: none;
+  background: transparent !important;
+  border: none !important;
   cursor: pointer;
   padding: 8px;
   display: flex;
@@ -142,10 +148,14 @@
   justify-content: center;
   color: #5f6368;
   transition: color var(--transition-normal);
+  width: auto !important;
+  height: auto !important;
+  font-size: inherit !important;
 }
 
 .password-toggle-btn:hover {
   color: var(--color-primary);
+  background: transparent !important;
 }
 
 .password-toggle-btn.active {
@@ -155,6 +165,7 @@
 .password-toggle-btn .eye-icon {
   width: 20px;
   height: 20px;
+  pointer-events: none;
 }
 
 /* Message styles for change password form */
