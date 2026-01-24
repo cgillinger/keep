@@ -1171,3 +1171,22 @@
   );
   background-size: 200% 100%;
 }
+
+/* ===== INFINITE SCROLL ===== */
+.scroll-sentinel {
+  width: 100%;
+  min-height: 1px;
+  margin-top: var(--space-xl);
+}
+
+.loading-more {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-lg);
+  width: 100%;
+  padding: 0 var(--space-lg);
+}
+
+.loading-more .skeleton-card {
+  min-height: 100px;
+}

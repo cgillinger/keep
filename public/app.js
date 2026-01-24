@@ -241,16 +241,19 @@ let editNoteImages = []; // Filenames of images for editing note
 let showCreatedDate = localStorage.getItem('showCreatedDate') === 'true'; // User preference for showing created date
 let renderedNotesMap = new Map(); // Cache of rendered notes by ID for incremental updates
 
-// ===== NOTES CACHE =====
-// Cache for different views to enable instant switching
+// ===== NOTES CACHE & PAGINATION =====
+const PAGE_SIZE = 20; // Notes per page (matches server DEFAULT_PAGE_SIZE)
 const notesCache = {
-  all: null,      // Default view (own + shared)
-  archived: null, // Archived notes
-  shared: null,   // Only shared notes
-  timestamp: {}   // Track when each cache was last updated
+  all: { notes: [], hasMore: true, total: 0 },
+  archived: { notes: [], hasMore: true, total: 0 },
+  shared: { notes: [], hasMore: true, total: 0 },
+  timestamp: {}
 };
 const CACHE_TTL = 30000; // Cache valid for 30 seconds
 let isLoadingNotes = false; // Prevent multiple simultaneous loads
+let currentOffset = 0; // Current pagination offset
+let hasMoreNotes = true; // Whether there are more notes to load
+let scrollObserver = null; // Intersection Observer for infinite scroll
 
 // ===== COLOR THEME MAPPING =====
 // Maps light note colors to dark mode equivalents (following WCAG accessibility guidelines)
@@ -1291,25 +1294,35 @@ function renderNoteHTML(note) {
 }
 
 async function loadNotes(options = {}) {
-  const { forceRefresh = false, showLoading = true } = options;
+  const { forceRefresh = false, showLoading = true, append = false } = options;
 
   // Determine which cache key to use
   const cacheKey = showingArchived ? 'archived' : showingShared ? 'shared' : 'all';
-  const url = showingArchived
+
+  // Reset pagination when not appending
+  if (!append) {
+    currentOffset = 0;
+  }
+
+  // Build URL with pagination
+  let url = showingArchived
     ? '/api/notes?archived=true'
     : showingShared
       ? '/api/notes?shared=true'
       : '/api/notes';
+  url += `&limit=${PAGE_SIZE}&offset=${currentOffset}`;
 
-  // Check cache first (if not forcing refresh)
+  // Check cache first (if not forcing refresh and not appending)
   const cachedData = notesCache[cacheKey];
   const cacheTime = notesCache.timestamp[cacheKey] || 0;
-  const cacheValid = cachedData && (Date.now() - cacheTime < CACHE_TTL) && !forceRefresh;
+  const cacheValid = cachedData.notes.length > 0 && (Date.now() - cacheTime < CACHE_TTL) && !forceRefresh && !append;
 
   if (cacheValid) {
     // Use cached data immediately
-    notes = cachedData;
+    notes = cachedData.notes;
+    hasMoreNotes = cachedData.hasMore;
     renderNotes();
+    setupScrollObserver();
     return;
   }
 
@@ -1317,33 +1330,53 @@ async function loadNotes(options = {}) {
   if (isLoadingNotes) return;
   isLoadingNotes = true;
 
-  // Show loading indicator immediately
-  if (showLoading) {
+  // Show loading indicator
+  if (showLoading && !append) {
     showNotesLoading();
+  } else if (append) {
+    showLoadingMore();
   }
 
   try {
     const response = await apiFetch(url);
     if (response.ok) {
-      notes = await response.json();
+      const data = await response.json();
+
+      if (append) {
+        // Append new notes to existing
+        notes = [...notes, ...data.notes];
+      } else {
+        // Replace notes
+        notes = data.notes;
+      }
+
+      hasMoreNotes = data.hasMore;
+      currentOffset += data.notes.length;
 
       // Update cache
-      notesCache[cacheKey] = notes;
+      notesCache[cacheKey] = { notes, hasMore: hasMoreNotes, total: data.total };
       notesCache.timestamp[cacheKey] = Date.now();
 
-      renderNotes();
+      renderNotes({ append });
+      setupScrollObserver();
     }
   } catch (error) {
     console.error('Failed to load notes:', error);
   } finally {
     isLoadingNotes = false;
+    hideLoadingMore();
   }
 }
 
-// Show loading state in notes grid
+// Load more notes (called by infinite scroll)
+async function loadMoreNotes() {
+  if (!hasMoreNotes || isLoadingNotes) return;
+  await loadNotes({ append: true, showLoading: false });
+}
+
+// Show loading state in notes grid (initial load)
 function showNotesLoading() {
   const regularContainer = document.getElementById('notes-grid');
-  const pinnedContainer = document.getElementById('pinned-notes-grid');
   const pinnedSection = document.getElementById('pinned-section');
 
   // Hide pinned section during load
@@ -1358,37 +1391,82 @@ function showNotesLoading() {
   `;
 }
 
+// Show loading indicator for "load more"
+function showLoadingMore() {
+  const sentinel = document.getElementById('scroll-sentinel');
+  if (sentinel) {
+    sentinel.innerHTML = `
+      <div class="loading-more">
+        <div class="note-card skeleton-card"></div>
+        <div class="note-card skeleton-card"></div>
+      </div>
+    `;
+  }
+}
+
+// Hide loading indicator for "load more"
+function hideLoadingMore() {
+  const sentinel = document.getElementById('scroll-sentinel');
+  if (sentinel) {
+    sentinel.innerHTML = '';
+  }
+}
+
+// Setup Intersection Observer for infinite scroll
+function setupScrollObserver() {
+  // Cleanup existing observer
+  if (scrollObserver) {
+    scrollObserver.disconnect();
+  }
+
+  const sentinel = document.getElementById('scroll-sentinel');
+  if (!sentinel || !hasMoreNotes) return;
+
+  scrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && hasMoreNotes && !isLoadingNotes) {
+        loadMoreNotes();
+      }
+    });
+  }, {
+    rootMargin: '200px' // Start loading 200px before reaching the sentinel
+  });
+
+  scrollObserver.observe(sentinel);
+}
+
 // Invalidate cache for a specific key or all
 function invalidateNotesCache(cacheKey = null) {
   if (cacheKey) {
-    notesCache[cacheKey] = null;
+    notesCache[cacheKey] = { notes: [], hasMore: true, total: 0 };
     notesCache.timestamp[cacheKey] = 0;
   } else {
     // Invalidate all caches
-    notesCache.all = null;
-    notesCache.archived = null;
-    notesCache.shared = null;
+    notesCache.all = { notes: [], hasMore: true, total: 0 };
+    notesCache.archived = { notes: [], hasMore: true, total: 0 };
+    notesCache.shared = { notes: [], hasMore: true, total: 0 };
     notesCache.timestamp = {};
   }
 }
 
 // Pre-fetch archived notes in background (for faster switching)
 function prefetchArchivedNotes() {
-  if (notesCache.archived) return; // Already cached
+  if (notesCache.archived.notes.length > 0) return; // Already cached
 
-  // Fetch silently in background
-  apiFetch('/api/notes?archived=true')
+  // Fetch silently in background (just first page)
+  apiFetch(`/api/notes?archived=true&limit=${PAGE_SIZE}&offset=0`)
     .then(response => response.ok ? response.json() : null)
     .then(data => {
       if (data) {
-        notesCache.archived = data;
+        notesCache.archived = { notes: data.notes, hasMore: data.hasMore, total: data.total };
         notesCache.timestamp.archived = Date.now();
       }
     })
     .catch(() => {}); // Silently ignore errors
 }
 
-function renderNotes() {
+function renderNotes(options = {}) {
+  const { append = false } = options;
   const regularContainer = document.getElementById('notes-grid');
   const pinnedContainer = document.getElementById('pinned-notes-grid');
   const pinnedSection = document.getElementById('pinned-section');
@@ -1433,9 +1511,28 @@ function renderNotes() {
     return;
   }
 
-  // Render pinned and regular notes in their respective containers
-  pinnedContainer.innerHTML = pinnedNotes.map(note => renderNoteHTML(note)).join('');
-  regularContainer.innerHTML = regularNotes.map(note => renderNoteHTML(note)).join('');
+  if (append) {
+    // Append mode: Only add new notes that aren't already rendered
+    const existingIds = new Set(
+      [...regularContainer.querySelectorAll('.note-card'), ...pinnedContainer.querySelectorAll('.note-card')]
+        .map(card => parseInt(card.dataset.noteId))
+    );
+
+    const newPinnedNotes = pinnedNotes.filter(note => !existingIds.has(note.id));
+    const newRegularNotes = regularNotes.filter(note => !existingIds.has(note.id));
+
+    // Append new notes
+    if (newPinnedNotes.length > 0) {
+      pinnedContainer.insertAdjacentHTML('beforeend', newPinnedNotes.map(note => renderNoteHTML(note)).join(''));
+    }
+    if (newRegularNotes.length > 0) {
+      regularContainer.insertAdjacentHTML('beforeend', newRegularNotes.map(note => renderNoteHTML(note)).join(''));
+    }
+  } else {
+    // Full render mode: Replace all notes
+    pinnedContainer.innerHTML = pinnedNotes.map(note => renderNoteHTML(note)).join('');
+    regularContainer.innerHTML = regularNotes.map(note => renderNoteHTML(note)).join('');
+  }
 
   // Use requestAnimationFrame for smooth DOM updates after render
   requestAnimationFrame(() => {
