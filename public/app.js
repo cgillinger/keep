@@ -184,9 +184,9 @@ function updateUITranslations() {
   if (settingsHeadings.length >= 2) {
     settingsHeadings[settingsHeadings.length - 1].textContent = t('profile.data_backup_title');
   }
-  document.querySelector('button[onclick="openImportModal()"]').textContent = t('profile.import_from_keep');
-  document.querySelector('button[onclick="exportBackup()"]').textContent = t('profile.export_backup');
-  document.querySelector('#profile-modal button.btn-secondary').textContent = t('profile.close_button');
+  document.querySelector('button[onclick="openImportModal()"]').textContent = '📥 ' + t('profile.import_from_keep');
+  document.querySelector('button[onclick="exportBackup()"]').textContent = '📤 ' + t('profile.export_backup');
+  document.querySelector('#profile-modal button[onclick="closeProfileModal()"]').textContent = t('profile.close_button');
 
   // Share modal
   document.querySelector('#share-modal h2').textContent = t('share.title');
