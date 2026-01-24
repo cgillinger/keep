@@ -57,7 +57,7 @@ function updateUITranslations() {
   document.querySelector('#login-form h2').textContent = t('auth.login_title');
   document.querySelector('#login-username').placeholder = t('auth.username_placeholder');
   document.querySelector('#login-password').placeholder = t('auth.password_placeholder');
-  document.querySelector('#login-form button').textContent = t('auth.login_button');
+  document.querySelector('#login-form button[onclick="login()"]').textContent = t('auth.login_button');
   document.querySelector('#login-form .auth-switch').innerHTML =
     `${t('auth.new_user')} <a href="#" onclick="showRegister(); return false;">${t('auth.register_link')}</a>`;
   document.querySelector('#forgot-password-link a').textContent = t('auth.forgot_password_link');
@@ -81,10 +81,10 @@ function updateUITranslations() {
       lis[3].textContent = t('auth.password_req_number');
     }
     const tip = reqDiv.querySelector('.tip');
-    if (tip) tip.textContent = t('auth.password_tip');
+    if (tip) tip.innerHTML = t('auth.password_tip');
   });
 
-  document.querySelector('#register-form > button').textContent = t('auth.register_button');
+  document.querySelector('#register-form button[onclick="register()"]').textContent = t('auth.register_button');
   document.querySelector('#register-form .auth-switch').innerHTML =
     `${t('auth.already_have_account')} <a href="#" onclick="showLogin(); return false;">${t('auth.login_link')}</a>`;
 
@@ -92,7 +92,7 @@ function updateUITranslations() {
   document.querySelector('#forgot-password-form h2').textContent = t('auth.forgot_password_title');
   document.querySelector('#forgot-password-form .help-text').textContent = t('auth.forgot_password_help');
   document.querySelector('#forgot-password-input').placeholder = t('auth.username_or_email_placeholder');
-  document.querySelector('#forgot-password-form button:not(.auth-switch button)').textContent = t('auth.send_reset_link_button');
+  document.querySelector('#forgot-password-form button[onclick="requestPasswordReset()"]').textContent = t('auth.send_reset_link_button');
   document.querySelector('#forgot-password-form .auth-switch a').textContent = t('auth.back_to_login');
 
   // Reset password form
@@ -100,7 +100,7 @@ function updateUITranslations() {
   document.querySelector('#reset-password-form .help-text').textContent = t('auth.reset_password_help');
   document.querySelector('#reset-password-new').placeholder = t('auth.new_password_placeholder');
   document.querySelector('#reset-password-confirm').placeholder = t('auth.confirm_new_password_placeholder');
-  document.querySelector('#reset-password-form > button').textContent = t('auth.reset_password_button');
+  document.querySelector('#reset-password-form button[onclick="resetPassword()"]').textContent = t('auth.reset_password_button');
   document.querySelector('#reset-password-form .auth-switch a').textContent = t('auth.back_to_login');
 
   // Header
@@ -166,7 +166,24 @@ function updateUITranslations() {
   });
 
   document.querySelector('#show-created-date-toggle + span').textContent = t('profile.show_created_date');
-  document.querySelector('.settings-heading').textContent = t('profile.data_backup_title');
+
+  // Change password section
+  const changePasswordSection = document.querySelector('#change-password-form').parentElement;
+  const changePasswordHeading = changePasswordSection.querySelector('h3.settings-heading');
+  if (changePasswordHeading) {
+    changePasswordHeading.textContent = t('profile.change_password_title');
+  }
+  document.querySelector('#current-password').placeholder = t('profile.current_password_placeholder');
+  document.querySelector('#new-password').placeholder = t('profile.new_password_placeholder');
+  document.querySelector('#confirm-new-password').placeholder = t('profile.confirm_new_password_placeholder');
+  document.querySelector('button[onclick="changePassword()"]').textContent = t('profile.change_password_button');
+
+  // Data and backup section
+  const settingsHeadings = document.querySelectorAll('#profile-modal .settings-heading');
+  // Find the "Data och backup" heading (it should be the last one or the one after language selector)
+  if (settingsHeadings.length >= 2) {
+    settingsHeadings[settingsHeadings.length - 1].textContent = t('profile.data_backup_title');
+  }
   document.querySelector('button[onclick="openImportModal()"]').textContent = t('profile.import_from_keep');
   document.querySelector('button[onclick="exportBackup()"]').textContent = t('profile.export_backup');
   document.querySelector('#profile-modal button.btn-secondary').textContent = t('profile.close_button');
