@@ -367,8 +367,12 @@ function showResetPassword() {
 }
 
 async function login() {
+  console.log('[LOGIN] Function called');
+
   const username = document.getElementById('login-username').value;
   const password = document.getElementById('login-password').value;
+
+  console.log('[LOGIN] Username:', username, 'Password length:', password.length);
 
   if (!username || !password) {
     showAuthError('Fyll i användarnamn och lösenord');
@@ -376,6 +380,7 @@ async function login() {
   }
 
   try {
+    console.log('[LOGIN] Sending login request...');
     const response = await fetch('/api/login', {
       method: 'POST',
       credentials: 'include',
@@ -386,9 +391,12 @@ async function login() {
       body: JSON.stringify({ username, password })
     });
 
+    console.log('[LOGIN] Response status:', response.status);
     const data = await response.json();
+    console.log('[LOGIN] Response data:', data);
 
     if (response.ok) {
+      console.log('[LOGIN] Login successful, setting currentUser');
       // Set current user immediately so session is available
       currentUser = data;
 
@@ -400,6 +408,7 @@ async function login() {
 
       // Brief delay before transitioning to app to show success message
       setTimeout(() => {
+        console.log('[LOGIN] Transitioning to app...');
         showApp();
         loadNotes();
         connectWebSocket();
@@ -407,11 +416,13 @@ async function login() {
         applyBackgroundTheme(data.backgroundTheme || 'default');
       }, 800);
     } else {
+      console.log('[LOGIN] Login failed:', data.error);
       showAuthError(data.error || t('messages.login_failed'));
       // Refresh CSRF token on auth failure
       await fetchCSRFToken();
     }
   } catch (error) {
+    console.error('[LOGIN] Error:', error);
     showAuthError(t('messages.network_error'));
   }
 }

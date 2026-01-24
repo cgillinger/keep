@@ -56,7 +56,7 @@
             </svg>
           </button>
         </div>
-        <button onclick="login()">Logga in</button>
+        <button type="button" onclick="login()">Logga in</button>
         <p class="auth-switch">
           Ny användare? <a href="#" onclick="showRegister(); return false;">Registrera dig</a>
         </p>
@@ -99,7 +99,7 @@
             💡 <strong>Viktigt:</strong> Om du lägger till en e-postadress kan du återställa ditt lösenord via e-post om du glömmer det. Utan e-post finns ingen möjlighet till återställning.
           </p>
         </div>
-        <button onclick="register()">Registrera</button>
+        <button type="button" onclick="register()">Registrera</button>
         <p class="auth-switch">
           Har redan ett konto? <a href="#" onclick="showLogin(); return false;">Logga in</a>
         </p>
@@ -111,7 +111,7 @@
           Ange ditt användarnamn eller e-postadress. Om kontot finns och har en e-post kopplad kommer du att få en återställningslänk.
         </p>
         <input type="text" id="forgot-password-input" placeholder="Användarnamn eller e-post" autocomplete="username">
-        <button onclick="requestPasswordReset()">Skicka återställningslänk</button>
+        <button type="button" onclick="requestPasswordReset()">Skicka återställningslänk</button>
         <p class="auth-switch">
           <a href="#" onclick="showLogin(); return false;">Tillbaka till inloggning</a>
         </p>
@@ -149,7 +149,7 @@
             <li>Minst en siffra (0-9)</li>
           </ul>
         </div>
-        <button onclick="resetPassword()">Återställ lösenord</button>
+        <button type="button" onclick="resetPassword()">Återställ lösenord</button>
         <p class="auth-switch">
           <a href="#" onclick="showLogin(); return false;">Tillbaka till inloggning</a>
         </p>
