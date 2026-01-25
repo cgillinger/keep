@@ -227,15 +227,15 @@ body.theme-dark .language-selector {
   }
 
   .notes-grid {
-    grid-template-columns: 1fr;
-    grid-auto-rows: 10px; /* Small row units for tight packing */
-    padding: var(--space-sm); /* Add padding for spacing from screen edges */
-    gap: var(--space-md); /* Gap between cards */
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-sm); /* Padding from screen edges */
+    gap: var(--space-md); /* Space between cards */
   }
 
   .note-card {
     border-radius: var(--radius-md); /* Keep rounded corners on mobile */
-    /* Keep all borders for clear card separation */
+    grid-row-end: auto !important; /* Override JS masonry calculation */
   }
 
   .images-preview {
