@@ -210,20 +210,130 @@ body.theme-dark .language-selector {
   color: var(--color-text);
 }
 
+/* Mobile menu button - hidden on desktop */
+.mobile-menu-btn {
+  display: none;
+}
+
+.header-title-row {
+  display: contents; /* On desktop, behave as if not there */
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .header-content {
     flex-direction: column;
-    gap: var(--space-md);
+    gap: 0;
+    padding: var(--space-sm) var(--space-md);
   }
 
-  .header-actions {
-    flex-wrap: wrap;
+  .header-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  .header-title-row h1 {
+    font-size: var(--font-size-xl);
+    margin: 0;
+  }
+
+  /* Hamburger menu button */
+  .mobile-menu-btn {
+    display: flex;
+    align-items: center;
     justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--space-sm);
+    border-radius: var(--radius-md);
+  }
+
+  .mobile-menu-btn:hover {
+    background: var(--color-bg-subtle);
+  }
+
+  .hamburger-icon {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: var(--color-text);
+    position: relative;
+    transition: background 0.2s;
+  }
+
+  .hamburger-icon::before,
+  .hamburger-icon::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 2px;
+    background: var(--color-text);
+    left: 0;
+    transition: transform 0.2s;
+  }
+
+  .hamburger-icon::before {
+    top: -6px;
+  }
+
+  .hamburger-icon::after {
+    top: 6px;
+  }
+
+  /* Animate to X when menu is open */
+  .mobile-menu-btn.active .hamburger-icon {
+    background: transparent;
+  }
+
+  .mobile-menu-btn.active .hamburger-icon::before {
+    transform: rotate(45deg) translate(4px, 4px);
+  }
+
+  .mobile-menu-btn.active .hamburger-icon::after {
+    transform: rotate(-45deg) translate(4px, -4px);
+  }
+
+  /* Header actions - hidden by default on mobile */
+  .header-actions {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    gap: var(--space-sm);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-border);
+    margin-top: var(--space-sm);
+  }
+
+  .header-actions.mobile-open {
+    display: flex;
   }
 
   #search-input {
     width: 100%;
+    font-size: 16px; /* Prevent iOS zoom */
+  }
+
+  /* Smaller buttons on mobile */
+  .header-actions .btn-secondary {
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--font-size-sm);
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Profile and user info row */
+  .header-actions .profile-pic-header {
+    width: 32px;
+    height: 32px;
+  }
+
+  #user-info {
+    display: none; /* Hide username text on mobile to save space */
   }
 
   .notes-grid {

@@ -1849,6 +1849,26 @@ function toggleShared() {
   loadNotes();
 }
 
+// Toggle mobile menu
+function toggleMobileMenu() {
+  const menuBtn = document.getElementById('mobile-menu-btn');
+  const headerActions = document.getElementById('header-actions');
+
+  menuBtn.classList.toggle('active');
+  headerActions.classList.toggle('mobile-open');
+}
+
+// Close mobile menu when clicking outside or selecting an option
+function closeMobileMenu() {
+  const menuBtn = document.getElementById('mobile-menu-btn');
+  const headerActions = document.getElementById('header-actions');
+
+  if (menuBtn && headerActions) {
+    menuBtn.classList.remove('active');
+    headerActions.classList.remove('mobile-open');
+  }
+}
+
 // Debounced search to avoid rendering on every keystroke
 let searchTimeout = null;
 function searchNotes() {

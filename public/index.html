@@ -165,8 +165,13 @@
     <!-- Header -->
     <header>
       <div class="header-content">
-        <h1>Keep Clone</h1>
-        <div class="header-actions">
+        <div class="header-title-row">
+          <h1>Keep Clone</h1>
+          <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Meny">
+            <span class="hamburger-icon"></span>
+          </button>
+        </div>
+        <div class="header-actions" id="header-actions">
           <input type="text" id="search-input" placeholder="Sök anteckningar..." onkeyup="searchNotes()">
           <button class="btn-secondary" onclick="toggleShared()">
             <span id="shared-toggle-text">Visa delade</span>
