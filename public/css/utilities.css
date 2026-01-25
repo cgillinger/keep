@@ -229,14 +229,13 @@ body.theme-dark .language-selector {
   .notes-grid {
     grid-template-columns: 1fr;
     grid-auto-rows: 10px; /* Small row units for tight packing */
-    padding: 0; /* Remove padding for edge-to-edge cards on mobile */
-    gap: var(--space-sm) 0; /* Vertical gap only, no horizontal gap */
+    padding: var(--space-sm); /* Add padding for spacing from screen edges */
+    gap: var(--space-md); /* Gap between cards */
   }
 
   .note-card {
-    border-radius: 0; /* Remove rounded corners for edge-to-edge look */
-    border-left: none; /* Remove left border */
-    border-right: none; /* Remove right border */
+    border-radius: var(--radius-md); /* Keep rounded corners on mobile */
+    /* Keep all borders for clear card separation */
   }
 
   .images-preview {
