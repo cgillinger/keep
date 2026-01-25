@@ -219,6 +219,28 @@ Varje användare kan anpassa sin profil med:
 - Gul → Mörk gul (#7f6f0a)
 - Och så vidare...
 
+### Responsiv design (Desktop vs Mobil)
+
+Applikationen anpassar sig automatiskt till skärmstorlek:
+
+**Desktop (>768px):**
+- Masonry-grid layout (Pinterest-stil)
+- Kort placeras i flera kolumner med dynamisk höjd
+- Rundade hörn (6px) på alla kort
+- Gap mellan kort (16px)
+
+**Mobil (≤768px):**
+- Enkel kolumn med flexbox-layout
+- Kort visas i en vertikal lista
+- Rundade hörn (6px) bevaras för tydlig kortseparation
+- Mellanrum mellan kort (12px) för enkel visuell avgränsning
+- Padding från skärmkanter (8px) för luftig känsla
+
+**Teknisk implementation:**
+- CSS media queries växlar mellan grid och flexbox
+- JavaScript masonry-beräkningar inaktiveras på mobil
+- Touch-vänliga knappar och interaktioner
+
 ### Var visas profiler?
 
 - **Header:** Dina initialer med vald avatarfärg
