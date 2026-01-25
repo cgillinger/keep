@@ -276,6 +276,31 @@ function broadcastToUsers(userIds, data) {
   userIds.forEach(userId => broadcastToUser(userId, data));
 }
 
+// Helper function to delete note image files from disk
+function deleteNoteImageFiles(imageFilenames) {
+  if (!imageFilenames || !Array.isArray(imageFilenames)) return;
+
+  const imageDir = path.join(__dirname, 'data', 'note-images');
+
+  imageFilenames.forEach(filename => {
+    // Validate filename format to prevent path traversal
+    if (!/^note_\d+_\d+\.webp$/.test(filename)) {
+      logger.warn('Invalid image filename format, skipping deletion:', filename);
+      return;
+    }
+
+    const filepath = path.join(imageDir, filename);
+
+    fs.unlink(filepath, (err) => {
+      if (err && err.code !== 'ENOENT') {
+        logger.error('Failed to delete image file:', filepath, err);
+      } else if (!err) {
+        logger.info('Deleted orphaned image file:', filename);
+      }
+    });
+  });
+}
+
 // ===== AUTH ROUTES =====
 
 // Get CSRF token
@@ -1085,14 +1110,29 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
 
       // Validate and sanitize images array
       let imagesData = null;
+      let newImages = [];
       if (images && Array.isArray(images)) {
-        const sanitizedImages = images
+        newImages = images
           .slice(0, 10)
           .map(img => path.basename(img))
           .filter(img => /^note_\d+_\d+\.webp$/.test(img));
-        if (sanitizedImages.length > 0) {
-          imagesData = JSON.stringify(sanitizedImages);
+        if (newImages.length > 0) {
+          imagesData = JSON.stringify(newImages);
         }
+      }
+
+      // Find and delete removed images
+      let currentImages = [];
+      if (note.images) {
+        try {
+          currentImages = JSON.parse(note.images);
+        } catch (e) {
+          currentImages = [];
+        }
+      }
+      const removedImages = currentImages.filter(img => !newImages.includes(img));
+      if (removedImages.length > 0) {
+        deleteNoteImageFiles(removedImages);
       }
 
       db.run(
@@ -1162,8 +1202,8 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
 app.delete('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) => {
   const { id } = req.params;
 
-  // Only owner can delete
-  db.get('SELECT user_id FROM notes WHERE id = ?', [id], (err, note) => {
+  // Only owner can delete - also fetch images for cleanup
+  db.get('SELECT user_id, images FROM notes WHERE id = ?', [id], (err, note) => {
     if (err) {
       logger.error('Check note owner error:', err);
       return res.status(500).json({ error: 'Kunde inte radera anteckning' });
@@ -1171,6 +1211,16 @@ app.delete('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res)
 
     if (!note || note.user_id !== req.session.userId) {
       return res.status(404).json({ error: 'Anteckning hittades inte eller du saknar rättigheter' });
+    }
+
+    // Parse images for later cleanup
+    let noteImages = [];
+    if (note.images) {
+      try {
+        noteImages = JSON.parse(note.images);
+      } catch (e) {
+        noteImages = [];
+      }
     }
 
     // Get all users this note is shared with before deleting
@@ -1181,6 +1231,11 @@ app.delete('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res)
         if (err) {
           logger.error('Delete note error:', err);
           return res.status(500).json({ error: 'Kunde inte radera anteckning' });
+        }
+
+        // Delete associated image files
+        if (noteImages.length > 0) {
+          deleteNoteImageFiles(noteImages);
         }
 
         // Broadcast to owner
