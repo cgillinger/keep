@@ -9,10 +9,13 @@
   left: 0;
   width: 100%;
   height: 100%;
+  height: 100dvh; /* Dynamic viewport height for mobile */
   background: rgba(0, 0, 0, 0.5);
   z-index: var(--z-modal);
   padding: var(--space-2xl);
   overflow-y: auto; /* Allow scrolling the entire modal if needed */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  overscroll-behavior: contain; /* Prevent scroll chaining to body */
   /* GPU acceleration for smooth fade-in */
   will-change: opacity;
   opacity: 0;
@@ -46,14 +49,20 @@
   max-width: var(--max-width-modal-sm);
   height: auto; /* Allow height to be dynamic */
   max-height: calc(100vh - 80px); /* Limit max height */
+  max-height: calc(100dvh - 80px); /* Dynamic viewport for mobile */
   overflow-y: auto; /* Enable scrolling */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  overscroll-behavior: contain; /* Prevent scroll chaining */
 }
 
 .modal-content--medium {
   max-width: var(--max-width-modal-md);
   height: auto; /* Allow height to be dynamic */
   max-height: calc(100vh - 80px); /* Limit max height */
+  max-height: calc(100dvh - 80px); /* Dynamic viewport for mobile */
   overflow-y: auto; /* Enable scrolling */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  overscroll-behavior: contain; /* Prevent scroll chaining */
 }
 
 .modal-close-btn {
@@ -204,4 +213,32 @@
 
 .image-modal .close-image-modal:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* Mobile modal adjustments */
+@media (max-width: 768px) {
+  .modal {
+    padding: var(--space-md);
+  }
+
+  .modal.active {
+    padding-top: var(--space-lg);
+    align-items: flex-start;
+  }
+
+  .modal-content,
+  .modal-content--small,
+  .modal-content--medium {
+    max-height: calc(100vh - 40px);
+    max-height: calc(100dvh - 40px);
+    padding: var(--space-lg);
+    margin: 0;
+    border-radius: var(--radius-md);
+  }
+
+  /* Ensure touch scrolling works smoothly on iOS */
+  .modal-content--small,
+  .modal-content--medium {
+    touch-action: pan-y;
+  }
 }
