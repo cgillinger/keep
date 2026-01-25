@@ -1310,7 +1310,10 @@ async function loadNotes(options = {}) {
     : showingShared
       ? '/api/notes?shared=true'
       : '/api/notes';
-  url += `&limit=${PAGE_SIZE}&offset=${currentOffset}`;
+
+  // Add pagination params (use ? or & depending on existing params)
+  const separator = url.includes('?') ? '&' : '?';
+  url += `${separator}limit=${PAGE_SIZE}&offset=${currentOffset}`;
 
   // Check cache first (if not forcing refresh and not appending)
   const cachedData = notesCache[cacheKey];
