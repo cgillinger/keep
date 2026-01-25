@@ -757,6 +757,13 @@ app.get('/api/notes/image/:filename', (req, res) => {
     return res.status(404).send('Bild hittades inte');
   }
 
+  // Set cache headers for better performance
+  // Images are immutable (filename is unique hash), cache for 1 year
+  res.set({
+    'Cache-Control': 'public, max-age=31536000, immutable',
+    'ETag': filename // Use filename as ETag since it's content-based
+  });
+
   res.sendFile(filepath);
 });
 
