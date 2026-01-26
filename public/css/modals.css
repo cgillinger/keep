@@ -218,27 +218,57 @@
 /* Mobile modal adjustments */
 @media (max-width: 768px) {
   .modal {
-    padding: var(--space-md);
+    padding: var(--space-sm);
   }
 
   .modal.active {
-    padding-top: var(--space-lg);
+    padding-top: var(--space-sm);
     align-items: flex-start;
   }
 
   .modal-content,
   .modal-content--small,
   .modal-content--medium {
-    max-height: calc(100vh - 40px);
-    max-height: calc(100dvh - 40px);
-    padding: var(--space-lg);
+    max-height: calc(100vh - 20px);
+    max-height: calc(100dvh - 20px);
+    padding: var(--space-md);
     margin: 0;
     border-radius: var(--radius-md);
+  }
+
+  /* Edit modal specific - full screen feel */
+  .modal-content {
+    height: calc(100vh - 20px);
+    height: calc(100dvh - 20px);
   }
 
   /* Ensure touch scrolling works smoothly on iOS */
   .modal-content--small,
   .modal-content--medium {
     touch-action: pan-y;
+  }
+
+  /* Note edit form mobile adjustments */
+  .note-edit-form {
+    padding: 0 var(--space-md);
+    margin: 0 calc(-1 * var(--space-md));
+  }
+
+  .note-edit-form input {
+    font-size: var(--font-size-lg); /* Slightly smaller title */
+  }
+
+  .note-edit-form textarea {
+    min-height: 120px; /* Smaller minimum height on mobile */
+    font-size: 16px; /* Prevent iOS zoom */
+  }
+
+  /* Modal close button - smaller on mobile */
+  .modal-close-btn {
+    width: 36px;
+    height: 36px;
+    font-size: var(--font-size-xl);
+    top: var(--space-sm);
+    right: var(--space-sm);
   }
 }

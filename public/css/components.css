@@ -1190,3 +1190,66 @@
 .loading-more .skeleton-card {
   min-height: 100px;
 }
+
+/* ===== MOBILE COMPONENT ADJUSTMENTS ===== */
+@media (max-width: 768px) {
+  /* Note form actions - stack on mobile */
+  .note-form-actions {
+    flex-direction: column;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+  }
+
+  .note-options {
+    width: 100%;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+
+  /* Smaller icon buttons on mobile */
+  .note-options .btn-icon {
+    font-size: 18px;
+    padding: var(--space-xs);
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  /* Primary button full width on mobile */
+  .note-form-actions .btn-primary {
+    width: 100%;
+    padding: var(--space-md);
+    font-size: var(--font-size-base);
+  }
+
+  /* Color picker adjustments for mobile */
+  .color-options {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    bottom: auto;
+    top: 100%;
+    margin-top: var(--space-sm);
+  }
+
+  /* Smaller color buttons */
+  .color-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* New note form on mobile */
+  .new-note-form {
+    padding: var(--space-md);
+  }
+
+  .new-note-container {
+    padding: 0 var(--space-sm);
+  }
+
+  /* Buttons in general - touch-friendly size */
+  .btn-primary,
+  .btn-secondary {
+    min-height: 44px; /* Apple's recommended touch target */
+  }
+}
