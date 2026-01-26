@@ -232,11 +232,12 @@
     max-height: calc(100vh - 20px);
     max-height: calc(100dvh - 20px);
     padding: var(--space-md);
-    margin: 0;
+    margin: 0 var(--space-sm); /* Side margins for visual breathing room */
+    width: calc(100% - 16px); /* Account for side margins */
     border-radius: var(--radius-md);
   }
 
-  /* Edit modal specific - full screen feel */
+  /* Edit modal specific - full screen feel but with side margins */
   .modal-content {
     height: calc(100vh - 20px);
     height: calc(100dvh - 20px);
