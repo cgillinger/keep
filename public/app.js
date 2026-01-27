@@ -230,6 +230,7 @@ async function changeLanguage(locale) {
 let currentUser = null;
 let notes = [];
 let currentEditingNote = null;
+let originalEditState = null; // Store original values to detect changes
 let selectedColor = '#ffffff';
 let isChecklistMode = false;
 let showingArchived = false;
@@ -1688,13 +1689,108 @@ function openEditModal(noteId) {
     document.getElementById('edit-images-container').style.display = 'none';
   }
 
+  // Store original state to detect changes
+  originalEditState = {
+    title: note.title || '',
+    content: note.content || '',
+    isChecklist: note.is_checklist,
+    checklistItems: note.checklist_items ? JSON.stringify(note.checklist_items) : '[]',
+    images: note.images ? [...note.images] : []
+  };
+
   document.getElementById('edit-modal').classList.add('active');
 }
 
+// Check if there are unsaved changes in the edit modal
+function hasUnsavedChanges() {
+  if (!currentEditingNote || !originalEditState) return false;
+
+  const currentTitle = document.getElementById('edit-note-title').value;
+  const currentContent = document.getElementById('edit-note-content').value;
+  const isChecklist = document.getElementById('edit-checklist-container').style.display !== 'none';
+
+  // Check title and content
+  if (currentTitle !== originalEditState.title) return true;
+  if (currentContent !== originalEditState.content) return true;
+
+  // Check checklist mode
+  if (isChecklist !== originalEditState.isChecklist) return true;
+
+  // Check checklist items if in checklist mode
+  if (isChecklist) {
+    const currentItems = JSON.stringify(getChecklistItems('edit-checklist-items'));
+    if (currentItems !== originalEditState.checklistItems) return true;
+  }
+
+  // Check images
+  if (JSON.stringify(editNoteImages) !== JSON.stringify(originalEditState.images)) return true;
+
+  return false;
+}
+
 function closeEditModal(event) {
-  if (event && event.target.id !== 'edit-modal') return;
+  // Allow closing from backdrop click or direct call (X button)
+  // If event exists and target is not the modal backdrop, it's a click inside - ignore
+  if (event && event.target && event.target.id !== 'edit-modal') {
+    // But allow if it's the close button being clicked
+    if (!event.target.classList.contains('modal-close-btn') &&
+        !event.target.closest('.modal-close-btn')) {
+      return;
+    }
+  }
+
+  // Check for unsaved changes
+  if (hasUnsavedChanges()) {
+    showUnsavedChangesDialog();
+    return;
+  }
+
+  // No changes, just close
+  forceCloseEditModal();
+}
+
+function forceCloseEditModal() {
   document.getElementById('edit-modal').classList.remove('active');
   currentEditingNote = null;
+  originalEditState = null;
+}
+
+function showUnsavedChangesDialog() {
+  // Create a simple confirmation dialog
+  const existingDialog = document.getElementById('unsaved-changes-dialog');
+  if (existingDialog) existingDialog.remove();
+
+  const dialog = document.createElement('div');
+  dialog.id = 'unsaved-changes-dialog';
+  dialog.className = 'modal active';
+  dialog.style.zIndex = '1001'; // Above edit modal
+  dialog.innerHTML = `
+    <div class="modal-content modal-content--small" style="max-width: 320px; text-align: center;" onclick="event.stopPropagation()">
+      <h3 style="margin-bottom: 16px;">Osparade ändringar</h3>
+      <p style="margin-bottom: 24px; color: #5f6368;">Du har ändringar som inte sparats. Vill du spara eller slänga dem?</p>
+      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        <button class="btn-secondary" onclick="discardChangesAndClose()">Släng</button>
+        <button class="btn-primary" onclick="saveChangesAndClose()">Spara</button>
+      </div>
+    </div>
+  `;
+  dialog.onclick = (e) => {
+    if (e.target.id === 'unsaved-changes-dialog') {
+      dialog.remove();
+    }
+  };
+  document.body.appendChild(dialog);
+}
+
+function discardChangesAndClose() {
+  document.getElementById('unsaved-changes-dialog')?.remove();
+  forceCloseEditModal();
+}
+
+async function saveChangesAndClose() {
+  document.getElementById('unsaved-changes-dialog')?.remove();
+  await updateNote();
+  // updateNote will close the modal on success
 }
 
 async function updateNote() {
@@ -1729,7 +1825,7 @@ async function updateNote() {
     });
 
     if (response.ok) {
-      closeEditModal();
+      forceCloseEditModal();
       invalidateNotesCache();
       loadNotes({ forceRefresh: true });
     } else if (response.status === 403) {
@@ -1756,7 +1852,7 @@ async function deleteNote() {
     });
 
     if (response.ok) {
-      closeEditModal();
+      forceCloseEditModal();
       invalidateNotesCache();
       loadNotes({ forceRefresh: true });
     } else if (response.status === 403) {
@@ -1819,7 +1915,7 @@ async function toggleArchiveNote() {
     });
 
     if (response.ok) {
-      closeEditModal();
+      forceCloseEditModal();
       invalidateNotesCache(); // Both active and archived views need refresh
       loadNotes({ forceRefresh: true });
     } else if (response.status === 403) {
