@@ -85,7 +85,8 @@
   transition: background-color var(--transition-normal);
 }
 
-.modal-close-btn:hover {
+.modal-close-btn:hover,
+.modal-close-btn:active {
   background-color: var(--color-bg-subtle);
 }
 
@@ -229,18 +230,18 @@
   .modal-content,
   .modal-content--small,
   .modal-content--medium {
-    max-height: calc(100vh - 20px);
-    max-height: calc(100dvh - 20px);
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
     padding: var(--space-md);
-    margin: 0 var(--space-sm); /* Side margins for visual breathing room */
-    width: calc(100% - 16px); /* Account for side margins */
+    margin: 0 var(--space-md); /* Larger side margins (12px) */
+    width: calc(100% - 24px); /* Account for side margins */
     border-radius: var(--radius-md);
   }
 
   /* Edit modal specific - full screen feel but with side margins */
   .modal-content {
-    height: calc(100vh - 20px);
-    height: calc(100dvh - 20px);
+    height: calc(100vh - 24px);
+    height: calc(100dvh - 24px);
   }
 
   /* Ensure touch scrolling works smoothly on iOS */
@@ -253,6 +254,7 @@
   .note-edit-form {
     padding: 0 var(--space-md);
     margin: 0 calc(-1 * var(--space-md));
+    padding-top: var(--space-xl); /* Space for close button */
   }
 
   .note-edit-form input {
@@ -264,12 +266,13 @@
     font-size: 16px; /* Prevent iOS zoom */
   }
 
-  /* Modal close button - smaller on mobile */
+  /* Modal close button - ensure it's clickable on mobile */
   .modal-close-btn {
-    width: 36px;
-    height: 36px;
+    width: 44px; /* Touch-friendly size */
+    height: 44px;
     font-size: var(--font-size-xl);
-    top: var(--space-sm);
-    right: var(--space-sm);
+    top: var(--space-xs);
+    right: var(--space-xs);
+    z-index: 10; /* Ensure it's above the form */
   }
 }
