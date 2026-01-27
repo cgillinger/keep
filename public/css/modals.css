@@ -219,29 +219,32 @@
 /* Mobile modal adjustments */
 @media (max-width: 768px) {
   .modal {
-    padding: var(--space-sm);
+    padding: var(--space-md);
   }
 
   .modal.active {
-    padding-top: var(--space-sm);
+    padding-top: var(--space-lg);
     align-items: flex-start;
   }
 
   .modal-content,
   .modal-content--small,
   .modal-content--medium {
-    max-height: calc(100vh - 24px);
-    max-height: calc(100dvh - 24px);
-    padding: var(--space-md);
-    margin: 0 var(--space-md); /* Larger side margins (12px) */
-    width: calc(100% - 24px); /* Account for side margins */
-    border-radius: var(--radius-md);
+    max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 48px);
+    padding: var(--space-lg);
+    margin: 0;
+    width: 100%;
+    border-radius: var(--radius-xl); /* More rounded corners for polished look */
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
   }
 
-  /* Edit modal specific - full screen feel but with side margins */
+  /* Edit modal specific - not full screen, leaves space at top/bottom */
   .modal-content {
-    height: calc(100vh - 24px);
-    height: calc(100dvh - 24px);
+    height: auto;
+    max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 48px);
+    min-height: 60vh; /* Minimum height so it doesn't look too small */
   }
 
   /* Ensure touch scrolling works smoothly on iOS */
@@ -275,4 +278,59 @@
     right: var(--space-xs);
     z-index: 10; /* Ensure it's above the form */
   }
+}
+
+/* ===== UNSAVED CHANGES DIALOG ===== */
+.unsaved-dialog-content {
+  max-width: 320px;
+  text-align: center;
+  padding: var(--space-xl) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  height: auto !important;
+  min-height: auto !important;
+}
+
+.unsaved-dialog-title {
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--font-size-lg);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.unsaved-dialog-text {
+  margin: 0 0 var(--space-lg) 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+}
+
+.unsaved-dialog-buttons {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+}
+
+.unsaved-dialog-btn {
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--font-size-md);
+  border-radius: var(--radius-md);
+  min-width: 100px;
+}
+
+/* Danger button style */
+.btn-danger {
+  background-color: #d93025;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-danger:hover {
+  background-color: #c5221f;
+}
+
+.btn-danger:active {
+  background-color: #a31b15;
 }

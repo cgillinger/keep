@@ -1756,30 +1756,34 @@ function forceCloseEditModal() {
 }
 
 function showUnsavedChangesDialog() {
-  // Create a simple confirmation dialog
+  // Create a polished confirmation dialog
   const existingDialog = document.getElementById('unsaved-changes-dialog');
   if (existingDialog) existingDialog.remove();
 
   const dialog = document.createElement('div');
   dialog.id = 'unsaved-changes-dialog';
   dialog.className = 'modal active';
-  dialog.style.zIndex = '1001'; // Above edit modal
+  dialog.style.cssText = 'z-index: 1001; display: flex; align-items: center; justify-content: center;';
   dialog.innerHTML = `
-    <div class="modal-content modal-content--small" style="max-width: 320px; text-align: center;" onclick="event.stopPropagation()">
-      <h3 style="margin-bottom: 16px;">Osparade ändringar</h3>
-      <p style="margin-bottom: 24px; color: #5f6368;">Du har ändringar som inte sparats. Vill du spara eller slänga dem?</p>
-      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-        <button class="btn-secondary" onclick="discardChangesAndClose()">Släng</button>
-        <button class="btn-primary" onclick="saveChangesAndClose()">Spara</button>
+    <div class="modal-content modal-content--small unsaved-dialog-content" onclick="event.stopPropagation()">
+      <h3 class="unsaved-dialog-title">Osparade ändringar</h3>
+      <p class="unsaved-dialog-text">Du har ändringar som inte sparats. Vill du slänga dem?</p>
+      <div class="unsaved-dialog-buttons">
+        <button class="btn-secondary unsaved-dialog-btn" onclick="closeUnsavedChangesDialog()">Avbryt</button>
+        <button class="btn-danger unsaved-dialog-btn" onclick="discardChangesAndClose()">Släng ändringar</button>
       </div>
     </div>
   `;
   dialog.onclick = (e) => {
     if (e.target.id === 'unsaved-changes-dialog') {
-      dialog.remove();
+      closeUnsavedChangesDialog();
     }
   };
   document.body.appendChild(dialog);
+}
+
+function closeUnsavedChangesDialog() {
+  document.getElementById('unsaved-changes-dialog')?.remove();
 }
 
 function discardChangesAndClose() {
