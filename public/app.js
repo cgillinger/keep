@@ -231,6 +231,7 @@ let currentUser = null;
 let notes = [];
 let currentEditingNote = null;
 let originalEditState = null; // Store original values to detect changes
+let snapshotLocked = false; // Prevent false-positive dirty detection during initialization
 let selectedColor = '#ffffff';
 let isChecklistMode = false;
 let showingArchived = false;
@@ -1689,21 +1690,31 @@ function openEditModal(noteId) {
     document.getElementById('edit-images-container').style.display = 'none';
   }
 
-  // Store original state to detect changes
-  originalEditState = {
-    title: note.title || '',
-    content: note.content || '',
-    isChecklist: note.is_checklist,
-    checklistItems: note.checklist_items ? JSON.stringify(note.checklist_items) : '[]',
-    images: note.images ? [...note.images] : []
-  };
+  // Reset snapshot lock during initialization
+  snapshotLocked = false;
+  originalEditState = null;
 
   document.getElementById('edit-modal').classList.add('active');
+
+  // Take snapshot AFTER DOM is fully stabilized (double rAF)
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      originalEditState = {
+        title: document.getElementById('edit-note-title').value,
+        content: document.getElementById('edit-note-content').value,
+        isChecklist: document.getElementById('edit-checklist-container').style.display !== 'none',
+        checklistItems: JSON.stringify(getChecklistItems('edit-checklist-items')),
+        images: [...editNoteImages]
+      };
+      snapshotLocked = true;
+    });
+  });
 }
 
 // Check if there are unsaved changes in the edit modal
 function hasUnsavedChanges() {
-  if (!currentEditingNote || !originalEditState) return false;
+  // Don't report changes until snapshot is locked (after initialization)
+  if (!snapshotLocked || !currentEditingNote || !originalEditState) return false;
 
   const currentTitle = document.getElementById('edit-note-title').value;
   const currentContent = document.getElementById('edit-note-content').value;
@@ -1753,6 +1764,7 @@ function forceCloseEditModal() {
   document.getElementById('edit-modal').classList.remove('active');
   currentEditingNote = null;
   originalEditState = null;
+  snapshotLocked = false;
 }
 
 function showUnsavedChangesDialog() {
