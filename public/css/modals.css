@@ -219,32 +219,41 @@
 /* Mobile modal adjustments */
 @media (max-width: 768px) {
   .modal {
-    padding: var(--space-md);
+    padding: 0;
   }
 
   .modal.active {
-    padding-top: var(--space-lg);
+    padding: 16px;
+    padding-top: 24px;
     align-items: flex-start;
   }
 
-  .modal-content,
+  /* Edit modal card - polished mobile look */
+  #edit-modal .modal-content {
+    width: calc(100% - 0px); /* Full width within padding */
+    max-width: 100%;
+    height: auto;
+    min-height: auto;
+    max-height: calc(100dvh - 48px);
+    margin: 0;
+    padding: 16px;
+    padding-top: 48px; /* Space for close button */
+    background: var(--color-bg-white);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Other modals - smaller dialogs */
   .modal-content--small,
   .modal-content--medium {
-    max-height: calc(100vh - 48px);
     max-height: calc(100dvh - 48px);
     padding: var(--space-lg);
     margin: 0;
     width: 100%;
-    border-radius: var(--radius-xl); /* More rounded corners for polished look */
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
-  }
-
-  /* Edit modal specific - not full screen, leaves space at top/bottom */
-  .modal-content {
-    height: auto;
-    max-height: calc(100vh - 48px);
-    max-height: calc(100dvh - 48px);
-    min-height: 60vh; /* Minimum height so it doesn't look too small */
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   }
 
   /* Ensure touch scrolling works smoothly on iOS */
@@ -254,29 +263,53 @@
   }
 
   /* Note edit form mobile adjustments */
-  .note-edit-form {
-    padding: 0 var(--space-md);
-    margin: 0 calc(-1 * var(--space-md));
-    padding-top: var(--space-xl); /* Space for close button */
+  #edit-modal .note-edit-form {
+    padding: 0;
+    margin: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
   }
 
-  .note-edit-form input {
-    font-size: var(--font-size-lg); /* Slightly smaller title */
+  #edit-modal .note-edit-form input {
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--space-md);
   }
 
-  .note-edit-form textarea {
-    min-height: 120px; /* Smaller minimum height on mobile */
+  #edit-modal .note-edit-form textarea {
+    min-height: 100px;
+    max-height: 40vh;
     font-size: 16px; /* Prevent iOS zoom */
+    flex: 0 0 auto;
+    resize: none;
   }
 
-  /* Modal close button - ensure it's clickable on mobile */
-  .modal-close-btn {
-    width: 44px; /* Touch-friendly size */
+  /* Modal close button - visible and clickable */
+  #edit-modal .modal-close-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 44px;
     height: 44px;
-    font-size: var(--font-size-xl);
-    top: var(--space-xs);
-    right: var(--space-xs);
-    z-index: 10; /* Ensure it's above the form */
+    font-size: 20px;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #edit-modal .modal-close-btn:active {
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  /* Note form actions - sticky at bottom */
+  #edit-modal .note-form-actions {
+    margin-top: auto;
+    padding-top: var(--space-md);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
   }
 }
 
