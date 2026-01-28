@@ -218,74 +218,44 @@
 
 /* Mobile modal adjustments */
 @media (max-width: 768px) {
-  .modal {
-    padding: 0;
+  /* Edit modal - full height card with single scroll container */
+  #edit-modal {
+    align-items: stretch;
   }
 
-  .modal.active {
-    padding: 16px;
-    padding-top: 24px;
-    align-items: flex-start;
-  }
-
-  /* Edit modal card - polished mobile look */
   #edit-modal .modal-content {
-    width: calc(100% - 0px); /* Full width within padding */
-    max-width: 100%;
-    height: auto;
-    min-height: auto;
-    max-height: calc(100dvh - 48px);
-    margin: 0;
+    margin: 8px;
+    height: calc(100dvh - 16px);
+    border-radius: 16px;
+    overflow: visible; /* MUST NOT SCROLL - form scrolls instead */
     padding: 16px;
     padding-top: 48px; /* Space for close button */
-    background: var(--color-bg-white);
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
-  /* Other modals - smaller dialogs */
-  .modal-content--small,
-  .modal-content--medium {
-    max-height: calc(100dvh - 48px);
-    padding: var(--space-lg);
-    margin: 0;
-    width: 100%;
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  }
-
-  /* Ensure touch scrolling works smoothly on iOS */
-  .modal-content--small,
-  .modal-content--medium {
-    touch-action: pan-y;
-  }
-
-  /* Note edit form mobile adjustments */
   #edit-modal .note-edit-form {
-    padding: 0;
-    margin: 0;
-    flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: visible;
-  }
-
-  #edit-modal .note-edit-form input {
-    font-size: var(--font-size-lg);
-    margin-bottom: var(--space-md);
+    height: 100%;
+    overflow-y: auto; /* SINGLE SCROLL CONTAINER */
+    -webkit-overflow-scrolling: touch;
+    padding: 0;
+    margin: 0;
   }
 
   #edit-modal .note-edit-form textarea {
-    min-height: 100px;
-    max-height: 40vh;
+    flex: 1;
+    min-height: 120px;
     font-size: 16px; /* Prevent iOS zoom */
-    flex: 0 0 auto;
-    resize: none;
   }
 
-  /* Modal close button - visible and clickable */
+  #edit-modal .note-form-actions {
+    flex-shrink: 0;
+    margin-top: 0;
+    padding-top: var(--space-md);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  /* Modal close button - visible and touch-friendly */
   #edit-modal .modal-close-btn {
     position: absolute;
     top: 8px;
@@ -296,20 +266,17 @@
     z-index: 10;
     background: rgba(0, 0, 0, 0.05);
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
   #edit-modal .modal-close-btn:active {
     background: rgba(0, 0, 0, 0.1);
   }
 
-  /* Note form actions - sticky at bottom */
-  #edit-modal .note-form-actions {
-    margin-top: auto;
-    padding-top: var(--space-md);
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  /* Other modals - smaller dialogs */
+  .modal-content--small,
+  .modal-content--medium {
+    max-height: calc(100dvh - 48px);
+    border-radius: 16px;
   }
 }
 
