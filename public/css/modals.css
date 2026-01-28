@@ -221,6 +221,8 @@
   /* Edit modal - full height card with single scroll container */
   #edit-modal {
     align-items: stretch;
+    padding-top: 0;      /* Chrome mobile fix - prevent address bar offset */
+    overflow: hidden;    /* Enforce single scroll container */
   }
 
   #edit-modal .modal-content {
