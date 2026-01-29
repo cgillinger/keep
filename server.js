@@ -1431,6 +1431,41 @@ app.delete('/api/notes/:noteId/share/:userId', requireAuth, apiLimiter, csrfProt
   });
 });
 
+// Dismiss a share (for recipient to remove from their view)
+app.delete('/api/notes/:noteId/dismiss-share', requireAuth, apiLimiter, csrfProtection, (req, res) => {
+  const { noteId } = req.params;
+
+  // Check that this note is actually shared with the user
+  db.get(
+    'SELECT * FROM shares WHERE note_id = ? AND shared_with_user_id = ?',
+    [noteId, req.session.userId],
+    (err, share) => {
+      if (err || !share) {
+        return res.status(404).json({ error: 'Delning hittades inte' });
+      }
+
+      db.run(
+        'DELETE FROM shares WHERE note_id = ? AND shared_with_user_id = ?',
+        [noteId, req.session.userId],
+        function(err) {
+          if (err) {
+            logger.error('Dismiss share error:', err);
+            return res.status(500).json({ error: 'Kunde inte ta bort delning' });
+          }
+
+          // Notify the owner that share count changed
+          broadcastToUser(share.shared_by_user_id, {
+            type: 'share_count_updated',
+            noteId: parseInt(noteId)
+          });
+
+          res.json({ message: 'Delning borttagen från din vy' });
+        }
+      );
+    }
+  );
+});
+
 app.get('/api/notes/:id/shares', requireAuth, apiLimiter, (req, res) => {
   const { id } = req.params;
 

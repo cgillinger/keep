@@ -134,7 +134,9 @@
     "shares_saved": "Shares saved",
     "save_error": "Could not save shares",
     "new_share_notification": "New note shared with you",
-    "permission_changed": "Your permission was changed"
+    "permission_changed": "Your permission was changed",
+    "confirm_dismiss": "Remove this shared note from your view? The note will remain with the owner.",
+    "dismiss_title": "Remove from my view"
   },
   "messages": {
     "note_created": "Note created",
