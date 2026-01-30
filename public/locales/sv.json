@@ -134,7 +134,9 @@
     "shares_saved": "Delningar sparade",
     "save_error": "Kunde inte spara delningar",
     "new_share_notification": "Ny anteckning delad med dig",
-    "permission_changed": "Din behörighet ändrades"
+    "permission_changed": "Din behörighet ändrades",
+    "confirm_dismiss": "Vill du ta bort denna delade anteckning från din vy? Anteckningen finns kvar hos ägaren.",
+    "dismiss_title": "Ta bort från min vy"
   },
   "messages": {
     "note_created": "Anteckning skapad",

@@ -134,6 +134,7 @@ function updateUITranslations() {
   document.querySelector('#pin-note-btn').title = t('notes.pin_title');
   document.querySelector('#archive-note-btn').title = t('notes.archive_title');
   document.querySelector('#delete-note-btn').title = t('notes.delete_title');
+  document.querySelector('#dismiss-share-btn').title = t('share.dismiss_title');
   document.querySelector('#update-note-btn').textContent = t('notes.update_button');
 
   // Import modal
@@ -1650,6 +1651,9 @@ function openEditModal(noteId) {
   document.getElementById('archive-note-btn').style.display = canEdit ? 'inline-block' : 'none';
   document.getElementById('share-note-btn').style.display = canShare ? 'inline-block' : 'none';
 
+  // Dismiss share button - only for recipients of shared notes
+  document.getElementById('dismiss-share-btn').style.display = note.isShared ? 'inline-block' : 'none';
+
   // Pin button - only owner can pin
   const pinBtn = document.getElementById('pin-note-btn');
   if (pinBtn) {
@@ -1877,6 +1881,33 @@ async function deleteNote() {
     }
   } catch (error) {
     console.error('Failed to delete note:', error);
+  }
+}
+
+async function dismissShare() {
+  if (!currentEditingNote) return;
+
+  if (!confirm(t('share.confirm_dismiss'))) {
+    return;
+  }
+
+  try {
+    const response = await apiFetch(`/api/notes/${currentEditingNote.id}/dismiss-share`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: getCSRFHeaders()
+    });
+
+    if (response.ok) {
+      forceCloseEditModal();
+      invalidateNotesCache();
+      loadNotes({ forceRefresh: true });
+    } else if (response.status === 403) {
+      await fetchCSRFToken();
+      alert('Session expired, please try again');
+    }
+  } catch (error) {
+    console.error('Failed to dismiss share:', error);
   }
 }
 
