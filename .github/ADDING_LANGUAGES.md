@@ -6,6 +6,11 @@ Kreep v1.1.0 includes a complete internationalization (i18n) system that allows 
 
 - **English (en)** - Default language
 - **Svenska (sv)** - Swedish
+- **Suomi (fi)** - Finnish
+- **Norsk (no)** - Norwegian
+- **Dansk (da)** - Danish
+- **Deutsch (de)** - German
+- **Français (fr)** - French
 
 ## 🌍 How to Add a New Language
 
@@ -253,12 +258,12 @@ For PR acceptance:
 ## 🗺️ Planned Languages
 
 Help us add these languages:
-- [ ] German (de)
-- [ ] French (fr)
+- [x] German (de) ✅
+- [x] French (fr) ✅
 - [ ] Spanish (es)
-- [ ] Finnish (fi)
-- [ ] Norwegian (no)
-- [ ] Danish (da)
+- [x] Finnish (fi) ✅
+- [x] Norwegian (no) ✅
+- [x] Danish (da) ✅
 - [ ] Italian (it)
 - [ ] Dutch (nl)
 - [ ] Portuguese (pt)

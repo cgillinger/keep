@@ -31,6 +31,7 @@ A secure, self-hosted Google Keep clone with sharing features, customizable prof
 - 🔄 **Real-time:** Automatically syncs across all devices
 - 🔐 **Security:** Enterprise-grade security with CSRF, rate limiting, XSS protection, etc.
 - 🔑 **Password Reset:** Email-based recovery (optional)
+- 🌍 **Multi-language:** English, Swedish, Finnish, Norwegian, Danish, German, French
 
 ## 🚀 Quick Start
 
@@ -1235,6 +1236,7 @@ En säker, självhostad Google Keep-klon med delningsfunktioner, anpassningsbara
 - 🔄 **Real-time:** Synkroniserar automatiskt mellan alla enheter
 - 🔐 **Säkerhet:** Företagsstandard säkerhet med CSRF, rate limiting, XSS-skydd m.m.
 - 🔑 **Lösenordsåterställning:** E-post-baserad återställning (valfritt)
+- 🌍 **Flerspråkigt:** Engelska, svenska, finska, norska, danska, tyska, franska
 
 ## 🚀 Snabbstart
 
