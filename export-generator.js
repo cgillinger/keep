@@ -72,11 +72,11 @@ class BackupGenerator {
 
         const manifest = {
           version: '1.0.0',
-          type: 'keep-clone-backup',
+          type: 'kreep-backup',
           created_at: new Date().toISOString(),
           user_id: this.userId,
           username: user ? user.username : 'unknown',
-          description: 'Complete backup of Keep Clone data'
+          description: 'Complete backup of Kreep data'
         };
 
         fs.writeFileSync(

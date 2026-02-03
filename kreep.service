@@ -1,17 +1,17 @@
 [Unit]
-Description=Keep Clone - Self-hosted note taking app
+Description=Kreep - Self-hosted note taking app
 After=network.target
 
 [Service]
 Type=simple
 User=your-username
-WorkingDirectory=/path/to/keep-clone
+WorkingDirectory=/path/to/kreep
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
 RestartSec=10
 StandardOutput=syslog
 StandardError=syslog
-SyslogIdentifier=keep-clone
+SyslogIdentifier=kreep
 
 Environment=NODE_ENV=production
 Environment=PORT=3000

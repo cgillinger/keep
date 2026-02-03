@@ -1,4 +1,4 @@
-# Keep Clone - Private Google Keep for Families
+# Kreep - Private Google Keep for Families
 
 [🇸🇪 Svenska versionen](#svenska-swedish-version)
 
@@ -31,6 +31,7 @@ A secure, self-hosted Google Keep clone with sharing features, customizable prof
 - 🔄 **Real-time:** Automatically syncs across all devices
 - 🔐 **Security:** Enterprise-grade security with CSRF, rate limiting, XSS protection, etc.
 - 🔑 **Password Reset:** Email-based recovery (optional)
+- 🌍 **Multi-language:** English, Swedish, Finnish, Norwegian, Danish, German, French
 
 ## 🚀 Quick Start
 
@@ -84,13 +85,13 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=your.family@gmail.com
 SMTP_PASS=your_app_password_here
-EMAIL_FROM=Keep Clone <your.family@gmail.com>
+EMAIL_FROM=Kreep <your.family@gmail.com>
 ```
 
 **For Gmail:**
 1. Enable 2-factor authentication on your Google account
 2. Go to https://myaccount.google.com/apppasswords
-3. Create an app password for "Keep Clone"
+3. Create an app password for "Kreep"
 4. Use the app password (not your regular password) in `SMTP_PASS`
 
 **For other email services:**
@@ -114,7 +115,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=family@gmail.com
 SMTP_PASS=abcd efgh ijkl mnop
-EMAIL_FROM=Keep Clone <family@gmail.com>
+EMAIL_FROM=Kreep <family@gmail.com>
 ```
 
 4. **Start the server:**
@@ -223,24 +224,24 @@ If you prefer to run Docker directly:
 
 ```bash
 # Build image
-docker build -t keep-clone .
+docker build -t kreep .
 
 # Run container
 docker run -d \
-  --name keep-clone \
+  --name kreep \
   -p 3000:3000 \
   -v $(pwd)/data:/app/data \
   -e SESSION_SECRET="your_secure_secret_here" \
   -e NODE_ENV=production \
   --restart unless-stopped \
-  keep-clone
+  kreep
 
 # View logs
-docker logs -f keep-clone
+docker logs -f kreep
 
 # Stop and remove
-docker stop keep-clone
-docker rm keep-clone
+docker stop kreep
+docker rm kreep
 ```
 
 **Tips for manual Docker:**
@@ -327,7 +328,7 @@ For secure remote access without exposing the server publicly:
 docker-compose logs
 
 # Or for manual Docker
-docker logs keep-clone
+docker logs kreep
 ```
 
 **Common errors:**
@@ -355,7 +356,7 @@ docker logs keep-clone
 
 **Cannot connect to container**
 - Check that container is running: `docker-compose ps`
-- Check port: `docker-compose port keep-clone 3000`
+- Check port: `docker-compose port kreep 3000`
 - Test locally first: `curl http://localhost:3000`
 
 **Update to new version**
@@ -414,7 +415,7 @@ docker-compose up -d
 
 ## 📥 Import from Google Keep
 
-Keep Clone has built-in import from Google Keep! Move all your notes easily.
+Kreep has built-in import from Google Keep! Move all your notes easily.
 
 ### Quick Instructions
 
@@ -442,7 +443,7 @@ For detailed guide and troubleshooting, see [IMPORT-GUIDE.md](./IMPORT-GUIDE.md)
 
 ## 🔐 Security
 
-Keep Clone is built with security first, suitable for Tailscale access or private networks:
+Kreep is built with security first, suitable for Tailscale access or private networks:
 
 - ✅ **Strong authentication:** Bcrypt hashing (12 rounds), 12+ character passwords
 - ✅ **CSRF protection:** All changes protected with tokens
@@ -599,7 +600,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=family@gmail.com
 SMTP_PASS=app_password_here
-EMAIL_FROM=Keep Clone <family@gmail.com>
+EMAIL_FROM=Kreep <family@gmail.com>
 ```
 
 #### FORCE_HTTPS (Advanced Configuration)
@@ -666,7 +667,7 @@ Docker has two ports to configure:
 ```yaml
 # docker-compose.yml
 services:
-  keep-clone:
+  kreep:
     ports:
       - "8080:3000"  # External:Internal
     # App runs on port 3000 inside container
@@ -676,7 +677,7 @@ services:
 **Example 2: Change both internal and external port**
 ```yaml
 services:
-  keep-clone:
+  kreep:
     environment:
       - PORT=8080      # Internal port changed
     ports:
@@ -686,7 +687,7 @@ services:
 **Example 3: Use port 80 (standard HTTP)**
 ```yaml
 services:
-  keep-clone:
+  kreep:
     ports:
       - "80:3000"      # Connect via http://localhost (no port needed)
 ```
@@ -837,7 +838,7 @@ See [Environment Variables](#environment-variables) section for more details.
 
 **Solution:**
 
-Keep Clone uses SQLite, which can be managed directly using the `sqlite3` command-line tool.
+Kreep uses SQLite, which can be managed directly using the `sqlite3` command-line tool.
 
 **Install sqlite3 (if not already installed):**
 ```bash
@@ -853,7 +854,7 @@ brew install sqlite3
 
 **Access the database:**
 ```bash
-# Navigate to your Keep Clone directory
+# Navigate to your Kreep directory
 cd /path/to/keep
 
 # Open database
@@ -1018,7 +1019,7 @@ npm run dev
 
 ### Development vs Production
 
-Keep Clone has different security settings for development and production:
+Kreep has different security settings for development and production:
 
 **Development Mode (NODE_ENV != 'production'):**
 - More generous rate limits for testing
@@ -1133,7 +1134,7 @@ Total codebase: ~7,000 lines (excluding dependencies)
 
 MIT License - See [LICENSE](./LICENSE) for details.
 
-Copyright (c) 2025 Keep Clone Contributors
+Copyright (c) 2025 Kreep Contributors
 
 ## 🤝 Contributing
 
@@ -1174,7 +1175,7 @@ I built this for my family and share it hoping it helps others, but I can't comm
 
 ## 👨‍👩‍👧‍👦 For Families
 
-Keep Clone is specially designed for families who want to:
+Kreep is specially designed for families who want to:
 - 🏠 Have full control over their data
 - 🔒 Not let Google read their notes
 - 💰 Save money (completely free, open source)
@@ -1204,7 +1205,7 @@ Keep Clone is specially designed for families who want to:
 <a name="svenska-swedish-version"></a>
 # Svenska (Swedish Version)
 
-# Keep Clone - Privat Google Keep för familjer
+# Kreep - Privat Google Keep för familjer
 
 En säker, självhostad Google Keep-klon med delningsfunktioner, anpassningsbara profiler och import från Google Keep.
 
@@ -1235,6 +1236,7 @@ En säker, självhostad Google Keep-klon med delningsfunktioner, anpassningsbara
 - 🔄 **Real-time:** Synkroniserar automatiskt mellan alla enheter
 - 🔐 **Säkerhet:** Företagsstandard säkerhet med CSRF, rate limiting, XSS-skydd m.m.
 - 🔑 **Lösenordsåterställning:** E-post-baserad återställning (valfritt)
+- 🌍 **Flerspråkigt:** Engelska, svenska, finska, norska, danska, tyska, franska
 
 ## 🚀 Snabbstart
 
@@ -1288,13 +1290,13 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=din.familj@gmail.com
 SMTP_PASS=ditt_applösenord_här
-EMAIL_FROM=Keep Clone <din.familj@gmail.com>
+EMAIL_FROM=Kreep <din.familj@gmail.com>
 ```
 
 **För Gmail:**
 1. Aktivera 2-faktorautentisering på ditt Google-konto
 2. Gå till https://myaccount.google.com/apppasswords
-3. Skapa ett applösenord för "Keep Clone"
+3. Skapa ett applösenord för "Kreep"
 4. Använd applösenordet (inte ditt vanliga lösenord) i `SMTP_PASS`
 
 **För andra e-posttjänster:**
@@ -1318,7 +1320,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=familj@gmail.com
 SMTP_PASS=abcd efgh ijkl mnop
-EMAIL_FROM=Keep Clone <familj@gmail.com>
+EMAIL_FROM=Kreep <familj@gmail.com>
 ```
 
 4. **Starta servern:**
@@ -1427,24 +1429,24 @@ Om du föredrar att köra Docker direkt:
 
 ```bash
 # Bygg image
-docker build -t keep-clone .
+docker build -t kreep .
 
 # Kör container
 docker run -d \
-  --name keep-clone \
+  --name kreep \
   -p 3000:3000 \
   -v $(pwd)/data:/app/data \
   -e SESSION_SECRET="din_säkra_secret_här" \
   -e NODE_ENV=production \
   --restart unless-stopped \
-  keep-clone
+  kreep
 
 # Se loggar
-docker logs -f keep-clone
+docker logs -f kreep
 
 # Stoppa och ta bort
-docker stop keep-clone
-docker rm keep-clone
+docker stop kreep
+docker rm kreep
 ```
 
 **Tips för manuell Docker:**
@@ -1531,7 +1533,7 @@ För säker fjärråtkomst utan att exponera servern publikt:
 docker-compose logs
 
 # Eller för manuell Docker
-docker logs keep-clone
+docker logs kreep
 ```
 
 **Vanliga fel:**
@@ -1559,7 +1561,7 @@ docker logs keep-clone
 
 **Kan inte ansluta till container**
 - Kontrollera att containern körs: `docker-compose ps`
-- Kontrollera port: `docker-compose port keep-clone 3000`
+- Kontrollera port: `docker-compose port kreep 3000`
 - Testa lokalt först: `curl http://localhost:3000`
 
 **Uppdatera till ny version**
@@ -1616,7 +1618,7 @@ docker-compose up -d
 
 ## 📥 Import från Google Keep
 
-Keep Clone har inbyggd import från Google Keep! Flytta över alla dina anteckningar enkelt.
+Kreep har inbyggd import från Google Keep! Flytta över alla dina anteckningar enkelt.
 
 ### Snabbinstruktioner
 
@@ -1644,7 +1646,7 @@ För detaljerad guide och felsökning, se [IMPORT-GUIDE.md](./IMPORT-GUIDE.md)
 
 ## 🔐 Säkerhet
 
-Keep Clone är byggd med säkerhet i första hand, lämplig för Tailscale-åtkomst eller privata nätverk:
+Kreep är byggd med säkerhet i första hand, lämplig för Tailscale-åtkomst eller privata nätverk:
 
 - ✅ **Stark autentisering:** Bcrypt-hashning (12 rounds), 12+ tecken lösenord
 - ✅ **CSRF-skydd:** Alla ändringar skyddade med tokens
@@ -1801,7 +1803,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=familj@gmail.com
 SMTP_PASS=applösenord_här
-EMAIL_FROM=Keep Clone <familj@gmail.com>
+EMAIL_FROM=Kreep <familj@gmail.com>
 ```
 
 #### FORCE_HTTPS (Avancerad konfiguration)
@@ -1868,7 +1870,7 @@ Docker har två portar att konfigurera:
 ```yaml
 # docker-compose.yml
 services:
-  keep-clone:
+  kreep:
     ports:
       - "8080:3000"  # Extern:Intern
     # Appen körs på port 3000 inuti containern
@@ -1878,7 +1880,7 @@ services:
 **Exempel 2: Ändra både intern och extern port**
 ```yaml
 services:
-  keep-clone:
+  kreep:
     environment:
       - PORT=8080      # Intern port ändras
     ports:
@@ -1888,7 +1890,7 @@ services:
 **Exempel 3: Använd port 80 (standard HTTP)**
 ```yaml
 services:
-  keep-clone:
+  kreep:
     ports:
       - "80:3000"      # Anslut via http://localhost (ingen port behövs)
 ```
@@ -2039,7 +2041,7 @@ Se [Miljövariabler](#miljövariabler) för mer information.
 
 **Lösning:**
 
-Keep Clone använder SQLite, som kan hanteras direkt med `sqlite3` kommandoradsverktyget.
+Kreep använder SQLite, som kan hanteras direkt med `sqlite3` kommandoradsverktyget.
 
 **Installera sqlite3 (om det inte redan är installerat):**
 ```bash
@@ -2055,7 +2057,7 @@ brew install sqlite3
 
 **Öppna databasen:**
 ```bash
-# Navigera till din Keep Clone-katalog
+# Navigera till din Kreep-katalog
 cd /sökväg/till/keep
 
 # Öppna databasen
@@ -2220,7 +2222,7 @@ npm run dev
 
 ### Utveckling vs Produktion
 
-Keep Clone har olika säkerhetsinställningar för utveckling och produktion:
+Kreep har olika säkerhetsinställningar för utveckling och produktion:
 
 **Utvecklingsläge (NODE_ENV != 'production'):**
 - Mer generösa rate limits för testning
@@ -2335,7 +2337,7 @@ Total kodbas: ~7,000 rader (utan dependencies)
 
 MIT License - Se [LICENSE](./LICENSE) för detaljer.
 
-Copyright (c) 2025 Keep Clone Contributors
+Copyright (c) 2025 Kreep Contributors
 
 ## 🤝 Bidra
 
@@ -2376,7 +2378,7 @@ Jag byggde detta för min familj och delar det i hopp om att det hjälper andra,
 
 ## 👨‍👩‍👧‍👦 För familjer
 
-Keep Clone är särskilt designad för familjer som vill:
+Kreep är särskilt designad för familjer som vill:
 - 🏠 Ha full kontroll över sina data
 - 🔒 Inte låta Google läsa deras anteckningar
 - 💰 Spara pengar (helt gratis, öppen källkod)

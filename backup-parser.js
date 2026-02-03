@@ -2,8 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Import a Keep Clone backup
+ * Import a Kreep backup
  * Restores: notes, images, shares, metadata
+ * Supports both 'kreep-backup' and legacy 'keep-clone-backup' formats
  */
 class BackupParser {
   constructor(extractedPath, userId, db, dataDir) {
@@ -67,7 +68,8 @@ class BackupParser {
 
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 
-    if (manifest.type !== 'keep-clone-backup') {
+    // Support both new 'kreep-backup' and legacy 'keep-clone-backup' formats
+    if (manifest.type !== 'kreep-backup' && manifest.type !== 'keep-clone-backup') {
       throw new Error('Invalid backup type');
     }
 

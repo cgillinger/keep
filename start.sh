@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Keep Clone startup script
+# Kreep startup script
 
-echo "Starting Keep Clone..."
+echo "Starting Kreep..."
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then
@@ -21,5 +21,5 @@ fi
 mkdir -p data
 
 # Start the server
-echo "Keep Clone is starting on port 3000..."
+echo "Kreep is starting on port 3000..."
 node server.js

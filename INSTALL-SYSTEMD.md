@@ -1,22 +1,22 @@
 # Installation som systemd-tjänst (Linux)
 
-Om du vill köra Keep Clone som en systemd-tjänst som startar automatiskt vid uppstart:
+Om du vill köra Kreep som en systemd-tjänst som startar automatiskt vid uppstart:
 
 ## Steg 1: Förbered service-filen
 
-1. Redigera `keep-clone.service`:
+1. Redigera `kreep.service`:
 ```bash
-nano keep-clone.service
+nano kreep.service
 ```
 
 2. Ändra följande:
    - `User=your-username` → ditt användarnamn
-   - `WorkingDirectory=/path/to/keep-clone` → fullständig sökväg till projektet
+   - `WorkingDirectory=/path/to/kreep` → fullständig sökväg till projektet
 
 ## Steg 2: Kopiera service-filen
 
 ```bash
-sudo cp keep-clone.service /etc/systemd/system/
+sudo cp kreep.service /etc/systemd/system/
 ```
 
 ## Steg 3: Aktivera och starta tjänsten
@@ -26,37 +26,37 @@ sudo cp keep-clone.service /etc/systemd/system/
 sudo systemctl daemon-reload
 
 # Aktivera tjänsten (startar vid uppstart)
-sudo systemctl enable keep-clone
+sudo systemctl enable kreep
 
 # Starta tjänsten nu
-sudo systemctl start keep-clone
+sudo systemctl start kreep
 ```
 
 ## Hantera tjänsten
 
 ### Status
 ```bash
-sudo systemctl status keep-clone
+sudo systemctl status kreep
 ```
 
 ### Stoppa
 ```bash
-sudo systemctl stop keep-clone
+sudo systemctl stop kreep
 ```
 
 ### Starta om
 ```bash
-sudo systemctl restart keep-clone
+sudo systemctl restart kreep
 ```
 
 ### Se loggar
 ```bash
-sudo journalctl -u keep-clone -f
+sudo journalctl -u kreep -f
 ```
 
 ### Inaktivera (starta inte automatiskt)
 ```bash
-sudo systemctl disable keep-clone
+sudo systemctl disable kreep
 ```
 
 ## Felsökning
@@ -65,7 +65,7 @@ Om tjänsten inte startar:
 
 1. Kontrollera att sökvägen är korrekt:
 ```bash
-sudo systemctl status keep-clone
+sudo systemctl status kreep
 ```
 
 2. Kontrollera att Node.js är installerat:
@@ -75,11 +75,11 @@ which node
 
 3. Testa att köra manuellt först:
 ```bash
-cd /path/to/keep-clone
+cd /path/to/kreep
 ./start.sh
 ```
 
 4. Kontrollera behörigheter:
 ```bash
-ls -la /path/to/keep-clone
+ls -la /path/to/kreep
 ```

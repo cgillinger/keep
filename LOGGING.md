@@ -2,7 +2,7 @@
 
 ## Översikt
 
-Keep Clone använder Winston för strukturerad loggning med automatisk rotation och rensning.
+Kreep använder Winston för strukturerad loggning med automatisk rotation och rensning.
 
 ## Loggfiler
 
@@ -237,17 +237,17 @@ grep "ERROR" logs/error-*.log | cut -d':' -f3 | sort | uniq -c | sort -rn
 
 ```bash
 # Visa loggutput via journalctl
-journalctl -u keep-clone -f
+journalctl -u kreep -f
 
 # Kombinera med app-loggar
-tail -f logs/combined-*.log & journalctl -u keep-clone -f
+tail -f logs/combined-*.log & journalctl -u kreep -f
 ```
 
 ### Med PM2
 
 ```bash
 # PM2 kombinerar stdout med sina egna loggar
-pm2 logs keep-clone
+pm2 logs kreep
 
 # Eller följ app-loggar direkt
 tail -f logs/combined-*.log
@@ -257,7 +257,7 @@ tail -f logs/combined-*.log
 
 ```bash
 # Docker logs + app logs
-docker logs -f keep-clone & docker exec keep-clone tail -f /app/logs/combined-*.log
+docker logs -f kreep & docker exec kreep tail -f /app/logs/combined-*.log
 ```
 
 ## Logrotation med Logrotate (Optional)
@@ -265,7 +265,7 @@ docker logs -f keep-clone & docker exec keep-clone tail -f /app/logs/combined-*.
 Om du vill använda systemets logrotate istället för Winston's rotation:
 
 ```bash
-# /etc/logrotate.d/keep-clone
+# /etc/logrotate.d/kreep
 /path/to/keep/logs/*.log {
     daily
     rotate 1

@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  keep-clone:
+  kreep:
     build: .
-    container_name: keep-clone
+    container_name: kreep
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:${PORT:-3000}"

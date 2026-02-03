@@ -1,6 +1,6 @@
-# Importguide - Google Keep till Keep Clone
+# Importguide - Google Keep till Kreep
 
-Detta är en detaljerad guide för att importera dina anteckningar från Google Keep till din egen Keep Clone.
+Detta är en detaljerad guide för att importera dina anteckningar från Google Keep till din egen Kreep.
 
 ## 📋 Innehållsförteckning
 
@@ -16,7 +16,7 @@ Detta är en detaljerad guide för att importera dina anteckningar från Google 
 
 1. Exportera från Google Keep via [Google Takeout](https://takeout.google.com/)
 2. Ladda ner zip-filen
-3. Logga in i Keep Clone
+3. Logga in i Kreep
 4. Klicka "📥 Importera från Google Keep"
 5. Välj zip-filen
 6. Klicka "Importera"
@@ -67,16 +67,16 @@ Klicka **"Skapa export"**
 
 ## Importprocess
 
-### Steg 1: Öppna Keep Clone
+### Steg 1: Öppna Kreep
 
-Gå till din Keep Clone i webbläsaren:
+Gå till din Kreep i webbläsaren:
 ```
 http://your-server-ip:3000
 ```
 
 ### Steg 2: Logga in
 
-Logga in med ditt Keep Clone-konto. Alla anteckningar kommer importeras till det kontot du är inloggad med.
+Logga in med ditt Kreep-konto. Alla anteckningar kommer importeras till det kontot du är inloggad med.
 
 ### Steg 3: Öppna import-dialogen
 
@@ -162,14 +162,14 @@ Om det finns fel eller varningar, expandera sektionen för att se detaljer.
 **Lösning:**
 - Detta är normalt! Ha tålamod
 - Stäng inte webbläsaren
-- Kontrollera server-loggarna: `docker-compose logs -f` eller `journalctl -u keep-clone -f`
+- Kontrollera server-loggarna: `docker-compose logs -f` eller `journalctl -u kreep -f`
 
 ### Vissa anteckningar importerades inte
 
 **Problem:** Anteckningar i papperskorgen eller korrupta filer.
 
 **Lösning:**
-- Anteckningar i **trash** hoppar Keep Clone över automatiskt (som avsett)
+- Anteckningar i **trash** hoppar Kreep över automatiskt (som avsett)
 - Kolla importrapporten för specifika fel
 - Korrupta bilagor kan göra att enskilda anteckningar hoppar över - de loggas i felrapporten
 
@@ -185,7 +185,7 @@ Om det finns fel eller varningar, expandera sektionen för att se detaljer.
 
 ### Färger ser annorlunda ut
 
-**Problem:** Keep Clone har en lite annorlunda färgpalett än Google Keep.
+**Problem:** Kreep har en lite annorlunda färgpalett än Google Keep.
 
 **Lösning:**
 - Detta är normalt! Färgerna mappas till närmaste motsvarighet
@@ -208,7 +208,7 @@ Om det finns fel eller varningar, expandera sektionen för att se detaljer.
 **Problem:** Nätverket bröts eller servern svarade inte.
 
 **Lösning:**
-1. Kontrollera att servern körs: `docker ps` eller `systemctl status keep-clone`
+1. Kontrollera att servern körs: `docker ps` eller `systemctl status kreep`
 2. Kontrollera nätverksanslutningen
 3. Försök igen
 4. Om problemet kvarstår, kolla server-loggarna
@@ -308,7 +308,7 @@ För att optimera import av stora exporter:
 Om du har problem med importen:
 
 1. Kolla denna guide först
-2. Kolla server-loggarna: `docker-compose logs` eller `journalctl -u keep-clone`
+2. Kolla server-loggarna: `docker-compose logs` eller `journalctl -u kreep`
 3. Öppna en issue på GitHub med:
    - Felmeddelande
    - Server-loggar

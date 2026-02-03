@@ -1,11 +1,16 @@
-# Adding New Languages to Keep Clone
+# Adding New Languages to Kreep
 
-Keep Clone v1.1.0 includes a complete internationalization (i18n) system that allows users to add and remove translations using JSON files.
+Kreep v1.1.0 includes a complete internationalization (i18n) system that allows users to add and remove translations using JSON files.
 
 ## 📋 Current Languages
 
 - **English (en)** - Default language
 - **Svenska (sv)** - Swedish
+- **Suomi (fi)** - Finnish
+- **Norsk (no)** - Norwegian
+- **Dansk (da)** - Danish
+- **Deutsch (de)** - German
+- **Français (fr)** - French
 
 ## 🌍 How to Add a New Language
 
@@ -78,7 +83,7 @@ The JSON file has the following sections:
     "twitter_description": "Twitter card description"
   },
   "auth": {
-    "app_name": "Keep Clone",
+    "app_name": "Kreep",
     "subtitle": "Tagline",
     "login_title": "Log in form title",
     ...
@@ -111,7 +116,7 @@ The JSON file has the following sections:
     ...
   },
   "footer": {
-    "version": "Keep Clone v1.1.0",
+    "version": "Kreep v1.1.0",
     "license": "MIT License"
   }
 }
@@ -126,7 +131,7 @@ When creating a new translation, ensure:
 - [ ] All strings are translated (not just copied)
 - [ ] Special characters are properly escaped
 - [ ] Emojis are preserved (📥, 📤, etc.)
-- [ ] Brand name "Keep Clone" remains unchanged
+- [ ] Brand name "Kreep" remains unchanged
 - [ ] Version number matches current version
 - [ ] Grammar and spelling are correct
 - [ ] Language selector displays native name
@@ -222,7 +227,7 @@ Test all functionality in the new language:
 
 These should generally NOT be translated:
 - Google Keep (brand name)
-- Keep Clone (brand name)
+- Kreep (brand name)
 - GitHub (brand name)
 - CSRF, XSS, SQL (security terms)
 - WebSocket (technology)
@@ -253,12 +258,12 @@ For PR acceptance:
 ## 🗺️ Planned Languages
 
 Help us add these languages:
-- [ ] German (de)
-- [ ] French (fr)
+- [x] German (de) ✅
+- [x] French (fr) ✅
 - [ ] Spanish (es)
-- [ ] Finnish (fi)
-- [ ] Norwegian (no)
-- [ ] Danish (da)
+- [x] Finnish (fi) ✅
+- [x] Norwegian (no) ✅
+- [x] Danish (da) ✅
 - [ ] Italian (it)
 - [ ] Dutch (nl)
 - [ ] Portuguese (pt)
@@ -295,4 +300,4 @@ This requires code changes beyond JSON files. Open an issue to discuss implement
 
 ---
 
-**Thank you for helping make Keep Clone accessible to more people! 🌍**
+**Thank you for helping make Kreep accessible to more people! 🌍**
