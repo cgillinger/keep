@@ -2,7 +2,7 @@
 
 ## Översikt
 
-Keep Clone kan köras i olika miljöer med olika säkerhetskrav. Denna guide hjälper dig att välja rätt konfiguration.
+Kreep kan köras i olika miljöer med olika säkerhetskrav. Denna guide hjälper dig att välja rätt konfiguration.
 
 ---
 
@@ -82,7 +82,7 @@ const HOST = '0.0.0.0';  // Lyssna på alla interfaces
 const PORT = process.env.PORT || 8097;
 
 server.listen(PORT, HOST, () => {
-  logger.info(`Keep Clone running on http://0.0.0.0:${PORT}`);
+  logger.info(`Kreep running on http://0.0.0.0:${PORT}`);
 });
 ```
 
@@ -128,7 +128,7 @@ http://192.168.1.100:8097
 ```
 Internet → HTTPS (443) → Reverse Proxy (nginx/Caddy/Traefik)
                               ↓
-                         HTTP (8097) → Keep Clone
+                         HTTP (8097) → Kreep
 ```
 
 ### 3A. Med Caddy (Enklast)
@@ -162,9 +162,9 @@ sudo systemctl restart caddy
 sudo systemctl status caddy
 ```
 
-#### Keep Clone Konfiguration:
+#### Kreep Konfiguration:
 
-**Behåll `secure: false`** eftersom Keep Clone får HTTP från Caddy:
+**Behåll `secure: false`** eftersom Kreep får HTTP från Caddy:
 
 ```javascript
 cookie: {
@@ -285,7 +285,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./letsencrypt:/letsencrypt
 
-  keep-clone:
+  kreep:
     build: .
     labels:
       - "traefik.enable=true"
@@ -322,11 +322,11 @@ const sessionConfig = {
 #### Varför `secure: false`?
 
 ```
-Internet ----HTTPS----> Proxy ----HTTP----> Keep Clone
+Internet ----HTTPS----> Proxy ----HTTP----> Kreep
                        (443)               (8097)
 ```
 
-- Keep Clone får **HTTP** från proxyn
+- Kreep får **HTTP** från proxyn
 - Om `secure: true`: Cookies fungerar ej (förväntar HTTPS)
 - Proxyn hanterar HTTPS, inte appen
 
@@ -351,7 +351,7 @@ Internet ----HTTPS----> Proxy ----HTTP----> Keep Clone
 # Installera certbot
 sudo apt install certbot
 
-# Stoppa Keep Clone om den lyssnar på port 80
+# Stoppa Kreep om den lyssnar på port 80
 # Certbot behöver port 80 för verifiering
 
 # Få certifikat
@@ -398,7 +398,7 @@ if (isHttps) {
 sudo crontab -e
 
 # Lägg till denna rad (förnya varje måndag kl 3:00)
-0 3 * * 1 certbot renew --quiet --deploy-hook "systemctl restart keep-clone"
+0 3 * * 1 certbot renew --quiet --deploy-hook "systemctl restart kreep"
 ```
 
 ### 4B. Med Självgenererat Certifikat (ENDAST för test)
@@ -466,7 +466,7 @@ sudo systemctl start wg-quick@wg0
 sudo systemctl enable wg-quick@wg0
 ```
 
-#### Anslut till Keep Clone via VPN:
+#### Anslut till Kreep via VPN:
 
 ```
 VPN ansluten → http://192.168.1.100:8097
@@ -639,14 +639,14 @@ sessionConfig.cookie.secure = false;
 # Öppna port 80 temporärt
 sudo ufw allow 80
 
-# Stoppa Keep Clone om den blockerar port 80
-sudo systemctl stop keep-clone
+# Stoppa Kreep om den blockerar port 80
+sudo systemctl stop kreep
 
 # Kör certbot
 sudo certbot certonly --standalone -d keep.example.com
 
-# Starta Keep Clone igen
-sudo systemctl start keep-clone
+# Starta Kreep igen
+sudo systemctl start kreep
 ```
 
 ---

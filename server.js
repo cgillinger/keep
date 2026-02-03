@@ -142,7 +142,7 @@ const sessionConfig = {
     logger.logSecurity('Using default session secret', {
       message: 'Set SESSION_SECRET environment variable in production'
     });
-    return 'keep-clone-secret-change-in-production';
+    return 'kreep-secret-change-in-production';
   })(),
   resave: false, // SQLite store handles persistence - don't save on every request
   saveUninitialized: false,
@@ -1625,7 +1625,7 @@ function importNote(note) {
 
 app.get('/api/backup/export', requireAuth, async (req, res) => {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-  const outputFilename = `keep-clone-backup-${timestamp}.zip`;
+  const outputFilename = `kreep-backup-${timestamp}.zip`;
   const outputPath = path.join(uploadsDir, outputFilename);
 
   try {
@@ -1701,7 +1701,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 server.listen(PORT, () => {
-  logger.info(`Keep Clone running on http://localhost:${PORT}`);
+  logger.info(`Kreep running on http://localhost:${PORT}`);
   logger.info(`HTTPS mode: ${isHttps ? 'ENABLED (HSTS active)' : 'DISABLED (HTTP mode)'}`);
   logger.info('Security features enabled:');
   logger.info('  - Helmet security headers');

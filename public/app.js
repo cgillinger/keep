@@ -2816,7 +2816,7 @@ async function exportBackup() {
     if (response.ok) {
       // Get filename from Content-Disposition header or use default
       const disposition = response.headers.get('Content-Disposition');
-      let filename = 'keep-clone-backup.zip';
+      let filename = 'kreep-backup.zip';
       if (disposition && disposition.includes('filename=')) {
         const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
         if (matches != null && matches[1]) {

@@ -59,7 +59,7 @@ Self-hosted Google Keep clone with real-time sync, images, color coding, and com
 För att skapa en snygg förhandsvisning när någon delar repot:
 
 1. Skapa en 1280x640px bild med:
-   - Logotyp/namn: "Keep Clone"
+   - Logotyp/namn: "Kreep"
    - Tagline: "Private Family Notes"
    - Funktioner: Real-time sync, Dark mode, Self-hosted
    - Bakgrund i Keep-färger (gul/blå)
@@ -138,7 +138,7 @@ För att förbättra repots synlighet:
 
 ### CONTRIBUTING.md (exempel)
 ```markdown
-# Bidra till Keep Clone
+# Bidra till Kreep
 
 Tack för ditt intresse! Vi välkomnar bidrag.
 
@@ -186,7 +186,7 @@ Om du hittar en säkerhetsrisk, vänligen **rapportera den privat**:
 - r/homelab
 
 ### Show HN (Hacker News):
-- Posta med titel: "Show HN: Keep Clone – Self-hosted Google Keep with real-time sync"
+- Posta med titel: "Show HN: Kreep – Self-hosted Google Keep with real-time sync"
 
 ### Product Hunt:
 - Överväg att lansera på Product Hunt för bredare synlighet
