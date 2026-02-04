@@ -1,5 +1,5 @@
 [Unit]
-Description=Kreep - Self-hosted note taking app
+Description=Keep Clone - Self-hosted note taking app
 After=network.target
 
 [Service]

@@ -1,6 +1,6 @@
-# Kreep - Funktioner och säkerhet
+# Keep Clone - Funktioner och säkerhet
 
-Detta dokument beskriver alla funktioner och säkerhetsåtgärder i Kreep.
+Detta dokument beskriver alla funktioner och säkerhetsåtgärder i Keep Clone.
 
 ## 📋 Innehållsförteckning
 
@@ -13,7 +13,7 @@ Detta dokument beskriver alla funktioner och säkerhetsåtgärder i Kreep.
 
 ## Översikt
 
-Kreep är en säker, självhostad Google Keep-klon designad för familjer. Applikationen erbjuder:
+Keep Clone är en säker, självhostad Google Keep-klon designad för familjer. Applikationen erbjuder:
 
 - ✅ Privata och delade anteckningar
 - ✅ Checklistor med avbockningsbara punkter
@@ -31,7 +31,7 @@ Kreep är en säker, självhostad Google Keep-klon designad för familjer. Appli
 
 ## Säkerhetsfunktioner
 
-Kreep är byggd med säkerhet i första hand, lämplig för exponering via Tailscale eller liknande VPN-lösningar.
+Keep Clone är byggd med säkerhet i första hand, lämplig för exponering via Tailscale eller liknande VPN-lösningar.
 
 ### 🔐 Autentisering och sessioner
 
@@ -263,7 +263,7 @@ Se [IMPORT-GUIDE.md](./IMPORT-GUIDE.md) för detaljerad importguide.
 1. Exportera från [Google Takeout](https://takeout.google.com/)
 2. Välj endast "Keep"
 3. Ladda ner zip-filen
-4. Klicka "📥 Importera" i Kreep
+4. Klicka "📥 Importera" i Keep Clone
 5. Välj zip-filen och klicka "Importera"
 
 **Vad importeras:**

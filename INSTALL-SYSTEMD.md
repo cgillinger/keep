@@ -1,6 +1,6 @@
 # Installation som systemd-tjänst (Linux)
 
-Om du vill köra Kreep som en systemd-tjänst som startar automatiskt vid uppstart:
+Om du vill köra Keep Clone som en systemd-tjänst som startar automatiskt vid uppstart:
 
 ## Steg 1: Förbered service-filen
 
