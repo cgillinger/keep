@@ -1,15 +1,15 @@
 {
   "meta": {
-    "title": "Kreep - Notes familiales",
+    "title": "Keep Clone - Notes familiales",
     "description": "Clone open source de Google Keep pour les familles. Application de notes auto-hébergée avec synchronisation en temps réel, images, codes couleur et contrôle total des données. Gratuit et privé.",
     "keywords": "notes, keep, google keep, auto-hébergé, application de notes, confidentialité, famille, open source, nodejs, sqlite, temps réel, synchronisation",
-    "og_title": "Kreep - Application de notes auto-hébergée pour les familles",
+    "og_title": "Keep Clone - Application de notes auto-hébergée pour les familles",
     "og_description": "Clone open source de Google Keep avec synchronisation en temps réel, images et contrôle total des données. Parfait pour les familles qui veulent posséder leurs données.",
-    "twitter_title": "Kreep - Application de notes auto-hébergée",
+    "twitter_title": "Keep Clone - Application de notes auto-hébergée",
     "twitter_description": "Clone open source de Google Keep pour les familles. Auto-hébergé avec contrôle total des données."
   },
   "auth": {
-    "app_name": "Kreep",
+    "app_name": "Keep Clone",
     "subtitle": "Vos notes familiales privées",
     "login_title": "Connexion",
     "username_placeholder": "Nom d'utilisateur",
@@ -173,7 +173,7 @@
     "icon_credit": "Icônes de notes créées par Freepik - Flaticon"
   },
   "footer": {
-    "version": "Kreep v1.1.0",
+    "version": "Keep Clone v1.1.0",
     "license": "Licence MIT"
   }
 }

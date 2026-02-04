@@ -1,6 +1,6 @@
-# Importguide - Google Keep till Kreep
+# Importguide - Google Keep till Keep Clone
 
-Detta är en detaljerad guide för att importera dina anteckningar från Google Keep till din egen Kreep.
+Detta är en detaljerad guide för att importera dina anteckningar från Google Keep till din egen Keep Clone.
 
 ## 📋 Innehållsförteckning
 
@@ -16,7 +16,7 @@ Detta är en detaljerad guide för att importera dina anteckningar från Google 
 
 1. Exportera från Google Keep via [Google Takeout](https://takeout.google.com/)
 2. Ladda ner zip-filen
-3. Logga in i Kreep
+3. Logga in i Keep Clone
 4. Klicka "📥 Importera från Google Keep"
 5. Välj zip-filen
 6. Klicka "Importera"
@@ -67,16 +67,16 @@ Klicka **"Skapa export"**
 
 ## Importprocess
 
-### Steg 1: Öppna Kreep
+### Steg 1: Öppna Keep Clone
 
-Gå till din Kreep i webbläsaren:
+Gå till din Keep Clone i webbläsaren:
 ```
 http://your-server-ip:3000
 ```
 
 ### Steg 2: Logga in
 
-Logga in med ditt Kreep-konto. Alla anteckningar kommer importeras till det kontot du är inloggad med.
+Logga in med ditt Keep Clone-konto. Alla anteckningar kommer importeras till det kontot du är inloggad med.
 
 ### Steg 3: Öppna import-dialogen
 
@@ -169,7 +169,7 @@ Om det finns fel eller varningar, expandera sektionen för att se detaljer.
 **Problem:** Anteckningar i papperskorgen eller korrupta filer.
 
 **Lösning:**
-- Anteckningar i **trash** hoppar Kreep över automatiskt (som avsett)
+- Anteckningar i **trash** hoppar Keep Clone över automatiskt (som avsett)
 - Kolla importrapporten för specifika fel
 - Korrupta bilagor kan göra att enskilda anteckningar hoppar över - de loggas i felrapporten
 
@@ -185,7 +185,7 @@ Om det finns fel eller varningar, expandera sektionen för att se detaljer.
 
 ### Färger ser annorlunda ut
 
-**Problem:** Kreep har en lite annorlunda färgpalett än Google Keep.
+**Problem:** Keep Clone har en lite annorlunda färgpalett än Google Keep.
 
 **Lösning:**
 - Detta är normalt! Färgerna mappas till närmaste motsvarighet

@@ -57,7 +57,7 @@ async function sendPasswordResetEmail(email, username, resetToken, resetUrl) {
     const mailOptions = {
       from: process.env.EMAIL_FROM,
       to: email,
-      subject: 'Kreep - Återställ ditt lösenord',
+      subject: 'Keep Clone - Återställ ditt lösenord',
       html: `
         <!DOCTYPE html>
         <html>
@@ -66,14 +66,14 @@ async function sendPasswordResetEmail(email, username, resetToken, resetUrl) {
         </head>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background-color: #1a73e8; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0;">
-            <h1 style="margin: 0;">Kreep</h1>
+            <h1 style="margin: 0;">Keep Clone</h1>
             <p style="margin: 10px 0 0 0;">Återställning av lösenord</p>
           </div>
 
           <div style="background-color: #f5f5f5; padding: 30px; border-radius: 0 0 5px 5px;">
             <p>Hej <strong>${username}</strong>,</p>
 
-            <p>Vi har fått en förfrågan om att återställa lösenordet för ditt Kreep-konto.</p>
+            <p>Vi har fått en förfrågan om att återställa lösenordet för ditt Keep Clone-konto.</p>
 
             <p>Klicka på knappen nedan för att återställa ditt lösenord:</p>
 
@@ -101,7 +101,7 @@ async function sendPasswordResetEmail(email, username, resetToken, resetUrl) {
           </div>
 
           <div style="text-align: center; margin-top: 20px; color: #666; font-size: 12px;">
-            <p>Detta är ett automatiskt mail från Kreep. Svara inte på detta meddelande.</p>
+            <p>Detta är ett automatiskt mail från Keep Clone. Svara inte på detta meddelande.</p>
           </div>
         </body>
         </html>
@@ -109,7 +109,7 @@ async function sendPasswordResetEmail(email, username, resetToken, resetUrl) {
       text: `
 Hej ${username},
 
-Vi har fått en förfrågan om att återställa lösenordet för ditt Kreep-konto.
+Vi har fått en förfrågan om att återställa lösenordet för ditt Keep Clone-konto.
 
 Återställ ditt lösenord genom att besöka denna länk:
 ${resetUrl}
@@ -122,7 +122,7 @@ Ditt lösenord kommer inte att ändras.
 Av säkerhetsskäl, dela aldrig denna länk med någon annan.
 
 ---
-Detta är ett automatiskt mail från Kreep.
+Detta är ett automatiskt mail från Keep Clone.
       `
     };
 

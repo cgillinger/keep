@@ -1,4 +1,4 @@
-# Kreep - Private Google Keep for Families
+# Keep Clone - Private Google Keep for Families
 
 [🇸🇪 Svenska versionen](#svenska-swedish-version)
 
@@ -85,13 +85,13 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=your.family@gmail.com
 SMTP_PASS=your_app_password_here
-EMAIL_FROM=Kreep <your.family@gmail.com>
+EMAIL_FROM=Keep Clone <your.family@gmail.com>
 ```
 
 **For Gmail:**
 1. Enable 2-factor authentication on your Google account
 2. Go to https://myaccount.google.com/apppasswords
-3. Create an app password for "Kreep"
+3. Create an app password for "Keep Clone"
 4. Use the app password (not your regular password) in `SMTP_PASS`
 
 **For other email services:**
@@ -115,7 +115,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=family@gmail.com
 SMTP_PASS=abcd efgh ijkl mnop
-EMAIL_FROM=Kreep <family@gmail.com>
+EMAIL_FROM=Keep Clone <family@gmail.com>
 ```
 
 4. **Start the server:**
@@ -415,7 +415,7 @@ docker-compose up -d
 
 ## 📥 Import from Google Keep
 
-Kreep has built-in import from Google Keep! Move all your notes easily.
+Keep Clone has built-in import from Google Keep! Move all your notes easily.
 
 ### Quick Instructions
 
@@ -443,7 +443,7 @@ For detailed guide and troubleshooting, see [IMPORT-GUIDE.md](./IMPORT-GUIDE.md)
 
 ## 🔐 Security
 
-Kreep is built with security first, suitable for Tailscale access or private networks:
+Keep Clone is built with security first, suitable for Tailscale access or private networks:
 
 - ✅ **Strong authentication:** Bcrypt hashing (12 rounds), 12+ character passwords
 - ✅ **CSRF protection:** All changes protected with tokens
@@ -600,7 +600,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=family@gmail.com
 SMTP_PASS=app_password_here
-EMAIL_FROM=Kreep <family@gmail.com>
+EMAIL_FROM=Keep Clone <family@gmail.com>
 ```
 
 #### FORCE_HTTPS (Advanced Configuration)
@@ -838,7 +838,7 @@ See [Environment Variables](#environment-variables) section for more details.
 
 **Solution:**
 
-Kreep uses SQLite, which can be managed directly using the `sqlite3` command-line tool.
+Keep Clone uses SQLite, which can be managed directly using the `sqlite3` command-line tool.
 
 **Install sqlite3 (if not already installed):**
 ```bash
@@ -854,7 +854,7 @@ brew install sqlite3
 
 **Access the database:**
 ```bash
-# Navigate to your Kreep directory
+# Navigate to your Keep Clone directory
 cd /path/to/keep
 
 # Open database
@@ -1019,7 +1019,7 @@ npm run dev
 
 ### Development vs Production
 
-Kreep has different security settings for development and production:
+Keep Clone has different security settings for development and production:
 
 **Development Mode (NODE_ENV != 'production'):**
 - More generous rate limits for testing
@@ -1134,7 +1134,7 @@ Total codebase: ~7,000 lines (excluding dependencies)
 
 MIT License - See [LICENSE](./LICENSE) for details.
 
-Copyright (c) 2025 Kreep Contributors
+Copyright (c) 2025 Keep Clone Contributors
 
 ## 🤝 Contributing
 
@@ -1175,7 +1175,7 @@ I built this for my family and share it hoping it helps others, but I can't comm
 
 ## 👨‍👩‍👧‍👦 For Families
 
-Kreep is specially designed for families who want to:
+Keep Clone is specially designed for families who want to:
 - 🏠 Have full control over their data
 - 🔒 Not let Google read their notes
 - 💰 Save money (completely free, open source)
@@ -1205,7 +1205,7 @@ Kreep is specially designed for families who want to:
 <a name="svenska-swedish-version"></a>
 # Svenska (Swedish Version)
 
-# Kreep - Privat Google Keep för familjer
+# Keep Clone - Privat Google Keep för familjer
 
 En säker, självhostad Google Keep-klon med delningsfunktioner, anpassningsbara profiler och import från Google Keep.
 
@@ -1290,13 +1290,13 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=din.familj@gmail.com
 SMTP_PASS=ditt_applösenord_här
-EMAIL_FROM=Kreep <din.familj@gmail.com>
+EMAIL_FROM=Keep Clone <din.familj@gmail.com>
 ```
 
 **För Gmail:**
 1. Aktivera 2-faktorautentisering på ditt Google-konto
 2. Gå till https://myaccount.google.com/apppasswords
-3. Skapa ett applösenord för "Kreep"
+3. Skapa ett applösenord för "Keep Clone"
 4. Använd applösenordet (inte ditt vanliga lösenord) i `SMTP_PASS`
 
 **För andra e-posttjänster:**
@@ -1320,7 +1320,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=familj@gmail.com
 SMTP_PASS=abcd efgh ijkl mnop
-EMAIL_FROM=Kreep <familj@gmail.com>
+EMAIL_FROM=Keep Clone <familj@gmail.com>
 ```
 
 4. **Starta servern:**
@@ -1618,7 +1618,7 @@ docker-compose up -d
 
 ## 📥 Import från Google Keep
 
-Kreep har inbyggd import från Google Keep! Flytta över alla dina anteckningar enkelt.
+Keep Clone har inbyggd import från Google Keep! Flytta över alla dina anteckningar enkelt.
 
 ### Snabbinstruktioner
 
@@ -1646,7 +1646,7 @@ För detaljerad guide och felsökning, se [IMPORT-GUIDE.md](./IMPORT-GUIDE.md)
 
 ## 🔐 Säkerhet
 
-Kreep är byggd med säkerhet i första hand, lämplig för Tailscale-åtkomst eller privata nätverk:
+Keep Clone är byggd med säkerhet i första hand, lämplig för Tailscale-åtkomst eller privata nätverk:
 
 - ✅ **Stark autentisering:** Bcrypt-hashning (12 rounds), 12+ tecken lösenord
 - ✅ **CSRF-skydd:** Alla ändringar skyddade med tokens
@@ -1803,7 +1803,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=familj@gmail.com
 SMTP_PASS=applösenord_här
-EMAIL_FROM=Kreep <familj@gmail.com>
+EMAIL_FROM=Keep Clone <familj@gmail.com>
 ```
 
 #### FORCE_HTTPS (Avancerad konfiguration)
@@ -2041,7 +2041,7 @@ Se [Miljövariabler](#miljövariabler) för mer information.
 
 **Lösning:**
 
-Kreep använder SQLite, som kan hanteras direkt med `sqlite3` kommandoradsverktyget.
+Keep Clone använder SQLite, som kan hanteras direkt med `sqlite3` kommandoradsverktyget.
 
 **Installera sqlite3 (om det inte redan är installerat):**
 ```bash
@@ -2057,7 +2057,7 @@ brew install sqlite3
 
 **Öppna databasen:**
 ```bash
-# Navigera till din Kreep-katalog
+# Navigera till din Keep Clone-katalog
 cd /sökväg/till/keep
 
 # Öppna databasen
@@ -2222,7 +2222,7 @@ npm run dev
 
 ### Utveckling vs Produktion
 
-Kreep har olika säkerhetsinställningar för utveckling och produktion:
+Keep Clone har olika säkerhetsinställningar för utveckling och produktion:
 
 **Utvecklingsläge (NODE_ENV != 'production'):**
 - Mer generösa rate limits för testning
@@ -2337,7 +2337,7 @@ Total kodbas: ~7,000 rader (utan dependencies)
 
 MIT License - Se [LICENSE](./LICENSE) för detaljer.
 
-Copyright (c) 2025 Kreep Contributors
+Copyright (c) 2025 Keep Clone Contributors
 
 ## 🤝 Bidra
 
@@ -2378,7 +2378,7 @@ Jag byggde detta för min familj och delar det i hopp om att det hjälper andra,
 
 ## 👨‍👩‍👧‍👦 För familjer
 
-Kreep är särskilt designad för familjer som vill:
+Keep Clone är särskilt designad för familjer som vill:
 - 🏠 Ha full kontroll över sina data
 - 🔒 Inte låta Google läsa deras anteckningar
 - 💰 Spara pengar (helt gratis, öppen källkod)

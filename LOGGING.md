@@ -2,7 +2,7 @@
 
 ## Översikt
 
-Kreep använder Winston för strukturerad loggning med automatisk rotation och rensning.
+Keep Clone använder Winston för strukturerad loggning med automatisk rotation och rensning.
 
 ## Loggfiler
 

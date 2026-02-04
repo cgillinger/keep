@@ -1,6 +1,6 @@
 {
-  "name": "Kreep - Family Notes",
-  "short_name": "Kreep",
+  "name": "Keep Clone - Family Notes",
+  "short_name": "Keep Clone",
   "description": "Private self-hosted Google Keep clone for families",
   "start_url": "/",
   "display": "standalone",

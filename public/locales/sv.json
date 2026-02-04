@@ -1,15 +1,15 @@
 {
   "meta": {
-    "title": "Kreep - Familjeanteckningar",
+    "title": "Keep Clone - Familjeanteckningar",
     "description": "Open source Google Keep-klon för familjer. Självhostad anteckningsapp med realtidssynk, bilder, färgkodning och fullständig datakontroll. Gratis och privat.",
     "keywords": "anteckningar, notes, keep, google keep, självhostad, self-hosted, privacy, familj, open source, nodejs, sqlite, realtid, sync",
-    "og_title": "Kreep - Självhostad anteckningsapp för familjer",
+    "og_title": "Keep Clone - Självhostad anteckningsapp för familjer",
     "og_description": "Open source Google Keep-klon med realtidssynk, bilder och fullständig datakontroll. Perfekt för familjer som vill äga sin data.",
-    "twitter_title": "Kreep - Självhostad anteckningsapp",
+    "twitter_title": "Keep Clone - Självhostad anteckningsapp",
     "twitter_description": "Open source Google Keep-klon för familjer. Självhostad med fullständig datakontroll."
   },
   "auth": {
-    "app_name": "Kreep",
+    "app_name": "Keep Clone",
     "subtitle": "Din privata familjeanteckning",
     "login_title": "Logga in",
     "username_placeholder": "Användarnamn",
@@ -76,7 +76,6 @@
     "pinned_label": "FÄSTA",
     "other_label": "ANDRA",
     "created": "Skapad",
-    "shared_by": "Delad av",
     "can_view": "kan visa",
     "can_edit": "kan redigera"
   },
@@ -174,7 +173,7 @@
     "icon_credit": "Anteckningsbok-ikoner skapade av Freepik - Flaticon"
   },
   "footer": {
-    "version": "Kreep v1.1.0",
+    "version": "Keep Clone v1.1.0",
     "license": "MIT License"
   }
 }

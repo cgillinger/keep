@@ -1,15 +1,15 @@
 {
   "meta": {
-    "title": "Kreep - Perhemuistiinpanot",
+    "title": "Keep Clone - Perhemuistiinpanot",
     "description": "Avoimen lähdekoodin Google Keep -klooni perheille. Itse isännöity muistiinpanosovellus reaaliaikaisella synkronoinnilla, kuvilla, värikoodauksella ja täydellä tietojen hallinnalla. Ilmainen ja yksityinen.",
     "keywords": "muistiinpanot, keep, google keep, itse isännöity, muistiinpanosovellus, yksityisyys, perhe, avoin lähdekoodi, nodejs, sqlite, reaaliaikainen, synkronointi",
-    "og_title": "Kreep - Itse isännöity muistiinpanosovellus perheille",
+    "og_title": "Keep Clone - Itse isännöity muistiinpanosovellus perheille",
     "og_description": "Avoimen lähdekoodin Google Keep -klooni reaaliaikaisella synkronoinnilla, kuvilla ja täydellä tietojen hallinnalla. Täydellinen perheille, jotka haluavat hallita omia tietojaan.",
-    "twitter_title": "Kreep - Itse isännöity muistiinpanosovellus",
+    "twitter_title": "Keep Clone - Itse isännöity muistiinpanosovellus",
     "twitter_description": "Avoimen lähdekoodin Google Keep -klooni perheille. Itse isännöity täydellä tietojen hallinnalla."
   },
   "auth": {
-    "app_name": "Kreep",
+    "app_name": "Keep Clone",
     "subtitle": "Yksityiset perhemuistiinpanosi",
     "login_title": "Kirjaudu sisään",
     "username_placeholder": "Käyttäjänimi",
@@ -173,7 +173,7 @@
     "icon_credit": "Muistikuvakkeet: Freepik - Flaticon"
   },
   "footer": {
-    "version": "Kreep v1.1.0",
+    "version": "Keep Clone v1.1.0",
     "license": "MIT-lisenssi"
   }
 }
