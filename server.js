@@ -1701,7 +1701,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 server.listen(PORT, () => {
-  logger.info(`Kreep running on http://localhost:${PORT}`);
+  logger.info(`Keep Clone running on http://localhost:${PORT}`);
   logger.info(`HTTPS mode: ${isHttps ? 'ENABLED (HSTS active)' : 'DISABLED (HTTP mode)'}`);
   logger.info('Security features enabled:');
   logger.info('  - Helmet security headers');

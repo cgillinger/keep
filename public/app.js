@@ -1,13 +1,65 @@
+// ===== SECRET KREEP MODE =====
+// Check URL parameter and localStorage for secret kreep mode
+function initKreepMode() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const kreepParam = urlParams.get('kreep');
+
+  if (kreepParam === '1') {
+    localStorage.setItem('kreep', '1');
+  } else if (kreepParam === '0') {
+    localStorage.removeItem('kreep');
+  }
+
+  return localStorage.getItem('kreep') === '1';
+}
+
+function isKreepMode() {
+  return localStorage.getItem('kreep') === '1';
+}
+
+function getAppName() {
+  return isKreepMode() ? 'Kreep' : 'Keep Clone';
+}
+
+// Initialize kreep mode on load
+const kreepModeEnabled = initKreepMode();
+
 // ===== INTERNATIONALIZATION (i18n) =====
 let currentLocale = localStorage.getItem('locale') || 'en'; // Default to English
 let translations = {};
+
+// Replace app name in translations based on kreep mode
+function applyAppNameToTranslations(obj) {
+  if (!isKreepMode()) return obj;
+
+  const appName = getAppName();
+  const replaceInString = (str) => str.replace(/Keep Clone/g, appName);
+
+  const processValue = (value) => {
+    if (typeof value === 'string') {
+      return replaceInString(value);
+    } else if (Array.isArray(value)) {
+      return value.map(processValue);
+    } else if (typeof value === 'object' && value !== null) {
+      const result = {};
+      for (const key in value) {
+        result[key] = processValue(value[key]);
+      }
+      return result;
+    }
+    return value;
+  };
+
+  return processValue(obj);
+}
 
 // Load translation file for current locale
 async function loadTranslations(locale) {
   try {
     const response = await fetch(`/locales/${locale}.json`);
     if (response.ok) {
-      translations = await response.json();
+      let loadedTranslations = await response.json();
+      translations = applyAppNameToTranslations(loadedTranslations);
       currentLocale = locale;
       localStorage.setItem('locale', locale);
       return true;

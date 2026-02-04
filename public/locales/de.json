@@ -1,15 +1,15 @@
 {
   "meta": {
-    "title": "Kreep - Familiennotizen",
+    "title": "Keep Clone - Familiennotizen",
     "description": "Open Source Google Keep-Klon für Familien. Selbstgehostete Notiz-App mit Echtzeit-Synchronisierung, Bildern, Farbkodierung und vollständiger Datenkontrolle. Kostenlos und privat.",
     "keywords": "Notizen, Keep, Google Keep, selbstgehostet, Notiz-App, Datenschutz, Familie, Open Source, NodeJS, SQLite, Echtzeit, Synchronisierung",
-    "og_title": "Kreep - Selbstgehostete Notiz-App für Familien",
+    "og_title": "Keep Clone - Selbstgehostete Notiz-App für Familien",
     "og_description": "Open Source Google Keep-Klon mit Echtzeit-Synchronisierung, Bildern und vollständiger Datenkontrolle. Perfekt für Familien, die ihre Daten selbst verwalten möchten.",
-    "twitter_title": "Kreep - Selbstgehostete Notiz-App",
+    "twitter_title": "Keep Clone - Selbstgehostete Notiz-App",
     "twitter_description": "Open Source Google Keep-Klon für Familien. Selbstgehostet mit vollständiger Datenkontrolle."
   },
   "auth": {
-    "app_name": "Kreep",
+    "app_name": "Keep Clone",
     "subtitle": "Deine privaten Familiennotizen",
     "login_title": "Anmelden",
     "username_placeholder": "Benutzername",
@@ -173,7 +173,7 @@
     "icon_credit": "Notizsymbole erstellt von Freepik - Flaticon"
   },
   "footer": {
-    "version": "Kreep v1.1.0",
+    "version": "Keep Clone v1.1.0",
     "license": "MIT-Lizenz"
   }
 }

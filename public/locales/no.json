@@ -1,15 +1,15 @@
 {
   "meta": {
-    "title": "Kreep - Familienotater",
+    "title": "Keep Clone - Familienotater",
     "description": "Åpen kildekode Google Keep-klon for familier. Selvhostet notatapp med sanntidssynkronisering, bilder, fargekoding og full datakontroll. Gratis og privat.",
     "keywords": "notater, keep, google keep, selvhostet, notatapp, personvern, familie, åpen kildekode, nodejs, sqlite, sanntid, synkronisering",
-    "og_title": "Kreep - Selvhostet notatapp for familier",
+    "og_title": "Keep Clone - Selvhostet notatapp for familier",
     "og_description": "Åpen kildekode Google Keep-klon med sanntidssynkronisering, bilder og full datakontroll. Perfekt for familier som vil eie sine egne data.",
-    "twitter_title": "Kreep - Selvhostet notatapp",
+    "twitter_title": "Keep Clone - Selvhostet notatapp",
     "twitter_description": "Åpen kildekode Google Keep-klon for familier. Selvhostet med full datakontroll."
   },
   "auth": {
-    "app_name": "Kreep",
+    "app_name": "Keep Clone",
     "subtitle": "Dine private familienotater",
     "login_title": "Logg inn",
     "username_placeholder": "Brukernavn",
@@ -173,7 +173,7 @@
     "icon_credit": "Notatikoner laget av Freepik - Flaticon"
   },
   "footer": {
-    "version": "Kreep v1.1.0",
+    "version": "Keep Clone v1.1.0",
     "license": "MIT-lisens"
   }
 }
