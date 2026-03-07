@@ -1318,13 +1318,14 @@ function renderNoteHTML(note) {
   // Render images with lazy loading
   let imagesHtml = '';
   if (note.images && Array.isArray(note.images) && note.images.length > 0) {
+    const imagesJson = JSON.stringify(note.images).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
     imagesHtml = `
       <div class="note-images" onclick="event.stopPropagation()">
         ${note.images.map(img => `
-          <img src="/api/notes/image/${img}" alt="Note image" loading="lazy" onclick="openImageModal('${img}')">
+          <img src="/api/notes/image/${img}" alt="Note image" loading="lazy" onclick="openImageModal('${img}', JSON.parse(this.parentElement.dataset.images))" >
         `).join('')}
       </div>
-    `;
+    `.replace('<div class="note-images"', `<div class="note-images" data-images="${imagesJson}"`);
   }
 
   // Format created date if enabled
@@ -3072,10 +3073,12 @@ async function handleEditNoteImageSelect() {
 // Render image preview
 function renderImagePreview(containerId, images, canRemove) {
   const container = document.getElementById(containerId);
+  const imagesJson = JSON.stringify(images).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+  container.setAttribute('data-images', imagesJson);
   container.innerHTML = images.map((img, index) => `
     <div class="image-preview-item">
-      <img src="/api/notes/image/${img}" alt="Preview">
-      ${canRemove ? `<button class="remove-image" onclick="removeImage('${containerId}', ${index})">✕</button>` : ''}
+      <img src="/api/notes/image/${img}" alt="Preview" onclick="openImageModal('${img}', JSON.parse(this.closest('[data-images]').dataset.images))">
+      ${canRemove ? `<button class="remove-image" onclick="event.stopPropagation(); removeImage('${containerId}', ${index})">✕</button>` : ''}
     </div>
   `).join('');
 }
@@ -3098,16 +3101,63 @@ function removeImage(containerId, index) {
   }
 }
 
+// Image modal state for navigation
+let imageModalImages = [];
+let imageModalIndex = 0;
+
 // Open image modal for full view
-function openImageModal(filename) {
+function openImageModal(filename, noteImages) {
   const modal = document.getElementById('image-modal');
   const img = document.getElementById('image-modal-img');
+  const counter = document.getElementById('image-modal-counter');
+
+  // Set up navigation if multiple images
+  if (noteImages && noteImages.length > 1) {
+    imageModalImages = noteImages;
+    imageModalIndex = noteImages.indexOf(filename);
+    modal.classList.add('has-nav');
+    counter.textContent = `${imageModalIndex + 1} / ${noteImages.length}`;
+  } else {
+    imageModalImages = [];
+    imageModalIndex = 0;
+    modal.classList.remove('has-nav');
+  }
+
   img.src = `/api/notes/image/${filename}`;
   modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+// Navigate between images in modal
+function navigateImage(direction) {
+  if (imageModalImages.length === 0) return;
+  imageModalIndex = (imageModalIndex + direction + imageModalImages.length) % imageModalImages.length;
+  const img = document.getElementById('image-modal-img');
+  const counter = document.getElementById('image-modal-counter');
+  img.src = `/api/notes/image/${imageModalImages[imageModalIndex]}`;
+  counter.textContent = `${imageModalIndex + 1} / ${imageModalImages.length}`;
 }
 
 // Close image modal
 function closeImageModal() {
   const modal = document.getElementById('image-modal');
   modal.classList.remove('active');
+  modal.classList.remove('has-nav');
+  document.body.style.overflow = '';
+  imageModalImages = [];
+  imageModalIndex = 0;
 }
+
+// Keyboard support for image modal
+document.addEventListener('keydown', function(e) {
+  const modal = document.getElementById('image-modal');
+  if (!modal.classList.contains('active')) return;
+
+  if (e.key === 'Escape') {
+    closeImageModal();
+  } else if (e.key === 'ArrowLeft') {
+    navigateImage(-1);
+  } else if (e.key === 'ArrowRight') {
+    navigateImage(1);
+  }
+});

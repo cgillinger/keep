@@ -171,7 +171,7 @@
 /* ===== IMAGE MODAL ===== */
 /* Image modal for full view */
 .image-modal {
-  display: none;
+  display: flex;
   position: fixed;
   top: 0;
   left: 0;
@@ -182,17 +182,29 @@
   padding: var(--space-2xl);
   align-items: center;
   justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
 }
 
 .image-modal.active {
-  display: flex;
+  opacity: 1;
+  visibility: visible;
 }
 
 .image-modal img {
-  max-width: 100%;
-  max-height: 100%;
+  max-width: 90%;
+  max-height: 90%;
   object-fit: contain;
   border-radius: var(--radius-lg);
+  transform: scale(0.9);
+  transition: transform 0.25s ease;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.image-modal.active img {
+  transform: scale(1);
 }
 
 .image-modal .close-image-modal {
@@ -210,10 +222,61 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.2s ease;
 }
 
 .image-modal .close-image-modal:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Navigation arrows for multiple images */
+.image-modal-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: none;
+  border-radius: var(--radius-full);
+  width: 48px;
+  height: 48px;
+  font-size: 24px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.image-modal-nav:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+.image-modal-nav.prev {
+  left: var(--space-xl);
+}
+
+.image-modal-nav.next {
+  right: var(--space-xl);
+}
+
+.image-modal.has-nav .image-modal-nav {
+  display: flex;
+}
+
+/* Image counter indicator */
+.image-modal-counter {
+  position: absolute;
+  bottom: var(--space-xl);
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--font-size-sm);
+  display: none;
+}
+
+.image-modal.has-nav .image-modal-counter {
+  display: block;
 }
 
 /* Mobile modal adjustments */
