@@ -3073,10 +3073,12 @@ async function handleEditNoteImageSelect() {
 // Render image preview
 function renderImagePreview(containerId, images, canRemove) {
   const container = document.getElementById(containerId);
+  const imagesJson = JSON.stringify(images).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+  container.setAttribute('data-images', imagesJson);
   container.innerHTML = images.map((img, index) => `
     <div class="image-preview-item">
-      <img src="/api/notes/image/${img}" alt="Preview">
-      ${canRemove ? `<button class="remove-image" onclick="removeImage('${containerId}', ${index})">✕</button>` : ''}
+      <img src="/api/notes/image/${img}" alt="Preview" onclick="openImageModal('${img}', JSON.parse(this.closest('[data-images]').dataset.images))">
+      ${canRemove ? `<button class="remove-image" onclick="event.stopPropagation(); removeImage('${containerId}', ${index})">✕</button>` : ''}
     </div>
   `).join('');
 }
