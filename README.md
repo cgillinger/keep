@@ -1,37 +1,92 @@
-# Keep Clone - Private Google Keep for Families
+<div align="center">
 
-[🇸🇪 Svenska versionen](#svenska-swedish-version)
+# Keep Clone
 
-A secure, self-hosted Google Keep clone with sharing features, customizable profiles, and import from Google Keep.
+### A Private, Self-Hosted Google Keep Alternative
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)
-![Docker](https://img.shields.io/badge/docker-supported-2496ED?logo=docker&logoColor=white)
-![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-lightgrey)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue?style=for-the-badge)](https://github.com/cgillinger/keep/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](./LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Docker](https://img.shields.io/badge/docker-supported-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/)
+[![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Express.js](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
 
-> **⚠️ Hobby Project - Provided "AS IS"**
->
-> This is a personal hobby project shared freely under MIT license. No support, bug fixes, or feature requests are guaranteed. Use at your own risk. Feel free to fork and modify for your needs.
+[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-lightgrey?style=flat-square)](#)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/cgillinger/keep/pulls)
+[![Maintenance](https://img.shields.io/badge/maintained-yes-green?style=flat-square)](#)
+
+**A secure, self-hosted note-taking app with real-time sync, sharing, image support, and Google Keep import. Built for families who value privacy.**
+
+[Getting Started](#-quick-start) · [Docker Setup](#-docker-recommended-for-production) · [Features](#-features) · [Documentation](#-documentation) · [🇸🇪 Svenska](#svenska-swedish-version)
+
+</div>
+
+---
+
+> **Note:** This is a personal hobby project shared freely under the MIT license. No support, bug fixes, or feature requests are guaranteed. Use at your own risk. Feel free to fork and modify for your needs.
 
 ## ✨ Features
 
-- 📝 **Notes:** Create, edit, and organize notes
-- ☑️ **Checklists:** Checkable task lists
-- 🎨 **Color Coding:** 12 colors to choose from
-- 📌 **Pin Notes:** Keep important notes at the top
-- 📦 **Archive:** Archive notes you don't want to see right now
-- 🔍 **Search:** Find notes quickly
-- 👥 **Share:** Share notes with family members (view or edit)
-- 👤 **Personal Profiles:** Avatar colors, background themes, and initials
-- 🌙 **Night Mode:** WCAG-compliant dark theme for comfortable reading
-- 🎨 **Background Themes:** 5 light themes + night mode
-- 📥 **Import:** Import your existing notes from Google Keep
-- 📤 **Export:** Export backup of all your notes
-- 🔄 **Real-time:** Automatically syncs across all devices
-- 🔐 **Security:** Enterprise-grade security with CSRF, rate limiting, XSS protection, etc.
-- 🔑 **Password Reset:** Email-based recovery (optional)
-- 🌍 **Multi-language:** English, Swedish, Finnish, Norwegian, Danish, German, French
+<table>
+<tr>
+<td>
+
+**Core**
+- 📝 Create, edit, and organize notes
+- ☑️ Checkable task lists
+- 🎨 12 color options
+- 📌 Pin important notes
+- 📦 Archive notes
+- 🔍 Fast search
+
+</td>
+<td>
+
+**Collaboration**
+- 👥 Share notes (view or edit)
+- 🔄 Real-time sync across devices
+- 👤 Custom profiles & avatars
+- 🌍 7 languages supported
+
+</td>
+<td>
+
+**Privacy & Security**
+- 🔐 CSRF, XSS, SQL injection protection
+- 🛡️ Rate limiting & security headers
+- 🔒 Bcrypt hashing & secure sessions
+- 🔑 Optional email password reset
+
+</td>
+</tr>
+<tr>
+<td>
+
+**Customization**
+- 🌙 WCAG-compliant night mode
+- 🎨 5 light themes + dark mode
+- 📅 Optional creation dates
+
+</td>
+<td>
+
+**Data Portability**
+- 📥 Import from Google Keep
+- 📤 Export/backup to ZIP
+- 🖼️ Image support
+
+</td>
+<td>
+
+**Deployment**
+- 🐳 Docker & Docker Compose
+- 💻 Native Node.js
+- 📡 Synology NAS ready
+- 🔗 Tailscale compatible
+
+</td>
+</tr>
+</table>
 
 ## 🚀 Quick Start
 
@@ -1196,47 +1251,74 @@ Keep Clone is specially designed for families who want to:
 
 ---
 
+<div align="center">
+
 **Built with ❤️ for families who value privacy and simplicity.**
 
-**Version 1.1.0** | [Changelog](#changelog) | [License](./LICENSE) | [Documentation](#documentation)
+**v1.1.0** · [Changelog](#-changelog) · [License](./LICENSE) · [Documentation](#-documentation)
+
+[⬆ Back to top](#keep-clone)
+
+</div>
 
 ---
 
 <a name="svenska-swedish-version"></a>
-# Svenska (Swedish Version)
 
-# Keep Clone - Privat Google Keep för familjer
+---
 
-En säker, självhostad Google Keep-klon med delningsfunktioner, anpassningsbara profiler och import från Google Keep.
+<div align="center">
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)
-![Docker](https://img.shields.io/badge/docker-supported-2496ED?logo=docker&logoColor=white)
-![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-lightgrey)
+# Keep Clone - Svenska
 
-> **⚠️ Hobbyprojekt - Tillhandahålls "SOM DET ÄR"**
->
-> Detta är ett personligt hobbyprojekt som delas fritt under MIT-licens. Ingen support, buggfixar eller feature requests garanteras. Använd på egen risk. Du är välkommen att forka och modifiera för dina behov.
+### En privat, självhostad Google Keep-alternativ
+
+[![Version](https://img.shields.io/badge/version-1.1.0-blue?style=for-the-badge)](https://github.com/cgillinger/keep/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](./LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Docker](https://img.shields.io/badge/docker-supported-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/)
+
+[🇬🇧 English Version](#keep-clone)
+
+</div>
+
+> **Obs:** Detta är ett personligt hobbyprojekt som delas fritt under MIT-licens. Ingen support, buggfixar eller feature requests garanteras. Använd på egen risk. Du är välkommen att forka och modifiera för dina behov.
 
 ## ✨ Funktioner
 
-- 📝 **Anteckningar:** Skapa, redigera och organisera anteckningar
-- ☑️ **Checklistor:** Avbockningsbara uppgiftslistor
-- 🎨 **Färgkodning:** 12 färger att välja mellan
-- 📌 **Fäst anteckningar:** Håll viktiga anteckningar högst upp
-- 📦 **Arkiv:** Arkivera anteckningar du inte vill se just nu
-- 🔍 **Sök:** Hitta anteckningar snabbt
-- 👥 **Dela:** Dela anteckningar med familjemedlemmar (visa eller redigera)
-- 👤 **Personliga profiler:** Avatarfärger, bakgrundsteman och initialer
-- 🌙 **Nattläge:** WCAG-kompatibelt mörkt tema för ögonvänlig läsning
-- 🎨 **Bakgrundsteman:** 5 ljusa teman + nattläge
-- 📥 **Import:** Importera dina befintliga anteckningar från Google Keep
-- 📤 **Export:** Exportera backup av alla dina anteckningar
-- 🔄 **Real-time:** Synkroniserar automatiskt mellan alla enheter
-- 🔐 **Säkerhet:** Företagsstandard säkerhet med CSRF, rate limiting, XSS-skydd m.m.
-- 🔑 **Lösenordsåterställning:** E-post-baserad återställning (valfritt)
-- 🌍 **Flerspråkigt:** Engelska, svenska, finska, norska, danska, tyska, franska
+<table>
+<tr>
+<td>
+
+**Kärna**
+- 📝 Skapa, redigera och organisera anteckningar
+- ☑️ Avbockningsbara uppgiftslistor
+- 🎨 12 färger att välja mellan
+- 📌 Fäst viktiga anteckningar
+- 📦 Arkivera anteckningar
+- 🔍 Snabb sökning
+
+</td>
+<td>
+
+**Samarbete**
+- 👥 Dela anteckningar (visa/redigera)
+- 🔄 Realtidssynk mellan enheter
+- 👤 Anpassningsbara profiler & avatarer
+- 🌍 7 språk
+
+</td>
+<td>
+
+**Integritet & Säkerhet**
+- 🔐 CSRF, XSS, SQL-injection-skydd
+- 🛡️ Rate limiting & säkerhetsheaders
+- 🔒 Bcrypt-hashning & säkra sessioner
+- 🔑 Valfri lösenordsåterställning via e-post
+
+</td>
+</tr>
+</table>
 
 ## 🚀 Snabbstart
 
@@ -2399,6 +2481,12 @@ Keep Clone är särskilt designad för familjer som vill:
 
 ---
 
+<div align="center">
+
 **Byggd med ❤️ för familjer som värdesätter integritet och enkelhet.**
 
-**Version 1.1.0** | [Changelog](#changelog-1) | [Licens](./LICENSE) | [Dokumentation](#dokumentation)
+**v1.1.0** · [Changelog](#-changelog-1) · [Licens](./LICENSE) · [Dokumentation](#-dokumentation)
+
+[⬆ Tillbaka till toppen](#keep-clone---svenska) · [🇬🇧 English](#keep-clone)
+
+</div>
