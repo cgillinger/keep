@@ -573,7 +573,10 @@
   <!-- Image View Modal -->
   <div id="image-modal" class="image-modal" onclick="closeImageModal()">
     <button class="close-image-modal" onclick="closeImageModal()">✕</button>
-    <img id="image-modal-img" src="" alt="Full size image">
+    <button class="image-modal-nav prev" onclick="event.stopPropagation(); navigateImage(-1)">&#8249;</button>
+    <img id="image-modal-img" src="" alt="Full size image" onclick="event.stopPropagation()">
+    <button class="image-modal-nav next" onclick="event.stopPropagation(); navigateImage(1)">&#8250;</button>
+    <div class="image-modal-counter" id="image-modal-counter"></div>
   </div>
 
   <script src="app.js" defer></script>
