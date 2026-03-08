@@ -925,7 +925,7 @@ function openProfileModal() {
 function toggleShowCreatedDate() {
   showCreatedDate = !showCreatedDate;
   localStorage.setItem('showCreatedDate', showCreatedDate);
-  renderNotes(); // Re-render notes to show/hide dates
+  loadNotes({ forceRefresh: true }); // Re-fetch notes with correct sort order
 }
 
 function closeProfileModal(event) {
@@ -1370,6 +1370,9 @@ async function loadNotes(options = {}) {
   // Add pagination params (use ? or & depending on existing params)
   const separator = url.includes('?') ? '&' : '?';
   url += `${separator}limit=${PAGE_SIZE}&offset=${currentOffset}`;
+  if (showCreatedDate) {
+    url += '&sortBy=created_at';
+  }
 
   // Check cache first (if not forcing refresh and not appending)
   const cachedData = notesCache[cacheKey];
@@ -1545,9 +1548,10 @@ function renderNotes(options = {}) {
   const pinnedNotes = filteredNotes.filter(note => note.is_pinned);
   const regularNotes = filteredNotes.filter(note => !note.is_pinned);
 
-  // Sort each group by updated_at descending (newest first)
-  pinnedNotes.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-  regularNotes.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+  // Sort each group by date descending (newest first)
+  const sortField = showCreatedDate ? 'created_at' : 'updated_at';
+  pinnedNotes.sort((a, b) => new Date(b[sortField]) - new Date(a[sortField]));
+  regularNotes.sort((a, b) => new Date(b[sortField]) - new Date(a[sortField]));
 
   // Show/hide sections
   if (pinnedNotes.length > 0) {
