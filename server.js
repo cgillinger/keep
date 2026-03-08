@@ -818,6 +818,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
   const showSharedOnly = req.query.shared === 'true';
   const limit = Math.min(parseInt(req.query.limit) || DEFAULT_PAGE_SIZE, 100); // Max 100
   const offset = parseInt(req.query.offset) || 0;
+  const sortBy = req.query.sortBy === 'created_at' ? 'created_at' : 'updated_at';
 
   // Helper to parse JSON fields and prepare notes
   const prepareNotes = (notes, isSharedView = false) => {
@@ -872,7 +873,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
            JOIN users ON notes.user_id = users.id
            WHERE shares.shared_with_user_id = ?
              AND notes.is_archived = 0
-           ORDER BY notes.is_pinned DESC, notes.updated_at DESC
+           ORDER BY notes.is_pinned DESC, notes.${sortBy} DESC
            LIMIT ? OFFSET ?`,
           [req.session.userId, limit, offset],
           (err, notes) => {
@@ -909,7 +910,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
             (SELECT COUNT(*) FROM shares WHERE shares.note_id = notes.id) as share_count
            FROM notes
            WHERE user_id = ? AND is_archived = 1
-           ORDER BY is_pinned DESC, updated_at DESC
+           ORDER BY is_pinned DESC, ${sortBy} DESC
            LIMIT ? OFFSET ?`,
           [req.session.userId, limit, offset],
           (err, notes) => {
@@ -977,7 +978,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
             JOIN users ON notes.user_id = users.id
             WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0
           )
-          ORDER BY is_pinned DESC, updated_at DESC
+          ORDER BY is_pinned DESC, ${sortBy} DESC
           LIMIT ? OFFSET ?`,
           [req.session.userId, req.session.userId, limit, offset],
           (err, notes) => {
