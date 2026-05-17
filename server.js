@@ -337,12 +337,29 @@ function logAiCall(userId, noteId, command, status, fields = {}) {
   );
 }
 
+function checkRaceState(noteId, expected) {
+  return new Promise(resolve => {
+    db.get('SELECT processing_status FROM notes WHERE id = ?', [noteId], (err, row) => {
+      if (err || !row) return resolve();
+      if (row.processing_status !== expected) {
+        logger.warn(`AI race detected: note=${noteId} expected_status=${expected} actual_status=${row.processing_status}`);
+      }
+      resolve();
+    });
+  });
+}
+
 async function triggerAiCommand(note, cmd, triggeredByUserId) {
   const start = Date.now();
   const command = cmd.command;
   const ownerId = note.user_id;
 
-  logger.info(`AI command triggered: command=${command} user=${triggeredByUserId} note=${note.id}`);
+  let images = [];
+  if (note.images) {
+    try { images = JSON.parse(note.images); } catch (e) { images = []; }
+  }
+
+  logger.info(`AI command triggered: command=${command} user=${triggeredByUserId} note=${note.id} images=${Array.isArray(images) ? images.length : 0}`);
 
   const failWith = async (message, status) => {
     try {
@@ -360,11 +377,6 @@ async function triggerAiCommand(note, cmd, triggeredByUserId) {
   }
   if (note.is_archived) {
     return failWith('⚠️ AI-kommandon fungerar inte på arkiverade noter', 'failed');
-  }
-
-  let images = [];
-  if (note.images) {
-    try { images = JSON.parse(note.images); } catch (e) { images = []; }
   }
   if (!Array.isArray(images) || images.length === 0) {
     return failWith(`⚠️ //${command} kräver minst en bifogad bild`, 'no_images');
@@ -393,6 +405,7 @@ async function triggerAiCommand(note, cmd, triggeredByUserId) {
     if (command === 'list') {
       const items = await commandProcessor.processListCommand(images, NOTE_IMAGES_DIR, GEMINI_API_KEY);
       const checklist = commandProcessor.buildChecklistFromItems(items, cmd.userText);
+      await checkRaceState(note.id, 'pending');
       await updateNoteFields(note.id, {
         content: '',
         is_checklist: 1,
@@ -408,6 +421,7 @@ async function triggerAiCommand(note, cmd, triggeredByUserId) {
       const newContent = cmd.userText
         ? `${cmd.userText}\n\n--- OCR-transkription ---\n${text}`
         : text;
+      await checkRaceState(note.id, 'pending');
       await updateNoteFields(note.id, {
         content: newContent,
         is_checklist: 0,
@@ -424,6 +438,7 @@ async function triggerAiCommand(note, cmd, triggeredByUserId) {
     const duration = Date.now() - start;
     logger.warn(`AI command failed: command=${command} user=${ownerId} note=${note.id} error=${err.message}`);
     try {
+      await checkRaceState(note.id, 'pending');
       await updateNoteFields(note.id, {
         content: `⚠️ AI-anrop misslyckades: ${err.message}. Redigera noten och lägg tillbaka //${command} för att försöka igen.`,
         processing_status: 'failed',
