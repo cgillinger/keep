@@ -1307,6 +1307,7 @@ function renderNoteHTML(note) {
           <li class="${item.checked ? 'checked' : ''}">
             <input type="checkbox" ${item.checked ? 'checked' : ''} disabled>
             <span>${linkify(item.text)}</span>
+            ${confidenceBadgeHTML(item.confidence)}
           </li>
         `).join('')}
       </ul>
@@ -1729,13 +1730,17 @@ function openEditModal(noteId) {
     document.getElementById('edit-checklist-toggle').textContent = '☑';
 
     const container = document.getElementById('edit-checklist-items');
-    container.innerHTML = items.map((item, index) => `
-      <div class="checklist-item">
+    container.innerHTML = items.map((item, index) => {
+      const confAttr = Number.isInteger(item.confidence) ? ` data-confidence="${item.confidence}"` : '';
+      return `
+      <div class="checklist-item"${confAttr}>
         <input type="checkbox" ${item.checked ? 'checked' : ''} ${!canEdit ? 'disabled' : ''} onchange="updateEditChecklistItem(${index})">
         <input type="text" value="${escapeHtml(item.text)}" ${!canEdit ? 'disabled' : ''} onchange="updateEditChecklistItem(${index})">
+        ${confidenceBadgeHTML(item.confidence)}
         ${canEdit ? `<button onclick="removeEditChecklistItem(${index})">×</button>` : ''}
       </div>
-    `).join('');
+    `;
+    }).join('');
   } else {
     document.getElementById('edit-checklist-container').style.display = 'none';
     document.getElementById('edit-note-content').style.display = 'block';
@@ -2553,14 +2558,21 @@ function getChecklistItems(containerId) {
     const text = textInput.value.trim();
 
     if (text) {
-      items.push({
-        text,
-        checked: checkbox.checked
-      });
+      const entry = { text, checked: checkbox.checked };
+      const conf = parseInt(item.dataset.confidence, 10);
+      if (Number.isInteger(conf) && conf >= 1 && conf <= 10) {
+        entry.confidence = conf;
+      }
+      items.push(entry);
     }
   });
 
   return items;
+}
+
+function confidenceBadgeHTML(confidence) {
+  if (!Number.isInteger(confidence) || confidence < 1 || confidence > 10) return '';
+  return `<span class="confidence-badge confidence-${confidence}" title="Säkerhetsfaktor: ${confidence}/10">${confidence}</span>`;
 }
 
 function toggleEditChecklist() {

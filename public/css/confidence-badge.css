@@ -1,0 +1,40 @@
+/* Confidence badge for AI-generated checklist items (1-10). */
+.confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 8px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* Green — confident */
+.confidence-1, .confidence-2 { background: #C0DD97; color: #27500A; }
+.confidence-3              { background: #97C459; color: #173404; }
+
+/* Amber — uncertain */
+.confidence-4              { background: #FAC775; color: #633806; }
+.confidence-5, .confidence-6 { background: #EF9F27; color: #412402; }
+
+/* Coral — very uncertain */
+.confidence-7              { background: #BA7517; color: #FFFFFF; }
+.confidence-8              { background: #D85A30; color: #FFFFFF; }
+
+/* Red — unknown */
+.confidence-9              { background: #F09595; color: #791F1F; }
+.confidence-10             { background: #E24B4A; color: #FFFFFF; }
+
+/* Ensure checklist rows keep badges nicely aligned on the right edge. */
+.note-card .checklist li,
+#edit-checklist-items .checklist-item {
+  display: flex;
+  align-items: center;
+}
+.note-card .checklist li > span {
+  flex: 1;
+}

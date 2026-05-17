@@ -1187,10 +1187,17 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, (req, res) => {
     // Validate and sanitize checklist items
     const sanitizedItems = checklist_items
       .slice(0, 100) // Max 100 items
-      .map(item => ({
-        text: sanitizeInput(item.text, 1000),
-        checked: !!item.checked
-      }));
+      .map(item => {
+        const entry = {
+          text: sanitizeInput(item.text, 1000),
+          checked: !!item.checked
+        };
+        const conf = parseInt(item.confidence, 10);
+        if (Number.isInteger(conf) && conf >= 1 && conf <= 10) {
+          entry.confidence = conf;
+        }
+        return entry;
+      });
     checklistData = JSON.stringify(sanitizedItems);
   }
 
@@ -1277,10 +1284,17 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
       if (is_checklist && checklist_items && Array.isArray(checklist_items)) {
         const sanitizedItems = checklist_items
           .slice(0, 100)
-          .map(item => ({
-            text: sanitizeInput(item.text, 1000),
-            checked: !!item.checked
-          }));
+          .map(item => {
+            const entry = {
+              text: sanitizeInput(item.text, 1000),
+              checked: !!item.checked
+            };
+            const conf = parseInt(item.confidence, 10);
+            if (Number.isInteger(conf) && conf >= 1 && conf <= 10) {
+              entry.confidence = conf;
+            }
+            return entry;
+          });
         checklistData = JSON.stringify(sanitizedItems);
       }
 
