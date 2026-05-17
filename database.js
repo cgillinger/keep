@@ -78,7 +78,35 @@ db.serialize(() => {
         }
       });
     }
+
+    const hasProcessingStatus = columns.some(col => col.name === 'processing_status');
+    if (!hasProcessingStatus) {
+      db.run(`ALTER TABLE notes ADD COLUMN processing_status TEXT DEFAULT NULL`, (err) => {
+        if (err) {
+          console.error('Error adding processing_status column:', err);
+        } else {
+          console.log('Added processing_status column to notes table');
+        }
+      });
+    }
   });
+
+  // AI command audit log (no content/output is logged — only metadata)
+  db.run(`CREATE TABLE IF NOT EXISTS note_ai_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    note_id INTEGER,
+    command TEXT NOT NULL,
+    status TEXT NOT NULL,
+    result_item_count INTEGER,
+    result_char_count INTEGER,
+    error_message TEXT,
+    duration_ms INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`);
+
+  db.run(`CREATE INDEX IF NOT EXISTS idx_note_ai_log_user_created ON note_ai_log (user_id, created_at)`);
 
   // Migration: Add avatar_color column to users if it doesn't exist
   db.all("PRAGMA table_info(users)", (err, columns) => {

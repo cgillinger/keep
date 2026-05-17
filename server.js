@@ -26,6 +26,7 @@ const BackupGenerator = require('./export-generator');
 const mailer = require('./mailer');
 const crypto = require('crypto');
 const logger = require('./logger');
+const commandProcessor = require('./command-processor');
 
 // Initialize DOMPurify with jsdom
 const window = new JSDOM('').window;
@@ -36,6 +37,19 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
+
+// AI command configuration (//list, //ocr) — graceful degradation if not set.
+const NOTE_IMAGES_DIR = path.join(__dirname, 'data', 'note-images');
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const AI_RATE_LIMIT_HOURLY = parseInt(process.env.AI_RATE_LIMIT_HOURLY || '10', 10);
+const AI_RATE_LIMIT_DAILY = parseInt(process.env.AI_RATE_LIMIT_DAILY || '50', 10);
+let aiCommandsActive = process.env.AI_COMMANDS_ENABLED === 'true';
+if (aiCommandsActive && !GEMINI_API_KEY) {
+  logger.warn('AI_COMMANDS_ENABLED=true men GEMINI_API_KEY saknas. AI-kommandon avstängda.');
+  aiCommandsActive = false;
+} else if (aiCommandsActive) {
+  logger.info('AI-kommandon aktiva (//list, //ocr).');
+}
 
 // ===== SECURITY MIDDLEWARE =====
 
@@ -274,6 +288,181 @@ function broadcastToUser(userId, data) {
 
 function broadcastToUsers(userIds, data) {
   userIds.forEach(userId => broadcastToUser(userId, data));
+}
+
+// ===== AI COMMAND TRIGGER =====
+//
+// Runs asynchronously after a note is saved. Updates the note multiple times
+// (pending → done/failed) and broadcasts via WebSocket. Never logs note content,
+// images, prompts, or AI output — only metadata in note_ai_log.
+function broadcastNoteUpdate(noteId, ownerId) {
+  db.get('SELECT * FROM notes WHERE id = ?', [noteId], (err, note) => {
+    if (err || !note) return;
+    if (note.checklist_items) {
+      try { note.checklist_items = JSON.parse(note.checklist_items); } catch (e) { note.checklist_items = []; }
+    }
+    if (note.images) {
+      try { note.images = JSON.parse(note.images); } catch (e) { note.images = []; }
+    }
+    broadcastToUser(ownerId, { type: 'note_updated', note });
+    db.all('SELECT shared_with_user_id FROM shares WHERE note_id = ?', [noteId], (err2, shares) => {
+      if (!err2 && shares) {
+        shares.forEach(s => broadcastToUser(s.shared_with_user_id, { type: 'note_updated', note }));
+      }
+    });
+  });
+}
+
+function updateNoteFields(noteId, fields) {
+  return new Promise((resolve, reject) => {
+    const cols = Object.keys(fields);
+    const setClauses = cols.map(k => `${k} = ?`).join(', ');
+    const values = [...cols.map(k => fields[k]), noteId];
+    db.run(
+      `UPDATE notes SET ${setClauses}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      values,
+      err => err ? reject(err) : resolve()
+    );
+  });
+}
+
+function logAiCall(userId, noteId, command, status, fields = {}) {
+  db.run(
+    `INSERT INTO note_ai_log (user_id, note_id, command, status, result_item_count, result_char_count, error_message, duration_ms)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [userId, noteId, command, status,
+     fields.itemCount || null, fields.charCount || null,
+     fields.error || null, fields.duration || null],
+    err => { if (err) logger.error('Failed to write note_ai_log:', err); }
+  );
+}
+
+function checkRaceState(noteId, expected) {
+  return new Promise(resolve => {
+    db.get('SELECT processing_status FROM notes WHERE id = ?', [noteId], (err, row) => {
+      if (err || !row) return resolve();
+      if (row.processing_status !== expected) {
+        logger.warn(`AI race detected: note=${noteId} expected_status=${expected} actual_status=${row.processing_status}`);
+      }
+      resolve();
+    });
+  });
+}
+
+async function triggerAiCommand(note, cmd, triggeredByUserId) {
+  const start = Date.now();
+  const command = cmd.command;
+  const ownerId = note.user_id;
+
+  let images = [];
+  if (note.images) {
+    try { images = JSON.parse(note.images); } catch (e) { images = []; }
+  }
+
+  logger.info(`AI command triggered: command=${command} user=${triggeredByUserId} note=${note.id} images=${Array.isArray(images) ? images.length : 0}`);
+
+  const failWith = async (message, status) => {
+    try {
+      await updateNoteFields(note.id, { content: message, processing_status: 'failed' });
+    } catch (e) {
+      logger.error('Failed to write AI error state:', e);
+    }
+    broadcastNoteUpdate(note.id, ownerId);
+    logAiCall(triggeredByUserId, note.id, command, status, { duration: Date.now() - start });
+  };
+
+  // Only the owner may spend their API quota.
+  if (triggeredByUserId !== ownerId) {
+    return failWith('⚠️ Endast notens ägare kan använda AI-kommandon', 'failed');
+  }
+  if (note.is_archived) {
+    return failWith('⚠️ AI-kommandon fungerar inte på arkiverade noter', 'failed');
+  }
+  if (!Array.isArray(images) || images.length === 0) {
+    return failWith(`⚠️ //${command} kräver minst en bifogad bild`, 'no_images');
+  }
+  if (!GEMINI_API_KEY) {
+    return failWith('⚠️ AI-funktioner ej konfigurerade på servern', 'no_api_key');
+  }
+
+  const limit = commandProcessor.checkAiLimit(ownerId, AI_RATE_LIMIT_HOURLY, AI_RATE_LIMIT_DAILY);
+  if (!limit.allowed) {
+    return failWith(`⚠️ AI-anrops-gräns nådd (${limit.reason}). Försök igen senare.`, 'rate_limited');
+  }
+
+  try {
+    await updateNoteFields(note.id, {
+      content: `🔄 Bearbetar //${command}...`,
+      processing_status: 'pending',
+    });
+    broadcastNoteUpdate(note.id, ownerId);
+  } catch (e) {
+    logger.error('Failed to mark note pending:', e);
+    return;
+  }
+
+  try {
+    if (command === 'list') {
+      const items = await commandProcessor.processListCommand(images, NOTE_IMAGES_DIR, GEMINI_API_KEY);
+      const checklist = commandProcessor.buildChecklistFromItems(items, cmd.userText);
+      await checkRaceState(note.id, 'pending');
+      await updateNoteFields(note.id, {
+        content: '',
+        is_checklist: 1,
+        checklist_items: JSON.stringify(checklist),
+        processing_status: 'done',
+      });
+      limit.record();
+      const duration = Date.now() - start;
+      logger.info(`AI command success: command=list user=${ownerId} note=${note.id} duration=${duration}ms items=${items.length}`);
+      logAiCall(ownerId, note.id, command, 'success', { itemCount: items.length, duration });
+    } else if (command === 'ocr') {
+      const text = await commandProcessor.processOcrCommand(images, NOTE_IMAGES_DIR, GEMINI_API_KEY);
+      const newContent = cmd.userText
+        ? `${cmd.userText}\n\n--- OCR-transkription ---\n${text}`
+        : text;
+      await checkRaceState(note.id, 'pending');
+      await updateNoteFields(note.id, {
+        content: newContent,
+        is_checklist: 0,
+        checklist_items: null,
+        processing_status: 'done',
+      });
+      limit.record();
+      const duration = Date.now() - start;
+      logger.info(`AI command success: command=ocr user=${ownerId} note=${note.id} duration=${duration}ms chars=${text.length}`);
+      logAiCall(ownerId, note.id, command, 'success', { charCount: text.length, duration });
+    }
+    broadcastNoteUpdate(note.id, ownerId);
+  } catch (err) {
+    const duration = Date.now() - start;
+    logger.warn(`AI command failed: command=${command} user=${ownerId} note=${note.id} error=${err.message}`);
+    try {
+      await checkRaceState(note.id, 'pending');
+      await updateNoteFields(note.id, {
+        content: `⚠️ AI-anrop misslyckades: ${err.message}. Redigera noten och lägg tillbaka //${command} för att försöka igen.`,
+        processing_status: 'failed',
+      });
+    } catch (e) {
+      logger.error('Failed to write AI failure state:', e);
+    }
+    broadcastNoteUpdate(note.id, ownerId);
+    logAiCall(ownerId, note.id, command, 'failed', { error: err.message, duration });
+  }
+}
+
+function maybeTriggerAiCommand(noteId, triggeredByUserId) {
+  if (!aiCommandsActive) return;
+  db.get('SELECT * FROM notes WHERE id = ?', [noteId], (err, raw) => {
+    if (err || !raw || !raw.content) return;
+    const cmd = commandProcessor.parseCommand(raw.content);
+    if (!cmd) return;
+    setImmediate(() => {
+      triggerAiCommand(raw, cmd, triggeredByUserId).catch(e => {
+        logger.error(`AI command crashed for note ${noteId}: ${e.message}`);
+      });
+    });
+  });
 }
 
 // Helper function to delete note image files from disk
@@ -1013,10 +1202,17 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, (req, res) => {
     // Validate and sanitize checklist items
     const sanitizedItems = checklist_items
       .slice(0, 100) // Max 100 items
-      .map(item => ({
-        text: sanitizeInput(item.text, 1000),
-        checked: !!item.checked
-      }));
+      .map(item => {
+        const entry = {
+          text: sanitizeInput(item.text, 1000),
+          checked: !!item.checked
+        };
+        const conf = parseInt(item.confidence, 10);
+        if (Number.isInteger(conf) && conf >= 1 && conf <= 10) {
+          entry.confidence = conf;
+        }
+        return entry;
+      });
     checklistData = JSON.stringify(sanitizedItems);
   }
 
@@ -1067,6 +1263,7 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, (req, res) => {
         });
 
         res.json(note);
+        maybeTriggerAiCommand(noteId, req.session.userId);
       });
     }
   );
@@ -1102,10 +1299,17 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
       if (is_checklist && checklist_items && Array.isArray(checklist_items)) {
         const sanitizedItems = checklist_items
           .slice(0, 100)
-          .map(item => ({
-            text: sanitizeInput(item.text, 1000),
-            checked: !!item.checked
-          }));
+          .map(item => {
+            const entry = {
+              text: sanitizeInput(item.text, 1000),
+              checked: !!item.checked
+            };
+            const conf = parseInt(item.confidence, 10);
+            if (Number.isInteger(conf) && conf >= 1 && conf <= 10) {
+              entry.confidence = conf;
+            }
+            return entry;
+          });
         checklistData = JSON.stringify(sanitizedItems);
       }
 
@@ -1193,6 +1397,7 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
             });
 
             res.json(updatedNote);
+            maybeTriggerAiCommand(id, req.session.userId);
           });
         }
       );
