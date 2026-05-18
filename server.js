@@ -12,6 +12,7 @@ const http = require('http');
 const multer = require('multer');
 const AdmZip = require('adm-zip');
 const fs = require('fs');
+const fsp = require('fs').promises;
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const csrf = require('csurf');
@@ -489,6 +490,32 @@ function deleteNoteImageFiles(imageFilenames) {
       }
     });
   });
+}
+
+async function dedupImagesByHash(imageFilenames) {
+  const noteImagesDir = path.join(__dirname, 'data', 'note-images');
+  const seen = new Map();
+  const kept = [];
+  const duplicates = [];
+
+  for (const filename of imageFilenames) {
+    const filepath = path.join(noteImagesDir, filename);
+    try {
+      const buf = await fsp.readFile(filepath);
+      const hash = crypto.createHash('sha256').update(buf).digest('hex');
+      if (seen.has(hash)) {
+        duplicates.push(filename);
+      } else {
+        seen.set(hash, filename);
+        kept.push(filename);
+      }
+    } catch (err) {
+      logger.warn(`Image file missing during dedup: ${filename}`);
+      duplicates.push(filename);
+    }
+  }
+
+  return { kept, duplicates };
 }
 
 // ===== AUTH ROUTES =====
@@ -1193,7 +1220,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
   }
 });
 
-app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, (req, res) => {
+app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, async (req, res) => {
   const { title, content, color, is_checklist, checklist_items, images } = req.body;
 
   // Sanitize and validate
@@ -1222,14 +1249,21 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, (req, res) => {
 
   // Validate and sanitize images array
   let imagesData = null;
+  let duplicatesSkipped = 0;
   if (images && Array.isArray(images)) {
-    // Only keep filenames, max 10 images, sanitize filenames
     const sanitizedImages = images
       .slice(0, MAX_IMAGES_PER_NOTE)
       .map(img => path.basename(img))
       .filter(img => /^note_\d+_\d+\.webp$/.test(img));
+
     if (sanitizedImages.length > 0) {
-      imagesData = JSON.stringify(sanitizedImages);
+      const { kept, duplicates } = await dedupImagesByHash(sanitizedImages);
+      if (duplicates.length > 0) {
+        deleteNoteImageFiles(duplicates);
+        duplicatesSkipped = duplicates.length;
+        logger.info(`Dedup: removed ${duplicates.length} duplicate image(s) on note create (user=${req.session.userId})`);
+      }
+      imagesData = kept.length > 0 ? JSON.stringify(kept) : null;
     }
   }
 
@@ -1266,7 +1300,7 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, (req, res) => {
           note
         });
 
-        res.json(note);
+        res.json({ ...note, duplicatesSkipped });
         maybeTriggerAiCommand(noteId, req.session.userId);
       });
     }
@@ -1284,7 +1318,7 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
      LEFT JOIN shares ON notes.id = shares.note_id AND shares.shared_with_user_id = ?
      WHERE notes.id = ? AND (notes.user_id = ? OR shares.permission = 'edit')`,
     [req.session.userId, id, req.session.userId],
-    (err, note) => {
+    async (err, note) => {
       if (err) {
         logger.error('Check note permission error:', err);
         return res.status(500).json({ error: 'Kunde inte uppdatera anteckning' });
@@ -1318,17 +1352,26 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
       }
 
       // Validate and sanitize images array
-      let imagesData = null;
       let newImages = [];
+      let duplicatesSkipped = 0;
       if (images && Array.isArray(images)) {
-        newImages = images
+        const rawImages = images
           .slice(0, MAX_IMAGES_PER_NOTE)
           .map(img => path.basename(img))
           .filter(img => /^note_\d+_\d+\.webp$/.test(img));
-        if (newImages.length > 0) {
-          imagesData = JSON.stringify(newImages);
+
+        if (rawImages.length > 0) {
+          const { kept, duplicates } = await dedupImagesByHash(rawImages);
+          if (duplicates.length > 0) {
+            deleteNoteImageFiles(duplicates);
+            duplicatesSkipped = duplicates.length;
+            logger.info(`Dedup: removed ${duplicates.length} duplicate image(s) on note update (user=${req.session.userId} note=${id})`);
+          }
+          newImages = kept;
         }
       }
+
+      const imagesData = newImages.length > 0 ? JSON.stringify(newImages) : null;
 
       // Find and delete removed images
       let currentImages = [];
@@ -1400,7 +1443,7 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
               }
             });
 
-            res.json(updatedNote);
+            res.json({ ...updatedNote, duplicatesSkipped });
             maybeTriggerAiCommand(id, req.session.userId);
           });
         }

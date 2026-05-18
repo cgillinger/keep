@@ -1673,6 +1673,15 @@ async function saveNote() {
     });
 
     if (response.ok) {
+      const result = await response.json();
+      if (result.duplicatesSkipped > 0) {
+        showToast(
+          result.duplicatesSkipped === 1
+            ? '1 dubblett ignorerades'
+            : `${result.duplicatesSkipped} dubbletter ignorerades`,
+          'info'
+        );
+      }
       document.getElementById('new-note-title').value = '';
       document.getElementById('new-note-content').value = '';
       selectedColor = '#ffffff';
@@ -1924,6 +1933,15 @@ async function updateNote() {
     });
 
     if (response.ok) {
+      const result = await response.json();
+      if (result.duplicatesSkipped > 0) {
+        showToast(
+          result.duplicatesSkipped === 1
+            ? '1 dubblett ignorerades'
+            : `${result.duplicatesSkipped} dubbletter ignorerades`,
+          'info'
+        );
+      }
       forceCloseEditModal();
       invalidateNotesCache();
       loadNotes({ forceRefresh: true });
