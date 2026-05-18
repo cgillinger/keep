@@ -43,6 +43,7 @@ const NOTE_IMAGES_DIR = path.join(__dirname, 'data', 'note-images');
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const AI_RATE_LIMIT_HOURLY = parseInt(process.env.AI_RATE_LIMIT_HOURLY || '10', 10);
 const AI_RATE_LIMIT_DAILY = parseInt(process.env.AI_RATE_LIMIT_DAILY || '50', 10);
+const MAX_IMAGES_PER_NOTE = parseInt(process.env.MAX_IMAGES_PER_NOTE || '30', 10);
 let aiCommandsActive = process.env.AI_COMMANDS_ENABLED === 'true';
 if (aiCommandsActive && !GEMINI_API_KEY) {
   logger.warn('AI_COMMANDS_ENABLED=true men GEMINI_API_KEY saknas. AI-kommandon avstängda.');
@@ -558,6 +559,7 @@ app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
             id: this.lastID,
             username: sanitizedUsername,
             email: sanitizedEmail,
+            maxImages: MAX_IMAGES_PER_NOTE,
             message: 'Registrering lyckades'
           });
         });
@@ -613,6 +615,7 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
           username: user.username,
           avatarColor: user.avatar_color || '#1a73e8',
           backgroundTheme: user.background_theme || 'default',
+          maxImages: MAX_IMAGES_PER_NOTE,
           message: 'Inloggning lyckades'
         });
       });
@@ -645,7 +648,8 @@ app.get('/api/me', requireAuth, (req, res) => {
       profilePicture: user.profile_picture,
       avatarColor: user.avatar_color || '#1a73e8',
       backgroundTheme: user.background_theme || 'default',
-      email: user.email
+      email: user.email,
+      maxImages: MAX_IMAGES_PER_NOTE
     });
   });
 });
@@ -1221,7 +1225,7 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, (req, res) => {
   if (images && Array.isArray(images)) {
     // Only keep filenames, max 10 images, sanitize filenames
     const sanitizedImages = images
-      .slice(0, 10)
+      .slice(0, MAX_IMAGES_PER_NOTE)
       .map(img => path.basename(img))
       .filter(img => /^note_\d+_\d+\.webp$/.test(img));
     if (sanitizedImages.length > 0) {
@@ -1318,7 +1322,7 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
       let newImages = [];
       if (images && Array.isArray(images)) {
         newImages = images
-          .slice(0, 10)
+          .slice(0, MAX_IMAGES_PER_NOTE)
           .map(img => path.basename(img))
           .filter(img => /^note_\d+_\d+\.webp$/.test(img));
         if (newImages.length > 0) {
