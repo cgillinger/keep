@@ -7,6 +7,7 @@ const path = require('path');
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 const FETCH_TIMEOUT_MS = 60_000;
 const IMAGE_FILENAME_RE = /^note_\d+_\d+\.webp$/;
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 
 const LIST_PROMPT = `Du är en assistent som identifierar matvaror och andra föremål i bilder för att skapa en strukturerad inventarielista.
 
@@ -104,7 +105,10 @@ async function callGemini(parts, responseSchema, apiKey) {
         signal: controller.signal,
       });
       clearTimeout(timeout);
-      if (r.status === 429) {
+      if (RETRYABLE_STATUSES.has(r.status)) {
+        if (attempt === 2) {
+          throw new Error(`Gemini HTTP ${r.status} (failed after 3 attempts)`);
+        }
         const delay = Math.pow(2, attempt + 1) * 1000;
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
@@ -122,7 +126,7 @@ async function callGemini(parts, responseSchema, apiKey) {
       if (attempt === 2) throw err;
     }
   }
-  throw lastErr || new Error('Gemini rate limit persisted after 3 retries');
+  throw lastErr || new Error('Gemini call failed after 3 retries');
 }
 
 async function loadImageParts(imageFilenames, imagesDir) {
