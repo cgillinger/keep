@@ -293,6 +293,7 @@ let ws = null;
 let csrfToken = null;
 let newNoteImages = []; // Filenames of images uploaded for new note
 let editNoteImages = []; // Filenames of images for editing note
+let maxImagesPerNote = 30; // Fallback om servern ej returnerar värdet
 let showCreatedDate = localStorage.getItem('showCreatedDate') === 'true'; // User preference for showing created date
 let renderedNotesMap = new Map(); // Cache of rendered notes by ID for incremental updates
 
@@ -399,6 +400,7 @@ async function checkAuth() {
     if (response.ok) {
       const user = await response.json();
       currentUser = user;
+      maxImagesPerNote = user.maxImages || 30;
       showApp();
       loadNotes();
       connectWebSocket();
@@ -491,6 +493,7 @@ async function login() {
       console.log('[LOGIN] Login successful, setting currentUser');
       // Set current user immediately so session is available
       currentUser = data;
+      maxImagesPerNote = data.maxImages || 30;
 
       // Clear password field for security
       document.getElementById('login-password').value = '';
@@ -562,6 +565,7 @@ async function register() {
     if (response.ok) {
       // Set current user immediately so session is available
       currentUser = data;
+      maxImagesPerNote = data.maxImages || 30;
 
       // Clear form fields
       document.getElementById('register-username').value = '';
@@ -1669,6 +1673,15 @@ async function saveNote() {
     });
 
     if (response.ok) {
+      const result = await response.json();
+      if (result.duplicatesSkipped > 0) {
+        showToast(
+          result.duplicatesSkipped === 1
+            ? '1 dubblett ignorerades'
+            : `${result.duplicatesSkipped} dubbletter ignorerades`,
+          'info'
+        );
+      }
       document.getElementById('new-note-title').value = '';
       document.getElementById('new-note-content').value = '';
       selectedColor = '#ffffff';
@@ -1920,6 +1933,15 @@ async function updateNote() {
     });
 
     if (response.ok) {
+      const result = await response.json();
+      if (result.duplicatesSkipped > 0) {
+        showToast(
+          result.duplicatesSkipped === 1
+            ? '1 dubblett ignorerades'
+            : `${result.duplicatesSkipped} dubbletter ignorerades`,
+          'info'
+        );
+      }
       forceCloseEditModal();
       invalidateNotesCache();
       loadNotes({ forceRefresh: true });
@@ -3001,10 +3023,9 @@ async function handleNewNoteImageSelect() {
 
   if (files.length === 0) return;
 
-  // Max 10 images per note
-  const remainingSlots = 10 - newNoteImages.length;
+  const remainingSlots = maxImagesPerNote - newNoteImages.length;
   if (files.length > remainingSlots) {
-    alert(`Du kan bara lägga till ${remainingSlots} till bilder (max 10 per anteckning)`);
+    alert(`Du kan bara lägga till ${remainingSlots} till bilder (max ${maxImagesPerNote} per anteckning)`);
     return;
   }
 
@@ -3060,9 +3081,9 @@ async function handleEditNoteImageSelect() {
 
   if (files.length === 0) return;
 
-  const remainingSlots = 10 - editNoteImages.length;
+  const remainingSlots = maxImagesPerNote - editNoteImages.length;
   if (files.length > remainingSlots) {
-    alert(`Du kan bara lägga till ${remainingSlots} till bilder (max 10 per anteckning)`);
+    alert(`Du kan bara lägga till ${remainingSlots} till bilder (max ${maxImagesPerNote} per anteckning)`);
     return;
   }
 
