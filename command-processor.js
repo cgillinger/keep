@@ -178,7 +178,7 @@ function buildChecklistFromItems(items, userText) {
       const t = line.trim();
       if (t) checklist.push({ text: t, checked: false });
     }
-    checklist.push({ text: '── AI-genererat ──', checked: false });
+    checklist.push({ text: '── AI-genererat ──', checked: false, isHeader: true });
   }
 
   const seenCategories = [];
@@ -193,7 +193,7 @@ function buildChecklistFromItems(items, userText) {
   }
 
   for (const cat of seenCategories) {
-    checklist.push({ text: `── ${cat} ──`, checked: false });
+    checklist.push({ text: `── ${cat} ──`, checked: false, isHeader: true });
     for (const item of byCategory[cat]) {
       checklist.push({
         text: item.text,

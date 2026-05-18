@@ -46,3 +46,23 @@
 .note-card .checklist li > span {
   flex: 1;
 }
+
+/* Category headers — visual separators, not checkable items. */
+.checklist-header {
+  font-size: 13px !important;
+  font-weight: 500;
+  color: #5F5E5A;
+  margin-top: 10px;
+  margin-bottom: 2px;
+  padding-left: 4px;
+  list-style: none;
+}
+
+.checklist-header > span {
+  flex: 1;
+  color: #5F5E5A;
+}
+
+.checklist li.checklist-header:first-child {
+  margin-top: 0;
+}
