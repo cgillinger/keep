@@ -38,6 +38,7 @@
 - 📌 Pin important notes
 - 📦 Archive notes
 - 🔍 Fast search
+- 🤖 AI commands `//list` and `//ocr` (opt-in, see [AI Commands](#-ai-commands-optional))
 
 </td>
 <td>
@@ -656,6 +657,13 @@ SMTP_SECURE=false
 SMTP_USER=family@gmail.com
 SMTP_PASS=app_password_here
 EMAIL_FROM=Keep Clone <family@gmail.com>
+
+# AI commands (optional, disabled by default — see "AI Commands" section)
+# Enables //list and //ocr, which send attached images to Google's Gemini API.
+AI_COMMANDS_ENABLED=false
+GEMINI_API_KEY=
+AI_RATE_LIMIT_HOURLY=10
+AI_RATE_LIMIT_DAILY=50
 ```
 
 #### FORCE_HTTPS (Advanced Configuration)
@@ -768,6 +776,85 @@ const loginLimiter = rateLimit({
   max: 5 // 5 attempts
 });
 ```
+
+## 🤖 AI Commands (Optional)
+
+keep-clone supports two AI-powered commands that analyze attached images via Google's Gemini API. Both are **disabled by default** and require explicit configuration.
+
+### What the commands do
+
+- `//list` — Analyzes attached images and generates a structured checklist with category headers (Pantry, Fridge, Freezer, etc.) and a per-item confidence score from 1 (certain) to 10 (unknown).
+- `//ocr` — Transcribes text from attached images verbatim, preserving line breaks and marking unreadable sections.
+
+To use: create a note, attach one or more images, and write `//list` or `//ocr` as the note content. The note saves immediately and updates via WebSocket within 10–30 seconds.
+
+### Privacy and what gets sent to Google
+
+Images are sent to Google's Gemini API **only when you explicitly write `//list` or `//ocr`** in a note. Specifically:
+
+- **Sent to Google:** the attached images (base64-encoded) and a hardcoded Swedish prompt instructing the model how to respond.
+- **Never sent to Google:** the note's title, other notes, your other images, your account information, or anything else stored in keep-clone.
+- **Logged locally on your server:** metadata only — timestamp, command name, user ID, note ID, duration, item count, success/failure.
+- **Never logged locally:** image content, AI output, transcribed text, prompts, or note content.
+
+Background AI analysis is not performed. The application never sends data to Gemini on its own — only when a `//command` is triggered by the user.
+
+Review Google's [Gemini API privacy terms](https://ai.google.dev/gemini-api/terms) before enabling. Note that the free tier may use your input data to improve Google's services; paid tiers offer stricter data-handling guarantees.
+
+### Setup
+
+1. Get a free Gemini API key at [Google AI Studio](https://aistudio.google.com/apikey). The free tier provides ~1500 requests/day.
+2. Add to your `.env`:
+
+   ```env
+   AI_COMMANDS_ENABLED=true
+   GEMINI_API_KEY=AIzaSy...
+   AI_RATE_LIMIT_HOURLY=10
+   AI_RATE_LIMIT_DAILY=50
+   ```
+
+3. Restart the container:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+4. Verify in logs:
+
+   ```bash
+   docker logs kreep --tail 10
+   # Expected: "AI-kommandon aktiva (//list, //ocr)."
+   ```
+
+If you see `AI_COMMANDS_ENABLED=true men GEMINI_API_KEY saknas. AI-kommandon avstängda.`, double-check your `.env`.
+
+### Disabling AI commands
+
+Set `AI_COMMANDS_ENABLED=false` (or remove the line entirely) and restart. The application falls back to text/checklist-only mode. Existing AI-generated checklists remain intact.
+
+### Rate limits
+
+To prevent runaway API costs from buggy clients or abuse:
+
+- Default: 10 commands per hour, 50 per day, per user
+- Override with `AI_RATE_LIMIT_HOURLY` and `AI_RATE_LIMIT_DAILY` in `.env`
+- Limits reset when the server restarts
+
+Free tier on Gemini Flash is ~1500 requests/day shared across all users on the instance. For personal use this is essentially unlimited.
+
+### Costs
+
+Gemini 2.5 Flash with vision is approximately $0.004 per `//list` call with 5 images. The default rate limits (50/day) cap daily exposure at $0.20 per user. The free tier covers personal use entirely.
+
+### Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| `//list kräver minst en bifogad bild` | Attach at least one image before triggering the command |
+| Note shows `🔄 Bearbetar...` for >60 seconds | Check `docker logs kreep` for Gemini errors. Common: HTTP 429 rate limit, network issues, or invalid API key |
+| `AI command failed: Gemini HTTP 403` | API key is invalid or restricted. Regenerate at [Google AI Studio](https://aistudio.google.com/apikey) |
+| Confidence scores look wrong | Re-trigger by editing the note and adding `//list` again. The model can be unreliable on cluttered or low-resolution images |
+| Note disappears after AI processing | Should not happen in current version — if it does, check `processing_status` in DB and report as bug |
 
 ## 🐛 Troubleshooting
 
