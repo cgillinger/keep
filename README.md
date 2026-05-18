@@ -1384,6 +1384,7 @@ Keep Clone is specially designed for families who want to:
 - 📌 Fäst viktiga anteckningar
 - 📦 Arkivera anteckningar
 - 🔍 Snabb sökning
+- 🤖 AI-kommandon `//list` och `//ocr` (opt-in, se [AI-kommandon](#-ai-kommandon-valfritt))
 
 </td>
 <td>
@@ -1973,6 +1974,13 @@ SMTP_SECURE=false
 SMTP_USER=familj@gmail.com
 SMTP_PASS=applösenord_här
 EMAIL_FROM=Keep Clone <familj@gmail.com>
+
+# AI-kommandon (valfritt, avstängt by default — se "AI-kommandon"-sektionen)
+# Aktiverar //list och //ocr, som skickar bifogade bilder till Googles Gemini-API.
+AI_COMMANDS_ENABLED=false
+GEMINI_API_KEY=
+AI_RATE_LIMIT_HOURLY=10
+AI_RATE_LIMIT_DAILY=50
 ```
 
 #### FORCE_HTTPS (Avancerad konfiguration)
@@ -2085,6 +2093,85 @@ const loginLimiter = rateLimit({
   max: 5 // 5 försök
 });
 ```
+
+## 🤖 AI-kommandon (valfritt)
+
+keep-clone stödjer två AI-drivna kommandon som analyserar bifogade bilder via Googles Gemini-API. Båda är **avstängda by default** och kräver explicit konfiguration.
+
+### Vad kommandona gör
+
+- `//list` — Analyserar bifogade bilder och genererar en strukturerad checklista med kategori-rubriker (Skafferi, Kyl, Frys, osv.) och en säkerhetsfaktor per item från 1 (säker) till 10 (okänd).
+- `//ocr` — Transkriberar text från bifogade bilder ordagrant, bevarar radbrytningar och markerar oläsliga avsnitt.
+
+Användning: skapa en anteckning, bifoga en eller flera bilder, och skriv `//list` eller `//ocr` som anteckningens innehåll. Anteckningen sparas omedelbart och uppdateras via WebSocket inom 10–30 sekunder.
+
+### Integritet och vad som skickas till Google
+
+Bilder skickas till Googles Gemini-API **endast när du explicit skriver `//list` eller `//ocr`** i en anteckning. Specifikt:
+
+- **Skickas till Google:** de bifogade bilderna (base64-kodade) och en hårdkodad svensk prompt som instruerar modellen om hur den ska svara.
+- **Skickas aldrig till Google:** anteckningens titel, andra anteckningar, dina övriga bilder, din kontoinformation, eller något annat som lagras i keep-clone.
+- **Loggas lokalt på din server:** endast metadata — tidsstämpel, kommandonamn, användar-ID, anteckning-ID, varaktighet, antal items, lyckad/misslyckad.
+- **Loggas aldrig lokalt:** bildinnehåll, AI-output, transkriberad text, prompter, eller anteckningsinnehåll.
+
+Ingen bakgrunds-AI-analys utförs. Applikationen skickar aldrig data till Gemini på eget initiativ — endast när ett `//command` triggas av användaren.
+
+Granska Googles [användarvillkor för Gemini-API](https://ai.google.dev/gemini-api/terms) innan du aktiverar. Notera att gratisnivån kan använda dina indata för att förbättra Googles tjänster; betalda nivåer erbjuder striktare datahanteringsgarantier.
+
+### Installation
+
+1. Hämta en gratis Gemini API-nyckel på [Google AI Studio](https://aistudio.google.com/apikey). Gratisnivån ger ~1500 förfrågningar/dag.
+2. Lägg till i din `.env`:
+
+   ```env
+   AI_COMMANDS_ENABLED=true
+   GEMINI_API_KEY=AIzaSy...
+   AI_RATE_LIMIT_HOURLY=10
+   AI_RATE_LIMIT_DAILY=50
+   ```
+
+3. Starta om containern:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+4. Verifiera i loggarna:
+
+   ```bash
+   docker logs kreep --tail 10
+   # Förväntat: "AI-kommandon aktiva (//list, //ocr)."
+   ```
+
+Om du ser `AI_COMMANDS_ENABLED=true men GEMINI_API_KEY saknas. AI-kommandon avstängda.`, dubbelkolla din `.env`.
+
+### Stäng av AI-kommandon
+
+Sätt `AI_COMMANDS_ENABLED=false` (eller ta bort raden helt) och starta om. Applikationen faller tillbaka till text/checklist-läge. Befintliga AI-genererade checklistor påverkas inte.
+
+### Rate-gränser
+
+För att förhindra skenande API-kostnader från buggiga klienter eller missbruk:
+
+- Standard: 10 kommandon per timme, 50 per dygn, per användare
+- Skriv över med `AI_RATE_LIMIT_HOURLY` och `AI_RATE_LIMIT_DAILY` i `.env`
+- Gränserna nollställs när servern startas om
+
+Gratisnivån på Gemini Flash är ~1500 förfrågningar/dag delat mellan alla användare på instansen. För personligt bruk är detta i praktiken obegränsat.
+
+### Kostnader
+
+Gemini 2.5 Flash med vision kostar ungefär $0.004 per `//list`-anrop med 5 bilder. Standard-rate-gränserna (50/dygn) begränsar daglig exponering till $0.20 per användare. Gratisnivån täcker personligt bruk helt.
+
+### Felsökning
+
+| Problem | Lösning |
+|---------|---------|
+| `//list kräver minst en bifogad bild` | Bifoga minst en bild innan du triggar kommandot |
+| Anteckning visar `🔄 Bearbetar...` i >60 sekunder | Kolla `docker logs kreep` för Gemini-fel. Vanligt: HTTP 429 rate limit, nätverksproblem, eller ogiltig API-nyckel |
+| `AI command failed: Gemini HTTP 403` | API-nyckeln är ogiltig eller begränsad. Generera om på [Google AI Studio](https://aistudio.google.com/apikey) |
+| Säkerhetsfaktorer ser fel ut | Trigga om genom att redigera anteckningen och lägga till `//list` igen. Modellen kan vara opålitlig på röriga eller lågupplösta bilder |
+| Anteckning försvinner efter AI-bearbetning | Ska inte hända i nuvarande version — om det gör det, kolla `processing_status` i databasen och rapportera som bugg |
 
 ## 🐛 Felsökning
 
