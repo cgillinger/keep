@@ -1303,13 +1303,18 @@ function renderNoteHTML(note) {
 
     contentHtml = `
       <ul class="checklist">
-        ${items.map(item => `
+        ${items.map(item => {
+          if (isHeaderItem(item)) {
+            return `<li class="checklist-header"><span>${linkify(item.text)}</span></li>`;
+          }
+          return `
           <li class="${item.checked ? 'checked' : ''}">
             <input type="checkbox" ${item.checked ? 'checked' : ''} disabled>
             <span>${linkify(item.text)}</span>
             ${confidenceBadgeHTML(item.confidence)}
           </li>
-        `).join('')}
+        `;
+        }).join('')}
       </ul>
     `;
   } else {
@@ -1731,6 +1736,14 @@ function openEditModal(noteId) {
 
     const container = document.getElementById('edit-checklist-items');
     container.innerHTML = items.map((item, index) => {
+      if (isHeaderItem(item)) {
+        return `
+      <div class="checklist-item checklist-header" data-header="true">
+        <input type="text" value="${escapeHtml(item.text)}" ${!canEdit ? 'disabled' : ''} onchange="updateEditChecklistItem(${index})">
+        ${canEdit ? `<button onclick="removeEditChecklistItem(${index})">×</button>` : ''}
+      </div>
+    `;
+      }
       const confAttr = Number.isInteger(item.confidence) ? ` data-confidence="${item.confidence}"` : '';
       return `
       <div class="checklist-item"${confAttr}>
@@ -2553,21 +2566,31 @@ function getChecklistItems(containerId) {
   const items = [];
 
   container.querySelectorAll('.checklist-item').forEach(item => {
-    const checkbox = item.querySelector('input[type="checkbox"]');
     const textInput = item.querySelector('input[type="text"]');
     const text = textInput.value.trim();
+    if (!text) return;
 
-    if (text) {
-      const entry = { text, checked: checkbox.checked };
-      const conf = parseInt(item.dataset.confidence, 10);
-      if (Number.isInteger(conf) && conf >= 1 && conf <= 10) {
-        entry.confidence = conf;
-      }
-      items.push(entry);
+    if (item.dataset.header === 'true') {
+      items.push({ text, checked: false, isHeader: true });
+      return;
     }
+
+    const checkbox = item.querySelector('input[type="checkbox"]');
+    const entry = { text, checked: checkbox ? checkbox.checked : false };
+    const conf = parseInt(item.dataset.confidence, 10);
+    if (Number.isInteger(conf) && conf >= 1 && conf <= 10) {
+      entry.confidence = conf;
+    }
+    items.push(entry);
   });
 
   return items;
+}
+
+// Header items get `isHeader: true` from the backend. Legacy notes (created
+// before that flag existed) are detected by their "── X ──" text pattern.
+function isHeaderItem(item) {
+  return item.isHeader === true || /^── .+ ──$/.test(item.text || '');
 }
 
 function confidenceBadgeHTML(confidence) {
