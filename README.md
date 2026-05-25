@@ -12,8 +12,7 @@
 [![Express.js](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
 
 [![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-lightgrey?style=flat-square)](#)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/cgillinger/keep/pulls)
-[![Maintenance](https://img.shields.io/badge/maintained-yes-green?style=flat-square)](#)
+[![Status](https://img.shields.io/badge/status-hobby%20project-orange?style=flat-square)](#-contributing)
 
 **A secure, self-hosted note-taking app with real-time sync, sharing, image support, and Google Keep import. Built for families who value privacy.**
 
