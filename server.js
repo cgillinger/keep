@@ -186,20 +186,25 @@ app.use(session(sessionConfig));
 // CSRF protection (except for specific routes)
 const csrfProtection = csrf({ cookie: true });
 
-// Serve static files with aggressive caching
+// Serve static files. App code, styles and translations are NOT content-hashed,
+// so they must always be revalidated (ETag) — otherwise edits never reach a
+// browser that cached them. Truly static assets (images/fonts) may cache longer.
 app.use(express.static(path.join(__dirname, 'public'), {
-  maxAge: '1y', // Cache for 1 year
-  etag: true, // Enable ETag for conditional requests
+  etag: true, // Enable ETag for conditional requests (cheap 304s)
   lastModified: true, // Enable Last-Modified header
-  immutable: true, // Tell browsers the file won't change
   setHeaders: (res, filePath) => {
-    // For HTML files, use no-cache to always revalidate
-    if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
-    }
-    // For JS and CSS, use moderate cache
-    else if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
-      res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour
+    if (
+      filePath.endsWith('.html') ||
+      filePath.endsWith('.js') ||
+      filePath.endsWith('.css') ||
+      filePath.endsWith('.json')
+    ) {
+      // Always revalidate: browser checks with the server and gets 304 when
+      // unchanged, fresh content when it changed. No stale code/translations.
+      res.setHeader('Cache-Control', 'no-cache');
+    } else {
+      // Images, fonts, icons: safe to cache for a day.
+      res.setHeader('Cache-Control', 'public, max-age=86400');
     }
   }
 }));
