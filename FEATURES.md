@@ -35,18 +35,14 @@ Keep Clone är byggd med säkerhet i första hand, lämplig för exponering via 
 
 ### 🔐 Autentisering och sessioner
 
-**Starka lösenordskrav:**
-- Minst 12 tecken
-- Måste innehålla minst en stor bokstav (A-Z)
-- Måste innehålla minst en liten bokstav (a-z)
-- Måste innehålla minst en siffra (0-9)
+**Lösenord:**
+- Minst 5 tecken
 - Hashas med bcrypt (12 rounds)
 
 **Säkra sessioner:**
 - HTTP-only cookies (inte åtkomliga via JavaScript)
 - SameSite: Strict (skydd mot CSRF)
-- 7 dagars sessionstid
-- Sessionstregenerering vid login/registrering
+- 7 dagars sessionstid som standard, eller 90 dagar med "Fortsätt vara inloggad"
 - Säker WebSocket-autentisering
 
 ### 🛡️ CSRF-skydd
