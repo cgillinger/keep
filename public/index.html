@@ -57,6 +57,9 @@
             </svg>
           </button>
         </div>
+        <label class="remember-me" id="login-remember-label">
+          <input type="checkbox" id="login-remember"> Fortsätt vara inloggad
+        </label>
         <button type="button" onclick="login()">Logga in</button>
         <p class="auth-switch">
           Ny användare? <a href="#" onclick="showRegister(); return false;">Registrera dig</a>
@@ -91,10 +94,7 @@
         <div class="password-requirements">
           <p>Lösenordskrav:</p>
           <ul>
-            <li>Minst 12 tecken</li>
-            <li>Minst en stor bokstav (A-Z)</li>
-            <li>Minst en liten bokstav (a-z)</li>
-            <li>Minst en siffra (0-9)</li>
+            <li>Minst 5 tecken</li>
           </ul>
           <p class="tip">
             💡 <strong>Viktigt:</strong> Om du lägger till en e-postadress kan du återställa ditt lösenord via e-post om du glömmer det. Utan e-post finns ingen möjlighet till återställning.
@@ -144,10 +144,7 @@
         <div class="password-requirements">
           <p>Lösenordskrav:</p>
           <ul>
-            <li>Minst 12 tecken</li>
-            <li>Minst en stor bokstav (A-Z)</li>
-            <li>Minst en liten bokstav (a-z)</li>
-            <li>Minst en siffra (0-9)</li>
+            <li>Minst 5 tecken</li>
           </ul>
         </div>
         <button type="button" onclick="resetPassword()">Återställ lösenord</button>

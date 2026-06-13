@@ -126,11 +126,8 @@ function updateUITranslations() {
     const p = reqDiv.querySelector('p:first-child');
     if (p) p.textContent = t('auth.password_requirements');
     const lis = reqDiv.querySelectorAll('li');
-    if (lis.length >= 4) {
+    if (lis.length >= 1) {
       lis[0].textContent = t('auth.password_req_length');
-      lis[1].textContent = t('auth.password_req_uppercase');
-      lis[2].textContent = t('auth.password_req_lowercase');
-      lis[3].textContent = t('auth.password_req_number');
     }
     const tip = reqDiv.querySelector('.tip');
     if (tip) tip.innerHTML = t('auth.password_tip');
@@ -470,6 +467,8 @@ async function login() {
 
   const username = document.getElementById('login-username').value;
   const password = document.getElementById('login-password').value;
+  const rememberEl = document.getElementById('login-remember');
+  const rememberMe = rememberEl ? rememberEl.checked : false;
 
   console.log('[LOGIN] Username:', username, 'Password length:', password.length);
 
@@ -482,7 +481,7 @@ async function login() {
     console.log('[LOGIN] Sending login request...');
     const response = await apiFetch('/api/login', {
       method: 'POST',
-      body: { username, password }
+      body: { username, password, rememberMe }
     });
 
     console.log('[LOGIN] Response status:', response.status);
@@ -537,20 +536,8 @@ async function register() {
   }
 
   // Client-side validation matching server requirements
-  if (password.length < 12) {
-    showAuthError('Lösenordet måste vara minst 12 tecken');
-    return;
-  }
-  if (!/[A-Z]/.test(password)) {
-    showAuthError('Lösenordet måste innehålla minst en stor bokstav');
-    return;
-  }
-  if (!/[a-z]/.test(password)) {
-    showAuthError('Lösenordet måste innehålla minst en liten bokstav');
-    return;
-  }
-  if (!/[0-9]/.test(password)) {
-    showAuthError('Lösenordet måste innehålla minst en siffra');
+  if (password.length < 5) {
+    showAuthError('Lösenordet måste vara minst 5 tecken');
     return;
   }
 
@@ -688,6 +675,16 @@ async function requestPasswordReset() {
     return;
   }
 
+  // Immediate feedback + guard against double-submits (avoids sending
+  // several reset mails when the request takes a moment).
+  const btn = document.querySelector('#forgot-password-form button[onclick="requestPasswordReset()"]');
+  const originalLabel = btn ? btn.textContent : null;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = t('auth.sending_reset_link');
+  }
+  showAuthSuccess(t('auth.sending_reset_link'));
+
   try {
     const response = await apiFetch('/api/password-reset/request', {
       method: 'POST',
@@ -715,6 +712,11 @@ async function requestPasswordReset() {
     await fetchCSRFToken();
   } catch (error) {
     showAuthError('Nätverksfel. Kontrollera din anslutning.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
   }
 }
 
@@ -740,20 +742,8 @@ async function resetPassword() {
   }
 
   // Client-side validation matching server requirements
-  if (newPassword.length < 12) {
-    showAuthError('Lösenordet måste vara minst 12 tecken');
-    return;
-  }
-  if (!/[A-Z]/.test(newPassword)) {
-    showAuthError('Lösenordet måste innehålla minst en stor bokstav');
-    return;
-  }
-  if (!/[a-z]/.test(newPassword)) {
-    showAuthError('Lösenordet måste innehålla minst en liten bokstav');
-    return;
-  }
-  if (!/[0-9]/.test(newPassword)) {
-    showAuthError('Lösenordet måste innehålla minst en siffra');
+  if (newPassword.length < 5) {
+    showAuthError('Lösenordet måste vara minst 5 tecken');
     return;
   }
 
@@ -1085,23 +1075,8 @@ async function changePassword() {
   }
 
   // Client-side validation matching server requirements
-  if (newPassword.length < 12) {
+  if (newPassword.length < 5) {
     messageDiv.textContent = t('auth.password_min_12');
-    messageDiv.className = 'message error-message';
-    return;
-  }
-  if (!/[A-Z]/.test(newPassword)) {
-    messageDiv.textContent = t('auth.password_uppercase');
-    messageDiv.className = 'message error-message';
-    return;
-  }
-  if (!/[a-z]/.test(newPassword)) {
-    messageDiv.textContent = t('auth.password_lowercase');
-    messageDiv.className = 'message error-message';
-    return;
-  }
-  if (!/[0-9]/.test(newPassword)) {
-    messageDiv.textContent = t('auth.password_number');
     messageDiv.className = 'message error-message';
     return;
   }

@@ -215,17 +215,8 @@ const requireAuth = (req, res, next) => {
 
 // Input validation helper
 function validatePassword(password) {
-  if (!password || password.length < 12) {
-    return 'Lösenordet måste vara minst 12 tecken långt';
-  }
-  if (!/[A-Z]/.test(password)) {
-    return 'Lösenordet måste innehålla minst en stor bokstav';
-  }
-  if (!/[a-z]/.test(password)) {
-    return 'Lösenordet måste innehålla minst en liten bokstav';
-  }
-  if (!/[0-9]/.test(password)) {
-    return 'Lösenordet måste innehålla minst en siffra';
+  if (!password || password.length < 5) {
+    return 'Lösenordet måste vara minst 5 tecken långt';
   }
   return null;
 }
@@ -609,7 +600,7 @@ app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
 });
 
 app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, rememberMe } = req.body;
 
   if (!username || !password) {
     return res.status(400).json({ error: 'Användarnamn och lösenord krävs' });
@@ -637,6 +628,12 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
       // Set session data directly (no regeneration to avoid timing issues)
       req.session.userId = user.id;
       req.session.username = user.username;
+
+      // "Fortsätt vara inloggad": extend session to 90 days when requested,
+      // otherwise keep the default 7-day cookie lifetime.
+      if (rememberMe) {
+        req.session.cookie.maxAge = 90 * 24 * 60 * 60 * 1000; // 90 days
+      }
 
       // Save session before sending response
       req.session.save((err) => {
@@ -757,22 +754,20 @@ app.post('/api/password-reset/request', passwordResetLimiter, csrfProtection, as
           const host = req.get('host');
           const resetUrl = `${protocol}://${host}/?reset_token=${resetToken}`;
 
-          // Send email
-          const emailSent = await mailer.sendPasswordResetEmail(
-            user.email,
-            user.username,
-            resetToken,
-            resetUrl
-          );
-
-          if (emailSent) {
-            logger.info(`Password reset email sent to ${user.email}`);
-          } else {
-            logger.error('Failed to send password reset email');
-          }
-
-          // Always return generic success message
+          // Respond immediately so the user gets instant feedback; the SMTP
+          // send (a slow network round-trip to Gmail) runs in the background.
           res.json({ message: 'Om kontot finns kommer ett återställningsmail att skickas.' });
+
+          // Send email asynchronously (fire-and-forget)
+          mailer.sendPasswordResetEmail(user.email, user.username, resetToken, resetUrl)
+            .then((emailSent) => {
+              if (emailSent) {
+                logger.info(`Password reset email sent to ${user.email}`);
+              } else {
+                logger.error('Failed to send password reset email');
+              }
+            })
+            .catch((err) => logger.error('Failed to send password reset email', err));
         }
       );
     }
