@@ -28,7 +28,7 @@ const kreepModeEnabled = initKreepMode();
 // Cache-busting token — keep in sync with package.json "version". Appended to
 // asset URLs so a new release forces browsers to refetch (dislodges anything a
 // browser cached under an older, long-lived Cache-Control).
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 let currentLocale = localStorage.getItem('locale') || 'en'; // Default to English
 let translations = {};
 
@@ -306,8 +306,15 @@ const notesCache = {
   shared: { notes: [], hasMore: true, total: 0 },
   timestamp: {}
 };
-const CACHE_TTL = 30000; // Cache valid for 30 seconds
+const CACHE_TTL = 90000; // Cache valid for 90 seconds (WebSocket invalidates on changes)
 let isLoadingNotes = false; // Prevent multiple simultaneous loads
+// In-flight guards so a slow NAS round-trip can't be double-submitted into
+// duplicate writes when an impatient user clicks again.
+let isSavingNote = false;
+let isUpdatingNote = false;
+let isDeletingNote = false;
+let isPinningNote = false;
+let isArchivingNote = false;
 let currentOffset = 0; // Current pagination offset
 let hasMoreNotes = true; // Whether there are more notes to load
 let scrollObserver = null; // Intersection Observer for infinite scroll
@@ -343,15 +350,23 @@ function getThemeAwareColor(lightColor) {
 
 // ===== INITIALIZATION =====
 window.addEventListener('DOMContentLoaded', async () => {
-  // Load translations first
+  // UI text first so whichever screen we land on is already translated.
   await loadTranslations(currentLocale);
   updateUITranslations();
 
-  await fetchCSRFToken();
-  await checkEmailConfig();
   checkForResetToken();
-  await checkAuth();
+
+  // Decide the screen as early as possible: checkAuth (GET /api/me) only needs
+  // the session cookie, so run it together with the CSRF fetch instead of
+  // serially behind it. Whichever screen wins, the splash is swapped exactly
+  // once when these resolve — no more login flash before the app appears.
+  await Promise.all([fetchCSRFToken(), checkAuth()]);
+
   setupColorPickers();
+
+  // Non-critical: only toggles the login screen's "forgot password" link.
+  // Fire-and-forget after the UI is shown so it never blocks first paint.
+  checkEmailConfig();
 });
 
 // ===== CSRF TOKEN =====
@@ -419,12 +434,20 @@ async function checkAuth() {
   }
 }
 
+// Remove the startup splash once the real screen (app or login) is ready.
+function hideLoadingSplash() {
+  const splash = document.getElementById('loading-splash');
+  if (splash) splash.style.display = 'none';
+}
+
 function showAuthScreen() {
+  hideLoadingSplash();
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 }
 
 function showApp() {
+  hideLoadingSplash();
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('user-info').textContent = currentUser.username;
@@ -751,6 +774,9 @@ async function resetPassword() {
     return;
   }
 
+  const rpBtn = document.querySelector('#reset-password-form button[onclick="resetPassword()"]');
+  setBtnBusy(rpBtn, 'Återställer…');
+
   try {
     const response = await apiFetch('/api/password-reset/verify', {
       method: 'POST',
@@ -787,6 +813,8 @@ async function resetPassword() {
     await fetchCSRFToken();
   } catch (error) {
     showAuthError('Nätverksfel. Kontrollera din anslutning.');
+  } finally {
+    clearBtnBusy(rpBtn);
   }
 }
 
@@ -949,10 +977,10 @@ async function selectAvatarColor(color) {
       updateProfilePicture();
       updateSelectedAvatarColor(color);
     } else {
-      alert('Kunde inte uppdatera avatarfärg');
+      showToast('Kunde inte uppdatera avatarfärg', 'error');
     }
   } catch (error) {
-    alert('Nätverksfel');
+    showToast('Nätverksfel', 'error');
   }
 }
 
@@ -988,10 +1016,10 @@ async function selectBackgroundTheme(theme) {
       applyBackgroundTheme(theme);
       updateSelectedTheme(theme);
     } else {
-      alert('Kunde inte uppdatera bakgrundstema');
+      showToast('Kunde inte uppdatera bakgrundstema', 'error');
     }
   } catch (error) {
-    alert('Nätverksfel');
+    showToast('Nätverksfel', 'error');
   }
 }
 
@@ -1085,6 +1113,9 @@ async function changePassword() {
     return;
   }
 
+  const cpBtn = document.querySelector('button[onclick="changePassword()"]');
+  setBtnBusy(cpBtn);
+
   try {
     const response = await apiFetch('/api/profile/change-password', {
       method: 'POST',
@@ -1112,6 +1143,8 @@ async function changePassword() {
   } catch (error) {
     messageDiv.textContent = t('errors.network_error');
     messageDiv.className = 'message error-message';
+  } finally {
+    clearBtnBusy(cpBtn);
   }
 }
 
@@ -1410,9 +1443,17 @@ async function loadNotes(options = {}) {
 
       renderNotes({ append });
       setupScrollObserver();
+    } else if (!append) {
+      // Clear the skeletons so users aren't stuck staring at a shimmer forever.
+      showToast('Kunde inte ladda anteckningar', 'error');
+      renderNotes();
     }
   } catch (error) {
     console.error('Failed to load notes:', error);
+    if (!append) {
+      showToast('Kunde inte ladda anteckningar', 'error');
+      renderNotes();
+    }
   } finally {
     isLoadingNotes = false;
     hideLoadingMore();
@@ -1633,6 +1674,11 @@ async function saveNote() {
     return;
   }
 
+  if (isSavingNote) return;
+  isSavingNote = true;
+  const saveBtn = document.getElementById('save-note-btn');
+  setBtnBusy(saveBtn, 'Sparar…');
+
   try {
     const response = await apiFetch('/api/notes', {
       method: 'POST',
@@ -1673,13 +1719,20 @@ async function saveNote() {
       document.getElementById('checklist-items').innerHTML = '';
       invalidateNotesCache();
       loadNotes({ forceRefresh: true });
+      showToast('Anteckning sparad', 'success');
     } else if (response.status === 403) {
-      // CSRF token expired, refresh and retry
+      // CSRF token expired
       await fetchCSRFToken();
-      alert('Session expired, please try again');
+      showToast('Sessionen gick ut, försök igen', 'error');
+    } else {
+      showToast('Kunde inte spara anteckningen', 'error');
     }
   } catch (error) {
     console.error('Failed to save note:', error);
+    showToast('Kunde inte spara anteckningen', 'error');
+  } finally {
+    isSavingNote = false;
+    clearBtnBusy(saveBtn);
   }
 }
 
@@ -1892,6 +1945,11 @@ async function updateNote() {
     checklistItems = getChecklistItems('edit-checklist-items');
   }
 
+  if (isUpdatingNote) return;
+  isUpdatingNote = true;
+  const updateBtn = document.getElementById('update-note-btn');
+  setBtnBusy(updateBtn, 'Uppdaterar…');
+
   try {
     const response = await apiFetch(`/api/notes/${currentEditingNote.id}`, {
       method: 'PUT',
@@ -1924,12 +1982,19 @@ async function updateNote() {
       forceCloseEditModal();
       invalidateNotesCache();
       loadNotes({ forceRefresh: true });
+      showToast('Anteckning uppdaterad', 'success');
     } else if (response.status === 403) {
       await fetchCSRFToken();
-      alert('Session expired, please try again');
+      showToast('Sessionen gick ut, försök igen', 'error');
+    } else {
+      showToast('Kunde inte uppdatera anteckningen', 'error');
     }
   } catch (error) {
     console.error('Failed to update note:', error);
+    showToast('Kunde inte uppdatera anteckningen', 'error');
+  } finally {
+    isUpdatingNote = false;
+    clearBtnBusy(updateBtn);
   }
 }
 
@@ -1939,6 +2004,11 @@ async function deleteNote() {
   if (!confirm('Är du säker på att du vill ta bort denna anteckning?')) {
     return;
   }
+
+  if (isDeletingNote) return;
+  isDeletingNote = true;
+  const deleteBtn = document.getElementById('delete-note-btn');
+  setBtnBusy(deleteBtn);
 
   try {
     const response = await apiFetch(`/api/notes/${currentEditingNote.id}`, {
@@ -1951,12 +2021,19 @@ async function deleteNote() {
       forceCloseEditModal();
       invalidateNotesCache();
       loadNotes({ forceRefresh: true });
+      showToast('Anteckning borttagen', 'success');
     } else if (response.status === 403) {
       await fetchCSRFToken();
-      alert('Session expired, please try again');
+      showToast('Sessionen gick ut, försök igen', 'error');
+    } else {
+      showToast('Kunde inte ta bort anteckningen', 'error');
     }
   } catch (error) {
     console.error('Failed to delete note:', error);
+    showToast('Kunde inte ta bort anteckningen', 'error');
+  } finally {
+    isDeletingNote = false;
+    clearBtnBusy(deleteBtn);
   }
 }
 
@@ -1980,7 +2057,7 @@ async function dismissShare() {
       loadNotes({ forceRefresh: true });
     } else if (response.status === 403) {
       await fetchCSRFToken();
-      alert('Session expired, please try again');
+      showToast('Session expired, please try again', 'error');
     }
   } catch (error) {
     console.error('Failed to dismiss share:', error);
@@ -1989,6 +2066,11 @@ async function dismissShare() {
 
 async function togglePinNote() {
   if (!currentEditingNote) return;
+
+  if (isPinningNote) return;
+  isPinningNote = true;
+  const pinBtn = document.getElementById('pin-note-btn');
+  setBtnBusy(pinBtn);
 
   try {
     const response = await apiFetch(`/api/notes/${currentEditingNote.id}/pin`, {
@@ -2002,26 +2084,38 @@ async function togglePinNote() {
       currentEditingNote.is_pinned = data.is_pinned;
 
       // Update pin button icon in modal
-      const pinBtn = document.getElementById('pin-note-btn');
       if (pinBtn) {
         pinBtn.textContent = data.is_pinned ? '📍' : '📌'; // 📍 = pinned, 📌 = unpinned
         pinBtn.title = data.is_pinned ? 'Avfästa' : 'Fäst';
       }
 
       loadNotes();
+      showToast(data.is_pinned ? 'Anteckning fäst' : 'Anteckning avfäst', 'success');
     } else if (response.status === 403) {
       await fetchCSRFToken();
-      alert('Session expired, please try again');
+      showToast('Sessionen gick ut, försök igen', 'error');
+    } else {
+      showToast('Kunde inte fästa anteckningen', 'error');
     }
   } catch (error) {
     console.error('Failed to pin note:', error);
+    showToast('Kunde inte fästa anteckningen', 'error');
+  } finally {
+    isPinningNote = false;
+    clearBtnBusy(pinBtn);
   }
 }
 
 async function toggleArchiveNote() {
   if (!currentEditingNote) return;
 
-  currentEditingNote.is_archived = currentEditingNote.is_archived ? 0 : 1;
+  if (isArchivingNote) return;
+  isArchivingNote = true;
+  const archiveBtn = document.getElementById('archive-note-btn');
+  setBtnBusy(archiveBtn);
+
+  const willArchive = currentEditingNote.is_archived ? 0 : 1;
+  currentEditingNote.is_archived = willArchive;
 
   try {
     const response = await apiFetch(`/api/notes/${currentEditingNote.id}`, {
@@ -2041,12 +2135,22 @@ async function toggleArchiveNote() {
       forceCloseEditModal();
       invalidateNotesCache(); // Both active and archived views need refresh
       loadNotes({ forceRefresh: true });
+      showToast(willArchive ? 'Anteckning arkiverad' : 'Anteckning återställd', 'success');
     } else if (response.status === 403) {
+      currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
       await fetchCSRFToken();
-      alert('Session expired, please try again');
+      showToast('Sessionen gick ut, försök igen', 'error');
+    } else {
+      currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
+      showToast('Kunde inte arkivera anteckningen', 'error');
     }
   } catch (error) {
+    currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
     console.error('Failed to archive note:', error);
+    showToast('Kunde inte arkivera anteckningen', 'error');
+  } finally {
+    isArchivingNote = false;
+    clearBtnBusy(archiveBtn);
   }
 }
 
@@ -2109,19 +2213,23 @@ async function openShareModal() {
 
   shareModalNoteId = currentEditingNote.id;
 
+  // Open the modal immediately with a spinner instead of blocking on the
+  // network calls — otherwise the share button feels dead for a few seconds.
+  const usersList = document.getElementById('share-users-list');
+  if (usersList) usersList.innerHTML = '<div class="spinner" style="margin:24px auto;"></div>';
+  document.getElementById('share-modal').classList.add('active');
+
   try {
-    // Load available users
-    const usersResponse = await apiFetch('/api/users', {
-      credentials: 'include'
-    });
+    // Load users and current shares in parallel (halves the wait).
+    const [usersResponse, sharesResponse] = await Promise.all([
+      apiFetch('/api/users', { credentials: 'include' }),
+      apiFetch(`/api/notes/${shareModalNoteId}/shares`, { credentials: 'include' })
+    ]);
+
     if (usersResponse.ok) {
       availableUsers = await usersResponse.json();
     }
 
-    // Load current shares from server
-    const sharesResponse = await apiFetch(`/api/notes/${shareModalNoteId}/shares`, {
-      credentials: 'include'
-    });
     if (sharesResponse.ok) {
       originalShares = await sharesResponse.json();
       // Deep copy to pending shares
@@ -2138,7 +2246,6 @@ async function openShareModal() {
 
     renderShareModal();
     updatePendingChangesIndicator();
-    document.getElementById('share-modal').classList.add('active');
 
     // Setup event delegation for user list clicks
     setupShareModalEventListeners();
@@ -2471,6 +2578,28 @@ function showToast(message, type = 'info') {
   }, 3000);
 }
 
+// Put a button into a busy state (disabled + optional "working…" label) and
+// restore it afterwards. For icon buttons omit busyText to keep the icon.
+function setBtnBusy(btn, busyText) {
+  if (!btn) return;
+  if (busyText) {
+    btn.dataset.originalText = btn.textContent;
+    btn.textContent = busyText;
+  }
+  btn.disabled = true;
+  btn.classList.add('btn-busy');
+}
+
+function clearBtnBusy(btn) {
+  if (!btn) return;
+  if (btn.dataset.originalText !== undefined) {
+    btn.textContent = btn.dataset.originalText;
+    delete btn.dataset.originalText;
+  }
+  btn.disabled = false;
+  btn.classList.remove('btn-busy');
+}
+
 // ===== CHECKLIST FUNCTIONS =====
 function toggleChecklist() {
   isChecklistMode = !isChecklistMode;
@@ -2774,7 +2903,7 @@ function handleImportFile() {
 
   if (file) {
     if (!file.name.endsWith('.zip')) {
-      alert('Vänligen välj en .zip fil');
+      showToast('Vänligen välj en .zip fil', 'error');
       return;
     }
 
@@ -2829,7 +2958,7 @@ async function startImport() {
         const error = JSON.parse(xhr.responseText);
         // Hide processing, show error
         document.getElementById('import-processing').style.display = 'none';
-        alert(`Import misslyckades: ${error.message || error.error}`);
+        showToast(`Import misslyckades: ${error.message || error.error}`, 'error');
         document.getElementById('import-instructions').style.display = 'block';
         document.getElementById('import-button').disabled = false;
       }
@@ -2837,7 +2966,7 @@ async function startImport() {
 
     xhr.addEventListener('error', () => {
       document.getElementById('import-processing').style.display = 'none';
-      alert('Nätverksfel vid import. Försök igen.');
+      showToast('Nätverksfel vid import. Försök igen.', 'error');
       document.getElementById('import-instructions').style.display = 'block';
       document.getElementById('import-button').disabled = false;
     });
@@ -2848,7 +2977,7 @@ async function startImport() {
 
   } catch (error) {
     console.error('Import error:', error);
-    alert('Ett fel uppstod vid import.');
+    showToast('Ett fel uppstod vid import.', 'error');
     document.getElementById('import-instructions').style.display = 'block';
     document.getElementById('import-progress').style.display = 'none';
     document.getElementById('import-processing').style.display = 'none';
@@ -2899,6 +3028,10 @@ async function exportBackup() {
     return;
   }
 
+  const exportBtn = document.querySelector('button[onclick="exportBackup()"]');
+  setBtnBusy(exportBtn);
+  showToast('Förbereder backup…', 'info');
+
   try {
     const response = await apiFetch('/api/backup/export', {
       method: 'GET',
@@ -2928,16 +3061,18 @@ async function exportBackup() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      alert('Backup exporterad!');
+      showToast('Backup exporterad!', 'success');
     } else if (response.status === 403) {
       await fetchCSRFToken();
-      alert('Session expired, please try again');
+      showToast('Session expired, please try again', 'error');
     } else {
       throw new Error('Export failed');
     }
   } catch (error) {
     console.error('Export error:', error);
-    alert('Kunde inte exportera backup. Kontrollera att du är inloggad.');
+    showToast('Kunde inte exportera backup. Kontrollera att du är inloggad.', 'error');
+  } finally {
+    clearBtnBusy(exportBtn);
   }
 }
 
@@ -3026,7 +3161,7 @@ async function handleNewNoteImageSelect() {
 
   const remainingSlots = maxImagesPerNote - newNoteImages.length;
   if (files.length > remainingSlots) {
-    alert(`Du kan bara lägga till ${remainingSlots} till bilder (max ${maxImagesPerNote} per anteckning)`);
+    showToast(`Du kan bara lägga till ${remainingSlots} till bilder (max ${maxImagesPerNote} per anteckning)`, 'error');
     return;
   }
 
@@ -3036,7 +3171,7 @@ async function handleNewNoteImageSelect() {
     for (const file of files) {
       // Validate file size (10MB max)
       if (file.size > 10 * 1024 * 1024) {
-        alert(`Bilden "${file.name}" är för stor (max 10MB)`);
+        showToast(`Bilden "${file.name}" är för stor (max 10MB)`, 'error');
         continue;
       }
 
@@ -3060,7 +3195,7 @@ async function handleNewNoteImageSelect() {
         updateImageUploadProgress('new-note', uploaded, files.length);
       } else if (response.status === 403) {
         await fetchCSRFToken();
-        alert('Session expired, please try again');
+        showToast('Session expired, please try again', 'error');
         return;
       } else {
         throw new Error('Failed to upload image');
@@ -3077,7 +3212,7 @@ async function handleNewNoteImageSelect() {
     input.value = '';
   } catch (error) {
     console.error('Failed to upload images:', error);
-    alert('Kunde inte ladda upp bilder');
+    showToast('Kunde inte ladda upp bilder', 'error');
   } finally {
     hideImageUploadProgress('new-note');
   }
@@ -3092,7 +3227,7 @@ async function handleEditNoteImageSelect() {
 
   const remainingSlots = maxImagesPerNote - editNoteImages.length;
   if (files.length > remainingSlots) {
-    alert(`Du kan bara lägga till ${remainingSlots} till bilder (max ${maxImagesPerNote} per anteckning)`);
+    showToast(`Du kan bara lägga till ${remainingSlots} till bilder (max ${maxImagesPerNote} per anteckning)`, 'error');
     return;
   }
 
@@ -3101,7 +3236,7 @@ async function handleEditNoteImageSelect() {
   try {
     for (const file of files) {
       if (file.size > 10 * 1024 * 1024) {
-        alert(`Bilden "${file.name}" är för stor (max 10MB)`);
+        showToast(`Bilden "${file.name}" är för stor (max 10MB)`, 'error');
         continue;
       }
 
@@ -3124,7 +3259,7 @@ async function handleEditNoteImageSelect() {
         updateImageUploadProgress('edit-note', uploaded, files.length);
       } else if (response.status === 403) {
         await fetchCSRFToken();
-        alert('Session expired, please try again');
+        showToast('Session expired, please try again', 'error');
         return;
       } else {
         throw new Error('Failed to upload image');
@@ -3141,7 +3276,7 @@ async function handleEditNoteImageSelect() {
     input.value = '';
   } catch (error) {
     console.error('Failed to upload images:', error);
-    alert('Kunde inte ladda upp bilder');
+    showToast('Kunde inte ladda upp bilder', 'error');
   } finally {
     hideImageUploadProgress('edit-note');
   }
