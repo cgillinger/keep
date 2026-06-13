@@ -1006,8 +1006,10 @@ app.post('/api/notes/image', requireAuth, csrfProtection, apiLimiter, noteImageU
     const metadata = await sharp(req.file.path).metadata();
 
     // Resize if larger than 1200px width, maintain aspect ratio
-    // Use high quality settings to keep text readable
-    let sharpInstance = sharp(req.file.path);
+    // Use high quality settings to keep text readable.
+    // .rotate() (no args) auto-orients from the EXIF Orientation tag and strips
+    // it, so phone photos are stored upright instead of sideways.
+    let sharpInstance = sharp(req.file.path).rotate();
 
     if (metadata.width > 1200) {
       sharpInstance = sharpInstance.resize(1200, null, {
