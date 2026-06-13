@@ -28,7 +28,7 @@ const kreepModeEnabled = initKreepMode();
 // Cache-busting token — keep in sync with package.json "version". Appended to
 // asset URLs so a new release forces browsers to refetch (dislodges anything a
 // browser cached under an older, long-lived Cache-Control).
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 let currentLocale = localStorage.getItem('locale') || 'en'; // Default to English
 let translations = {};
 
@@ -3289,7 +3289,7 @@ function renderImagePreview(containerId, images, canRemove) {
   container.setAttribute('data-images', imagesJson);
   container.innerHTML = images.map((img, index) => `
     <div class="image-preview-item">
-      <img src="/api/notes/image/${img}" alt="Preview" onclick="openImageModal('${img}', JSON.parse(this.closest('[data-images]').dataset.images))">
+      <img src="/api/notes/image/${img}" alt="Preview" loading="lazy" onclick="openImageModal('${img}', JSON.parse(this.closest('[data-images]').dataset.images))">
       ${canRemove ? `<button class="remove-image" onclick="event.stopPropagation(); removeImage('${containerId}', ${index})">✕</button>` : ''}
     </div>
   `).join('');
