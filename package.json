@@ -1,6 +1,6 @@
 {
   "name": "kreep",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Self-hosted Google Keep clone with real-time sync, images, color coding, and complete data control. Perfect for families who value privacy.",
   "main": "server.js",
   "scripts": {

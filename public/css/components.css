@@ -48,6 +48,27 @@
   font-size: var(--font-size-base);
 }
 
+/* "Fortsätt vara inloggad" — lay the checkbox and label out as one tidy row
+   instead of inheriting the full-width block styling from .auth-form input. */
+.auth-form .remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+  font-size: var(--font-size-base);
+  color: #5f6368;
+  cursor: pointer;
+  text-align: left;
+}
+
+.auth-form .remember-me input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
 .auth-form button:not(.password-toggle-btn) {
   width: 100%;
   padding: var(--space-md);

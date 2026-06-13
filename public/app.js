@@ -28,7 +28,7 @@ const kreepModeEnabled = initKreepMode();
 // Cache-busting token — keep in sync with package.json "version". Appended to
 // asset URLs so a new release forces browsers to refetch (dislodges anything a
 // browser cached under an older, long-lived Cache-Control).
-const APP_VERSION = '1.4.1';
+const APP_VERSION = '1.4.2';
 let currentLocale = localStorage.getItem('locale') || 'en'; // Default to English
 let translations = {};
 
