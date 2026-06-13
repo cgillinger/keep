@@ -647,6 +647,10 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
 
         logger.logAuth('User logged in', user.username, { sessionId: req.sessionID });
 
+        // Clear the login attempt counter for this IP on success, so a user
+        // who fumbled their password a few times isn't left near the limit.
+        loginLimiter.resetKey(req.ip);
+
         res.json({
           id: user.id,
           username: user.username,
