@@ -28,7 +28,7 @@ const kreepModeEnabled = initKreepMode();
 // Cache-busting token — keep in sync with package.json "version". Appended to
 // asset URLs so a new release forces browsers to refetch (dislodges anything a
 // browser cached under an older, long-lived Cache-Control).
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.4.1';
 let currentLocale = localStorage.getItem('locale') || 'en'; // Default to English
 let translations = {};
 
@@ -350,6 +350,10 @@ function getThemeAwareColor(lightColor) {
 
 // ===== INITIALIZATION =====
 window.addEventListener('DOMContentLoaded', async () => {
+  // Stamp the footer version from the single source of truth so it never goes stale.
+  const versionEl = document.getElementById('app-version');
+  if (versionEl) versionEl.textContent = `v${APP_VERSION}`;
+
   // UI text first so whichever screen we land on is already translated.
   await loadTranslations(currentLocale);
   updateUITranslations();
