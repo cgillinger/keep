@@ -832,21 +832,38 @@ function connectWebSocket() {
       const data = JSON.parse(event.data);
 
       if (data.type === 'note_created' || data.type === 'note_updated') {
+        // If the note's archived state no longer matches the current view, drop
+        // it (e.g. the owner archived a shared note in another session).
+        const archived = !!data.note.is_archived;
+        if ((archived && !showingArchived) || (!archived && showingArchived)) {
+          notes = notes.filter(n => n.id !== data.note.id);
+          removeSingleNote(data.note.id);
+          return;
+        }
         const existingIndex = notes.findIndex(n => n.id === data.note.id);
+        let merged;
         if (existingIndex >= 0) {
-          notes[existingIndex] = data.note;
+          // MERGE rather than replace: broadcasts send raw DB rows without the
+          // derived relationship fields (isShared, permission, owner_username,
+          // owner_avatar_color, share_count). Replacing would make a recipient's
+          // shared note look like their own (wrong buttons) and drop the owner's
+          // "shared with N" badge. Spreading the existing note first preserves them.
+          merged = { ...notes[existingIndex], ...data.note };
+          notes[existingIndex] = merged;
         } else {
-          notes.unshift(data.note);
+          merged = data.note;
+          notes.unshift(merged);
         }
         // Use incremental update for better performance
-        updateSingleNote(data.note);
+        updateSingleNote(merged);
       } else if (data.type === 'note_deleted' || data.type === 'note_unshared') {
         notes = notes.filter(n => n.id !== data.noteId);
         removeSingleNote(data.noteId);
       } else if (data.type === 'note_shared') {
-        // A note was shared with us - show notification and reload if viewing shared
+        // A note was shared with us. It shows up in both the default and the
+        // "shared" views, so refresh whenever we're not in the archived view.
         showToast('Ny anteckning delad med dig', 'info');
-        if (showingShared) {
+        if (!showingArchived) {
           loadNotes();
         }
       } else if (data.type === 'share_count_updated') {
