@@ -206,6 +206,14 @@
             <div id="images-preview" class="images-preview"></div>
           </div>
 
+          <!-- Image upload progress -->
+          <div id="new-note-image-progress" class="image-upload-progress hidden">
+            <div class="import-progress-container">
+              <div id="new-note-image-progress-bar" class="import-progress-bar"></div>
+            </div>
+            <div id="new-note-image-progress-text" class="import-status-text"></div>
+          </div>
+
           <div class="note-form-actions">
             <div class="note-options">
               <input type="file" id="new-note-image-input" accept="image/*" capture="camera" onchange="handleNewNoteImageSelect()" class="hidden" multiple>
@@ -284,6 +292,14 @@
         <!-- Edit Images Container -->
         <div id="edit-images-container" class="hidden">
           <div id="edit-images-preview" class="images-preview"></div>
+        </div>
+
+        <!-- Edit image upload progress -->
+        <div id="edit-note-image-progress" class="image-upload-progress hidden">
+          <div class="import-progress-container">
+            <div id="edit-note-image-progress-bar" class="import-progress-bar"></div>
+          </div>
+          <div id="edit-note-image-progress-text" class="import-status-text"></div>
         </div>
 
         <div class="note-form-actions">

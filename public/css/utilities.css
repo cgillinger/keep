@@ -366,6 +366,10 @@ body.theme-dark .language-selector {
   overflow: hidden;
 }
 
+.image-upload-progress {
+  margin: var(--space-md) 0;
+}
+
 .import-progress-bar {
   background: var(--color-primary);
   height: 100%;
