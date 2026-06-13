@@ -264,7 +264,7 @@ function validateColor(color) {
 // Use same session config for WebSocket authentication
 const sessionParser = session(sessionConfig);
 
-const clients = new Map(); // userId -> WebSocket connection
+const clients = new Map(); // userId -> Set<WebSocket> (a user may be connected from several tabs/devices)
 
 wss.on('connection', (ws, req) => {
   // Create a mock response object for session parsing
@@ -286,30 +286,48 @@ wss.on('connection', (ws, req) => {
     const userId = req.session.userId;
     logger.logWS('Connection authenticated', userId);
 
-    // Store connection
-    clients.set(userId, ws);
+    // Store connection. Keep a set per user so multiple tabs/devices all get
+    // real-time updates instead of only the most recently connected one.
+    let userSockets = clients.get(userId);
+    if (!userSockets) {
+      userSockets = new Set();
+      clients.set(userId, userSockets);
+    }
+    userSockets.add(ws);
+
+    const cleanup = () => {
+      const set = clients.get(userId);
+      if (set) {
+        set.delete(ws);
+        if (set.size === 0) clients.delete(userId);
+      }
+    };
 
     ws.on('close', () => {
       logger.logWS('Connection closed', userId);
-      clients.delete(userId);
+      cleanup();
     });
 
     ws.on('error', (error) => {
       logger.logWS('Connection error', userId, { error: error.message });
-      clients.delete(userId);
+      cleanup();
     });
   });
 });
 
 function broadcastToUser(userId, data) {
-  const client = clients.get(userId);
-  if (client && client.readyState === WebSocket.OPEN) {
-    try {
-      client.send(JSON.stringify(data));
-    } catch (error) {
-      logger.error('Error broadcasting to user:', error);
+  const userSockets = clients.get(userId);
+  if (!userSockets) return;
+  const payload = JSON.stringify(data);
+  userSockets.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      try {
+        client.send(payload);
+      } catch (error) {
+        logger.error('Error broadcasting to user:', error);
+      }
     }
-  }
+  });
 }
 
 function broadcastToUsers(userIds, data) {
@@ -1519,17 +1537,19 @@ app.delete('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res)
           deleteNoteImageFiles(noteImages);
         }
 
-        // Broadcast to owner
+        // Broadcast to owner (parseInt so the id type matches the numeric note
+        // ids the clients hold — otherwise their array filter never removes it).
+        const deletedNoteId = parseInt(id);
         broadcastToUser(req.session.userId, {
           type: 'note_deleted',
-          noteId: id
+          noteId: deletedNoteId
         });
 
         // Broadcast to all users it was shared with
         sharedUserIds.forEach(userId => {
           broadcastToUser(userId, {
             type: 'note_deleted',
-            noteId: id
+            noteId: deletedNoteId
           });
         });
 
