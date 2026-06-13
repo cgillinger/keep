@@ -192,7 +192,7 @@ http://localhost:3000
 ### First Use
 
 1. Click "Register"
-2. Create an account (minimum 3 characters username, 12+ characters password)
+2. Create an account (minimum 3 characters username, 5+ characters password)
 3. Log in
 4. Customize your profile (click on your initials):
    - Choose avatar color
@@ -506,7 +506,7 @@ For detailed guide and troubleshooting, see [IMPORT-GUIDE.md](./IMPORT-GUIDE.md)
 
 Keep Clone is built with security first, suitable for Tailscale access or private networks:
 
-- ✅ **Strong authentication:** Bcrypt hashing (12 rounds), 12+ character passwords
+- ✅ **Strong authentication:** Bcrypt hashing (12 rounds), 5+ character passwords
 - ✅ **CSRF protection:** All changes protected with tokens
 - ✅ **Rate limiting:** Prevents brute-force (5 login attempts/15 min in production)
 - ✅ **XSS protection:** DOMPurify sanitizes all user input
@@ -1511,7 +1511,7 @@ http://localhost:3000
 ### Första användningen
 
 1. Klicka på "Registrera dig"
-2. Skapa ett konto (minst 3 tecken användarnamn, 12+ tecken lösenord)
+2. Skapa ett konto (minst 3 tecken användarnamn, 5+ tecken lösenord)
 3. Logga in
 4. Anpassa din profil (klicka på dina initialer):
    - Välj avatarfärg
@@ -1823,7 +1823,7 @@ För detaljerad guide och felsökning, se [IMPORT-GUIDE.md](./IMPORT-GUIDE.md)
 
 Keep Clone är byggd med säkerhet i första hand, lämplig för Tailscale-åtkomst eller privata nätverk:
 
-- ✅ **Stark autentisering:** Bcrypt-hashning (12 rounds), 12+ tecken lösenord
+- ✅ **Stark autentisering:** Bcrypt-hashning (12 rounds), 5+ tecken lösenord
 - ✅ **CSRF-skydd:** Alla ändringar skyddade med tokens
 - ✅ **Rate limiting:** Förhindrar brute-force (5 login-försök/15 min i produktion)
 - ✅ **XSS-skydd:** DOMPurify sanerar all user input
