@@ -25,6 +25,10 @@ function getAppName() {
 const kreepModeEnabled = initKreepMode();
 
 // ===== INTERNATIONALIZATION (i18n) =====
+// Cache-busting token — keep in sync with package.json "version". Appended to
+// asset URLs so a new release forces browsers to refetch (dislodges anything a
+// browser cached under an older, long-lived Cache-Control).
+const APP_VERSION = '1.2.0';
 let currentLocale = localStorage.getItem('locale') || 'en'; // Default to English
 let translations = {};
 
@@ -56,7 +60,7 @@ function applyAppNameToTranslations(obj) {
 // Load translation file for current locale
 async function loadTranslations(locale) {
   try {
-    const response = await fetch(`/locales/${locale}.json`);
+    const response = await fetch(`/locales/${locale}.json?v=${APP_VERSION}`);
     if (response.ok) {
       let loadedTranslations = await response.json();
       translations = applyAppNameToTranslations(loadedTranslations);
