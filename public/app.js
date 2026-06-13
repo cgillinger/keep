@@ -3016,6 +3016,28 @@ document.addEventListener('keydown', (e) => {
 
 // ===== IMAGE HANDLING =====
 
+// Image upload progress UI (shared by new-note and edit handlers).
+// prefix is 'new-note' or 'edit-note', matching the element ids in index.html.
+function showImageUploadProgress(prefix, total) {
+  const wrap = document.getElementById(`${prefix}-image-progress`);
+  if (!wrap) return;
+  wrap.classList.remove('hidden');
+  updateImageUploadProgress(prefix, 0, total);
+}
+
+function updateImageUploadProgress(prefix, completed, total) {
+  const bar = document.getElementById(`${prefix}-image-progress-bar`);
+  const text = document.getElementById(`${prefix}-image-progress-text`);
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  if (bar) bar.style.width = `${percent}%`;
+  if (text) text.textContent = `Laddar upp bild ${Math.min(completed + 1, total)} av ${total}…`;
+}
+
+function hideImageUploadProgress(prefix) {
+  const wrap = document.getElementById(`${prefix}-image-progress`);
+  if (wrap) wrap.classList.add('hidden');
+}
+
 // Handle new note image selection
 async function handleNewNoteImageSelect() {
   const input = document.getElementById('new-note-image-input');
@@ -3029,6 +3051,8 @@ async function handleNewNoteImageSelect() {
     return;
   }
 
+  showImageUploadProgress('new-note', files.length);
+  let uploaded = 0;
   try {
     for (const file of files) {
       // Validate file size (10MB max)
@@ -3036,6 +3060,8 @@ async function handleNewNoteImageSelect() {
         alert(`Bilden "${file.name}" är för stor (max 10MB)`);
         continue;
       }
+
+      updateImageUploadProgress('new-note', uploaded, files.length);
 
       // Upload image
       const formData = new FormData();
@@ -3051,6 +3077,8 @@ async function handleNewNoteImageSelect() {
       if (response.ok) {
         const data = await response.json();
         newNoteImages.push(data.filename);
+        uploaded++;
+        updateImageUploadProgress('new-note', uploaded, files.length);
       } else if (response.status === 403) {
         await fetchCSRFToken();
         alert('Session expired, please try again');
@@ -3071,6 +3099,8 @@ async function handleNewNoteImageSelect() {
   } catch (error) {
     console.error('Failed to upload images:', error);
     alert('Kunde inte ladda upp bilder');
+  } finally {
+    hideImageUploadProgress('new-note');
   }
 }
 
@@ -3087,12 +3117,16 @@ async function handleEditNoteImageSelect() {
     return;
   }
 
+  showImageUploadProgress('edit-note', files.length);
+  let uploaded = 0;
   try {
     for (const file of files) {
       if (file.size > 10 * 1024 * 1024) {
         alert(`Bilden "${file.name}" är för stor (max 10MB)`);
         continue;
       }
+
+      updateImageUploadProgress('edit-note', uploaded, files.length);
 
       const formData = new FormData();
       formData.append('image', file);
@@ -3107,6 +3141,8 @@ async function handleEditNoteImageSelect() {
       if (response.ok) {
         const data = await response.json();
         editNoteImages.push(data.filename);
+        uploaded++;
+        updateImageUploadProgress('edit-note', uploaded, files.length);
       } else if (response.status === 403) {
         await fetchCSRFToken();
         alert('Session expired, please try again');
@@ -3127,6 +3163,8 @@ async function handleEditNoteImageSelect() {
   } catch (error) {
     console.error('Failed to upload images:', error);
     alert('Kunde inte ladda upp bilder');
+  } finally {
+    hideImageUploadProgress('edit-note');
   }
 }
 
