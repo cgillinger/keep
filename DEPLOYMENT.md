@@ -108,7 +108,7 @@ http://192.168.1.100:8097
 - Inga moderna browser features (PWA, etc.)
 
 ### 🔒 Säkerhetsrekommendationer:
-1. **Starka lösenord** - Minst 12 tecken
+1. **Lösenord** - Minst 5 tecken (bcrypt-hashade)
 2. **Begränsa nätverksåtkomst** - Router firewall
 3. **VPN** - För åtkomst utifrån (se avsnitt 5)
 4. **Håll servern uppdaterad** - `npm update`

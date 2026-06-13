@@ -173,7 +173,13 @@ SMTP_PASS=abcd efgh ijkl mnop
 EMAIL_FROM=Keep Clone <family@gmail.com>
 ```
 
-4. **Start the server:**
+4. **(Optional) Build minified, fingerprinted frontend bundles for production:**
+```bash
+npm run build
+```
+This generates `public/dist/`. If skipped, the server falls back to serving the unbundled source files, so it still runs — building is only for production caching/performance. (The Docker image runs this step automatically.)
+
+5. **Start the server:**
 ```bash
 npm start
 ```
@@ -1254,7 +1260,7 @@ Total codebase: ~7,000 lines (excluding dependencies)
 - 🚫 Rate limiting on sensitive endpoints
 - 🛡️ XSS protection with DOMPurify
 - 🔒 Secure sessions and cookies
-- 📋 Strong password requirements (12+ characters, mixed case, numbers)
+- 📋 Password protection with bcrypt hashing (minimum 5 characters)
 - 🏗️ Security headers with Helmet (CSP, HSTS, etc.)
 
 **Improvements:**
@@ -2571,7 +2577,7 @@ Total kodbas: ~7,000 rader (utan dependencies)
 - 🚫 Rate limiting på känsliga endpoints
 - 🛡️ XSS-skydd med DOMPurify
 - 🔒 Säkra sessioner och cookies
-- 📋 Starka lösenordskrav (12+ tecken, blandade case, siffror)
+- 📋 Lösenordsskydd med bcrypt-hashning (minst 5 tecken)
 - 🏗️ Security headers med Helmet (CSP, HSTS, etc.)
 
 **Förbättringar:**
