@@ -104,7 +104,9 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 const loginLimiter = rateLimit({
   windowMs: isDevelopment ? 1 * 60 * 1000 : 15 * 60 * 1000, // 1 min dev, 15 min prod
   max: isDevelopment ? 50 : 5, // 50 attempts dev, 5 prod
-  message: 'För många inloggningsförsök. Försök igen om 15 minuter.',
+  handler: (req, res) => res.status(429).json({
+    error: 'För många inloggningsförsök. Försök igen om 15 minuter.'
+  }),
   standardHeaders: true,
   legacyHeaders: false
 });
@@ -112,7 +114,9 @@ const loginLimiter = rateLimit({
 const registerLimiter = rateLimit({
   windowMs: isDevelopment ? 1 * 60 * 1000 : 60 * 60 * 1000, // 1 min dev, 1 hour prod
   max: isDevelopment ? 20 : 3, // 20 registrations dev, 3 prod
-  message: 'För många registreringar. Försök igen senare.',
+  handler: (req, res) => res.status(429).json({
+    error: 'För många registreringar. Försök igen senare.'
+  }),
   standardHeaders: true,
   legacyHeaders: false
 });
@@ -120,7 +124,9 @@ const registerLimiter = rateLimit({
 const importLimiter = rateLimit({
   windowMs: isDevelopment ? 1 * 60 * 1000 : 60 * 60 * 1000, // 1 min dev, 1 hour prod
   max: isDevelopment ? 50 : 10, // 50 imports dev, 10 prod
-  message: 'För många importer. Försök igen senare.',
+  handler: (req, res) => res.status(429).json({
+    error: 'För många importer. Försök igen senare.'
+  }),
   standardHeaders: true,
   legacyHeaders: false
 });
@@ -128,7 +134,9 @@ const importLimiter = rateLimit({
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: isDevelopment ? 500 : 100, // 500 requests dev, 100 prod
-  message: 'För många förfrågningar. Var god vänta.',
+  handler: (req, res) => res.status(429).json({
+    error: 'För många förfrågningar. Var god vänta.'
+  }),
   standardHeaders: true,
   legacyHeaders: false
 });
@@ -136,7 +144,9 @@ const apiLimiter = rateLimit({
 const passwordResetLimiter = rateLimit({
   windowMs: isDevelopment ? 1 * 60 * 1000 : 60 * 60 * 1000, // 1 min dev, 1 hour prod
   max: isDevelopment ? 20 : 3, // 20 attempts dev, 3 prod
-  message: 'För många återställningsförfrågningar. Försök igen senare.',
+  handler: (req, res) => res.status(429).json({
+    error: 'För många återställningsförfrågningar. Försök igen senare.'
+  }),
   standardHeaders: true,
   legacyHeaders: false
 });
