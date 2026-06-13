@@ -6,3 +6,4 @@ logs/
 .DS_Store
 sessions/
 data/
+public/dist/

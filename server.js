@@ -189,14 +189,29 @@ app.use(session(sessionConfig));
 // CSRF protection (except for specific routes)
 const csrfProtection = csrf({ cookie: true });
 
+// Serve the built (fingerprinted) index.html for the app root when present,
+// falling back to the source index.html in dev (no build run). index.html itself
+// is always revalidated; the hashed bundles it points to are cached immutably.
+const builtIndex = path.join(__dirname, 'public', 'dist', 'index.html');
+app.get('/', (req, res, next) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(builtIndex, (err) => {
+    if (err) next(); // no dist build -> let express.static serve source index.html
+  });
+});
+
 // Serve static files. App code, styles and translations are NOT content-hashed,
 // so they must always be revalidated (ETag) — otherwise edits never reach a
-// browser that cached them. Truly static assets (images/fonts) may cache longer.
+// browser that cached them. The fingerprinted bundles under /dist/ carry a
+// content hash in their name, so they can be cached immutably forever.
 app.use(express.static(path.join(__dirname, 'public'), {
   etag: true, // Enable ETag for conditional requests (cheap 304s)
   lastModified: true, // Enable Last-Modified header
   setHeaders: (res, filePath) => {
-    if (
+    if (filePath.includes(`${path.sep}dist${path.sep}`) && !filePath.endsWith('index.html')) {
+      // Content-hashed bundles: filename changes when content changes.
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (
       filePath.endsWith('.html') ||
       filePath.endsWith('.js') ||
       filePath.endsWith('.css') ||
