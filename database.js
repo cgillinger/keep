@@ -50,6 +50,12 @@ db.serialize(() => {
     UNIQUE(note_id, shared_with_user_id)
   )`);
 
+  // Performance indexes (idempotent)
+  db.run(`CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_notes_archived ON notes(is_archived)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_shares_shared_with ON shares(shared_with_user_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_shares_note_id ON shares(note_id)`);
+
   // Migration: Add images column to notes if it doesn't exist
   db.all("PRAGMA table_info(notes)", (err, columns) => {
     if (err) {

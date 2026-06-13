@@ -2,6 +2,7 @@
 require('dotenv').config();
 
 const express = require('express');
+const compression = require('compression');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
@@ -34,6 +35,7 @@ const window = new JSDOM('').window;
 const purify = DOMPurify(window);
 
 const app = express();
+app.use(compression({ threshold: 1024 }));
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
@@ -152,8 +154,8 @@ const passwordResetLimiter = rateLimit({
 });
 
 // Body parsing and cookies
-app.use(bodyParser.json({ limit: '10mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+app.use(bodyParser.json({ limit: '1mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
 // Session configuration (SECURE) with persistent SQLite store
@@ -162,7 +164,8 @@ const sessionConfig = {
     db: 'sessions.db',
     dir: './data',
     table: 'sessions',
-    concurrentDB: true // Enable WAL mode for better concurrency
+    concurrentDB: true, // Enable WAL mode for better concurrency
+    touch: 3600 // Throttle session-table writes (only re-touch every hour)
   }),
   secret: process.env.SESSION_SECRET || (() => {
     logger.logSecurity('Using default session secret', {
@@ -474,28 +477,23 @@ function maybeTriggerAiCommand(noteId, triggeredByUserId) {
 }
 
 // Helper function to delete note image files from disk
-function deleteNoteImageFiles(imageFilenames) {
+async function deleteNoteImageFiles(imageFilenames) {
   if (!imageFilenames || !Array.isArray(imageFilenames)) return;
 
   const imageDir = path.join(__dirname, 'data', 'note-images');
 
-  imageFilenames.forEach(filename => {
+  const valid = imageFilenames.filter(filename => {
     // Validate filename format to prevent path traversal
     if (!/^note_\d+_\d+\.webp$/.test(filename)) {
       logger.warn('Invalid image filename format, skipping deletion:', filename);
-      return;
+      return false;
     }
-
-    const filepath = path.join(imageDir, filename);
-
-    fs.unlink(filepath, (err) => {
-      if (err && err.code !== 'ENOENT') {
-        logger.error('Failed to delete image file:', filepath, err);
-      } else if (!err) {
-        logger.info('Deleted orphaned image file:', filename);
-      }
-    });
+    return true;
   });
+
+  await Promise.allSettled(
+    valid.map(filename => fsp.unlink(path.join(imageDir, filename)))
+  );
 }
 
 async function dedupImagesByHash(imageFilenames) {
@@ -685,6 +683,7 @@ app.get('/api/me', requireAuth, (req, res) => {
     if (err || !user) {
       return res.status(500).json({ error: 'Kunde inte hämta användarinfo' });
     }
+    res.set('Cache-Control', 'private, max-age=300');
     res.json({
       id: user.id,
       username: user.username,
@@ -987,12 +986,12 @@ app.post('/api/notes/image', requireAuth, csrfProtection, apiLimiter, noteImageU
     await sharpInstance
       .webp({
         quality: 88,  // High quality to keep text readable
-        effort: 6     // More effort for better compression
+        effort: 4     // Lower effort to reduce CPU time during upload
       })
       .toFile(outputPath);
 
     // Delete temp file
-    fs.unlinkSync(req.file.path);
+    try { await fsp.unlink(req.file.path); } catch (e) { /* file may already be gone */ }
 
     res.json({
       filename: filename,
@@ -1001,8 +1000,8 @@ app.post('/api/notes/image', requireAuth, csrfProtection, apiLimiter, noteImageU
   } catch (error) {
     logger.error('Note image processing error:', error);
     // Clean up temp file if exists
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+    if (req.file) {
+      try { await fsp.unlink(req.file.path); } catch (e) { /* file may already be gone */ }
     }
     res.status(500).json({ error: 'Kunde inte bearbeta bilden' });
   }
@@ -1822,7 +1821,7 @@ app.post('/api/import/keep', requireAuth, importLimiter, upload.single('zipfile'
     }
 
     // Clean up
-    fs.unlinkSync(zipPath);
+    try { await fsp.unlink(zipPath); } catch (e) { /* file may already be gone */ }
     fs.rmSync(extractPath, { recursive: true, force: true });
 
     res.json({
@@ -1837,7 +1836,7 @@ app.post('/api/import/keep', requireAuth, importLimiter, upload.single('zipfile'
 
     // Clean up on error
     try {
-      if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+      try { await fsp.unlink(zipPath); } catch (e) { /* file may already be gone */ }
       if (fs.existsSync(extractPath)) fs.rmSync(extractPath, { recursive: true, force: true });
     } catch (cleanupError) {
       logger.error('Cleanup error:', cleanupError);
@@ -1908,14 +1907,14 @@ app.get('/api/backup/export', requireAuth, async (req, res) => {
     logger.info('Backup generated:', result.stats);
 
     // Send file
-    res.download(outputPath, outputFilename, (err) => {
+    res.download(outputPath, outputFilename, async (err) => {
       // Clean up file after sending
       try {
-        if (fs.existsSync(outputPath)) {
-          fs.unlinkSync(outputPath);
-        }
+        await fsp.unlink(outputPath);
       } catch (cleanupError) {
-        logger.error('Failed to cleanup backup file:', cleanupError);
+        if (cleanupError.code !== 'ENOENT') {
+          logger.error('Failed to cleanup backup file:', cleanupError);
+        }
       }
 
       if (err) {
@@ -1928,11 +1927,11 @@ app.get('/api/backup/export', requireAuth, async (req, res) => {
 
     // Clean up on error
     try {
-      if (fs.existsSync(outputPath)) {
-        fs.unlinkSync(outputPath);
-      }
+      await fsp.unlink(outputPath);
     } catch (cleanupError) {
-      logger.error('Cleanup error:', cleanupError);
+      if (cleanupError.code !== 'ENOENT') {
+        logger.error('Cleanup error:', cleanupError);
+      }
     }
 
     res.status(500).json({
