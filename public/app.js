@@ -1,3 +1,7 @@
+// App version — keep in sync with package.json and the ?v= query in index.html.
+// Used to cache-bust runtime fetches (locales) so updates reach installed PWAs immediately.
+const APP_VERSION = '1.1.1';
+
 // ===== SECRET KREEP MODE =====
 // Check URL parameter and localStorage for secret kreep mode
 function initKreepMode() {
@@ -56,7 +60,7 @@ function applyAppNameToTranslations(obj) {
 // Load translation file for current locale
 async function loadTranslations(locale) {
   try {
-    const response = await fetch(`/locales/${locale}.json`);
+    const response = await fetch(`/locales/${locale}.json?v=${APP_VERSION}`);
     if (response.ok) {
       let loadedTranslations = await response.json();
       translations = applyAppNameToTranslations(loadedTranslations);

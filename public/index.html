@@ -30,13 +30,14 @@
   <meta name="twitter:title" content="Keep Clone - Självhostad anteckningsapp">
   <meta name="twitter:description" content="Open source Google Keep-klon för familjer. Självhostad med fullständig datakontroll.">
   <!-- CSS files loaded in specific order: base → layout → components → modals → utilities → debug -->
-  <link rel="stylesheet" href="css/base.css">
-  <link rel="stylesheet" href="css/layout.css">
-  <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/confidence-badge.css">
-  <link rel="stylesheet" href="css/modals.css">
-  <link rel="stylesheet" href="css/utilities.css">
-  <link rel="stylesheet" href="css/debug.css">
+  <!-- ?v= cache-busting: bump on every release so installed PWAs fetch fresh assets immediately -->
+  <link rel="stylesheet" href="css/base.css?v=1.1.1">
+  <link rel="stylesheet" href="css/layout.css?v=1.1.1">
+  <link rel="stylesheet" href="css/components.css?v=1.1.1">
+  <link rel="stylesheet" href="css/confidence-badge.css?v=1.1.1">
+  <link rel="stylesheet" href="css/modals.css?v=1.1.1">
+  <link rel="stylesheet" href="css/utilities.css?v=1.1.1">
+  <link rel="stylesheet" href="css/debug.css?v=1.1.1">
 </head>
 <body>
   <!-- Login/Register Screen -->
@@ -216,7 +217,7 @@
 
           <div class="note-form-actions">
             <div class="note-options">
-              <input type="file" id="new-note-image-input" accept="image/*" capture="camera" onchange="handleNewNoteImageSelect()" class="hidden" multiple>
+              <input type="file" id="new-note-image-input" accept="image/*" onchange="handleNewNoteImageSelect()" class="hidden" multiple>
               <button class="btn-icon" onclick="document.getElementById('new-note-image-input').click()" title="Lägg till bild">
                 📷
               </button>
@@ -304,7 +305,7 @@
 
         <div class="note-form-actions">
           <div class="note-options">
-            <input type="file" id="edit-note-image-input" accept="image/*" capture="camera" onchange="handleEditNoteImageSelect()" class="hidden" multiple>
+            <input type="file" id="edit-note-image-input" accept="image/*" onchange="handleEditNoteImageSelect()" class="hidden" multiple>
             <button class="btn-icon" onclick="document.getElementById('edit-note-image-input').click()" title="Lägg till bild">
               📷
             </button>
@@ -596,6 +597,6 @@
     <div class="image-modal-counter" id="image-modal-counter"></div>
   </div>
 
-  <script src="app.js" defer></script>
+  <script src="app.js?v=1.1.1" defer></script>
 </body>
 </html>
