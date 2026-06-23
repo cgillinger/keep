@@ -28,7 +28,7 @@ const kreepModeEnabled = initKreepMode();
 // Cache-busting token — keep in sync with package.json "version". Appended to
 // asset URLs so a new release forces browsers to refetch (dislodges anything a
 // browser cached under an older, long-lived Cache-Control).
-const APP_VERSION = '1.4.2';
+const APP_VERSION = '1.4.3';
 let currentLocale = localStorage.getItem('locale') || 'en'; // Default to English
 let translations = {};
 
@@ -259,7 +259,7 @@ function updateUITranslations() {
   document.querySelector('#share-modal button.btn-secondary').textContent = t('share.close_button');
 
   // Footer
-  document.querySelector('.app-footer p').innerHTML = `${t('footer.version')} | <a href="https://github.com/cgillinger/keep" target="_blank" rel="noopener">GitHub</a> | ${t('footer.license')}`;
+  document.querySelector('.app-footer p').innerHTML = `${t('footer.version')} v${APP_VERSION} | <a href="https://github.com/cgillinger/keep" target="_blank" rel="noopener">GitHub</a> | ${t('footer.license')}`;
 
   // Attribution
   const attributionText = document.getElementById('icon-attribution-text');
