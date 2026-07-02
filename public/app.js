@@ -28,7 +28,7 @@ const kreepModeEnabled = initKreepMode();
 // Cache-busting token — keep in sync with package.json "version". Appended to
 // asset URLs so a new release forces browsers to refetch (dislodges anything a
 // browser cached under an older, long-lived Cache-Control).
-const APP_VERSION = '1.4.3';
+const APP_VERSION = '1.4.4';
 let currentLocale = localStorage.getItem('locale') || 'en'; // Default to English
 let translations = {};
 
@@ -853,6 +853,11 @@ function connectWebSocket() {
           // shared note look like their own (wrong buttons) and drop the owner's
           // "shared with N" badge. Spreading the existing note first preserves them.
           merged = { ...notes[existingIndex], ...data.note };
+          // Pin is per-user for shared notes: the owner's broadcast carries
+          // their own is_pinned, which must not clobber our per-user pin.
+          if (notes[existingIndex].isShared) {
+            merged.is_pinned = notes[existingIndex].is_pinned;
+          }
           notes[existingIndex] = merged;
         } else {
           merged = data.note;
@@ -1783,10 +1788,11 @@ function openEditModal(noteId) {
   // Dismiss share button - only for recipients of shared notes
   document.getElementById('dismiss-share-btn').style.display = note.isShared ? 'inline-block' : 'none';
 
-  // Pin button - only owner can pin
+  // Pin button - available to everyone; pin is per-user, so a recipient can
+  // pin/unpin a shared note in their own view without affecting the owner.
   const pinBtn = document.getElementById('pin-note-btn');
   if (pinBtn) {
-    pinBtn.style.display = canDelete ? 'inline-block' : 'none'; // Same as delete - only owner
+    pinBtn.style.display = 'inline-block';
     pinBtn.textContent = note.is_pinned ? '📍' : '📌'; // 📍 = pinned, 📌 = unpinned
     pinBtn.title = note.is_pinned ? 'Avfästa' : 'Fäst';
   }

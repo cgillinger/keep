@@ -43,6 +43,7 @@ db.serialize(() => {
     shared_by_user_id INTEGER NOT NULL,
     shared_with_user_id INTEGER NOT NULL,
     permission TEXT DEFAULT 'view',
+    is_pinned INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
     FOREIGN KEY (shared_by_user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -92,6 +93,26 @@ db.serialize(() => {
           console.error('Error adding processing_status column:', err);
         } else {
           console.log('Added processing_status column to notes table');
+        }
+      });
+    }
+  });
+
+  // Migration: Add per-user is_pinned column to shares so a recipient can
+  // pin/unpin a shared note independently of the owner's pin.
+  db.all("PRAGMA table_info(shares)", (err, columns) => {
+    if (err) {
+      console.error('Error checking shares schema:', err);
+      return;
+    }
+
+    const hasSharePinned = columns.some(col => col.name === 'is_pinned');
+    if (!hasSharePinned) {
+      db.run(`ALTER TABLE shares ADD COLUMN is_pinned INTEGER DEFAULT 0`, (err) => {
+        if (err) {
+          console.error('Error adding is_pinned column to shares:', err);
+        } else {
+          console.log('Added is_pinned column to shares table');
         }
       });
     }
