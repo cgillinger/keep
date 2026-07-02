@@ -1133,6 +1133,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
         db.all(
           `SELECT
             notes.*,
+            shares.is_pinned as is_pinned,
             users.username as owner_username,
             users.avatar_color as owner_avatar_color,
             shares.permission
@@ -1141,7 +1142,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
            JOIN users ON notes.user_id = users.id
            WHERE shares.shared_with_user_id = ?
              AND notes.is_archived = 0
-           ORDER BY notes.is_pinned DESC, notes.${sortBy} DESC
+           ORDER BY shares.is_pinned DESC, notes.${sortBy} DESC
            LIMIT ? OFFSET ?`,
           [req.session.userId, limit, offset],
           (err, notes) => {
@@ -1235,7 +1236,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
             SELECT
               notes.id, notes.user_id, notes.title, notes.content, notes.color,
               notes.is_checklist, notes.checklist_items, notes.images,
-              notes.is_archived, notes.is_pinned, notes.created_at, notes.updated_at,
+              notes.is_archived, shares.is_pinned, notes.created_at, notes.updated_at,
               0 as share_count,
               users.username as owner_username,
               users.avatar_color as owner_avatar_color,
@@ -1565,28 +1566,58 @@ app.delete('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res)
 app.post('/api/notes/:id/pin', requireAuth, apiLimiter, csrfProtection, (req, res) => {
   const { id } = req.params;
 
-  // Only owner can pin/unpin
+  // Pin is per-user: the owner toggles notes.is_pinned, while a recipient
+  // toggles their own shares.is_pinned so they can (un)pin independently.
   db.get('SELECT id, user_id, is_pinned FROM notes WHERE id = ?', [id], (err, note) => {
     if (err) {
       logger.error('Check note owner error:', err);
       return res.status(500).json({ error: 'Kunde inte fästa anteckning' });
     }
 
-    if (!note || note.user_id !== req.session.userId) {
+    if (!note) {
       return res.status(404).json({ error: 'Anteckning hittades inte eller du saknar rättigheter' });
     }
 
-    // Toggle is_pinned
-    const newPinnedState = note.is_pinned ? 0 : 1;
+    // Owner path: toggle the note's own pin state.
+    if (note.user_id === req.session.userId) {
+      const newPinnedState = note.is_pinned ? 0 : 1;
+      return db.run('UPDATE notes SET is_pinned = ? WHERE id = ?', [newPinnedState, id], function(err) {
+        if (err) {
+          logger.error('Pin note error:', err);
+          return res.status(500).json({ error: 'Kunde inte fästa anteckning' });
+        }
+        res.json({ is_pinned: newPinnedState });
+      });
+    }
 
-    db.run('UPDATE notes SET is_pinned = ? WHERE id = ?', [newPinnedState, id], function(err) {
-      if (err) {
-        logger.error('Pin note error:', err);
-        return res.status(500).json({ error: 'Kunde inte fästa anteckning' });
+    // Recipient path: toggle the pin on this user's share, if one exists.
+    db.get(
+      'SELECT is_pinned FROM shares WHERE note_id = ? AND shared_with_user_id = ?',
+      [id, req.session.userId],
+      (err, share) => {
+        if (err) {
+          logger.error('Check share for pin error:', err);
+          return res.status(500).json({ error: 'Kunde inte fästa anteckning' });
+        }
+
+        if (!share) {
+          return res.status(404).json({ error: 'Anteckning hittades inte eller du saknar rättigheter' });
+        }
+
+        const newPinnedState = share.is_pinned ? 0 : 1;
+        db.run(
+          'UPDATE shares SET is_pinned = ? WHERE note_id = ? AND shared_with_user_id = ?',
+          [newPinnedState, id, req.session.userId],
+          function(err) {
+            if (err) {
+              logger.error('Pin shared note error:', err);
+              return res.status(500).json({ error: 'Kunde inte fästa anteckning' });
+            }
+            res.json({ is_pinned: newPinnedState });
+          }
+        );
       }
-
-      res.json({ is_pinned: newPinnedState });
-    });
+    );
   });
 });
 
