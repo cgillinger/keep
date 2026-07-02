@@ -1075,6 +1075,61 @@
   background: rgba(217, 48, 37, 0.9);
 }
 
+/* On touch devices there is no hover: keep the ✕ always visible and give it a
+   larger (44px) hit target so it isn't a mis-tap magnet against the image. */
+@media (hover: none) {
+  .image-preview-item .remove-image {
+    opacity: 1;
+    width: 32px;
+    height: 32px;
+    top: var(--space-sm);
+    right: var(--space-sm);
+  }
+}
+
+/* An image marked for removal (pending save): dimmed, with an Undo overlay. */
+.image-preview-item--removed img {
+  opacity: 0.35;
+  filter: grayscale(0.5);
+  cursor: default;
+}
+
+.image-preview-item--removed::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.08),
+    rgba(0, 0, 0, 0.08) 8px,
+    rgba(0, 0, 0, 0.16) 8px,
+    rgba(0, 0, 0, 0.16) 16px
+  );
+  pointer-events: none;
+}
+
+.image-preview-item .restore-image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 8px 14px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.image-preview-item .restore-image:hover,
+.image-preview-item .restore-image:focus-visible {
+  background: rgba(26, 115, 232, 0.95);
+}
+
 .note-card .note-images {
   display: grid;
   gap: var(--space-xs);
@@ -1156,6 +1211,35 @@
 
 .toast-notification.toast-info {
   background: #1565c0;
+}
+
+/* Toast with an action button (e.g. Undo): lay message and button side by side */
+.toast-notification:has(.toast-action) {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+}
+
+.toast-action {
+  background: transparent;
+  border: none;
+  color: #8ab4f8;
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  padding: 6px 8px;
+  margin: -6px -8px -6px 0;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.toast-action:hover,
+.toast-action:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+  color: #aecbfa;
 }
 
 /* ===== SKELETON LOADING ===== */
