@@ -60,6 +60,16 @@ if (aiCommandsActive && !GEMINI_API_KEY) {
 // Check if running behind HTTPS (e.g., reverse proxy with TLS termination)
 const isHttps = process.env.FORCE_HTTPS === 'true';
 
+// Trust the reverse proxy so req.ip / req.secure reflect the real client, not the
+// proxy. Without this, every request shares the proxy's IP and the rate limiters
+// collapse into a single shared bucket (one attacker locks out everyone). Set
+// TRUST_PROXY to the number of proxy hops (usually 1) or 'true'; defaults to 1
+// hop when HTTPS is enabled (the documented reverse-proxy setup), off otherwise.
+const trustProxy = process.env.TRUST_PROXY !== undefined
+  ? (process.env.TRUST_PROXY === 'true' ? true : (parseInt(process.env.TRUST_PROXY, 10) || false))
+  : (isHttps ? 1 : false);
+app.set('trust proxy', trustProxy);
+
 // Helmet for security headers
 app.use(
   helmet({
@@ -143,6 +153,19 @@ const apiLimiter = rateLimit({
   legacyHeaders: false
 });
 
+// Image serving needs a far more generous cap than the JSON API: a single note
+// grid can request dozens of images in one burst. Access is still gated by auth
+// and an ownership check, so this only stops crude scraping.
+const imageLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: isDevelopment ? 2000 : 600,
+  handler: (req, res) => res.status(429).json({
+    error: 'För många bildförfrågningar. Var god vänta.'
+  }),
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 const passwordResetLimiter = rateLimit({
   windowMs: isDevelopment ? 1 * 60 * 1000 : 60 * 60 * 1000, // 1 min dev, 1 hour prod
   max: isDevelopment ? 20 : 3, // 20 attempts dev, 3 prod
@@ -176,7 +199,7 @@ const sessionConfig = {
   resave: false, // SQLite store handles persistence - don't save on every request
   saveUninitialized: false,
   cookie: {
-    secure: false, // Allow cookies over HTTP (set to true only if using HTTPS)
+    secure: isHttps, // Mark Secure when served over HTTPS (FORCE_HTTPS=true) so the cookie never leaks over plain HTTP
     httpOnly: true, // Prevent JavaScript access
     sameSite: 'lax', // Balance between security and compatibility
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -295,6 +318,12 @@ wss.on('connection', (ws, req) => {
     }
     userSockets.add(ws);
 
+    // Liveness tracking for the heartbeat below: a half-open TCP connection (e.g.
+    // a phone that lost signal) never fires 'close', so without this its socket
+    // would linger in the user's set forever and leak memory.
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
+
     const cleanup = () => {
       const set = clients.get(userId);
       if (set) {
@@ -314,6 +343,21 @@ wss.on('connection', (ws, req) => {
     });
   });
 });
+
+// Heartbeat: every 30s ping each socket; a socket that didn't answer the previous
+// ping is considered dead and terminated (its 'close' handler cleans up the map).
+const WS_HEARTBEAT_MS = 30 * 1000;
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      ws.terminate();
+      return;
+    }
+    ws.isAlive = false;
+    try { ws.ping(); } catch (e) { /* socket already closing */ }
+  });
+}, WS_HEARTBEAT_MS);
+wss.on('close', () => clearInterval(heartbeatInterval));
 
 function broadcastToUser(userId, data) {
   const userSockets = clients.get(userId);
@@ -509,6 +553,50 @@ function maybeTriggerAiCommand(noteId, triggeredByUserId) {
   });
 }
 
+const IMAGE_FILENAME_RE = /^note_(\d+)_\d+\.webp$/;
+
+// Return the uploader's user id encoded in an image filename, or null if the
+// name doesn't match the expected `note_<userId>_<timestamp>.webp` shape.
+function imageOwnerId(filename) {
+  const m = IMAGE_FILENAME_RE.exec(filename);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+// Filter a client-supplied images array down to filenames the user is allowed to
+// attach: their own uploads, or images already present on the note (so a shared
+// editor can keep the owner's images without being able to inject foreign files).
+function filterAttachableImages(images, userId, existingImages = []) {
+  if (!Array.isArray(images)) return [];
+  const existing = new Set(existingImages);
+  return images
+    .slice(0, MAX_IMAGES_PER_NOTE)
+    .map(img => path.basename(String(img)))
+    .filter(img => IMAGE_FILENAME_RE.test(img))
+    .filter(img => imageOwnerId(img) === userId || existing.has(img));
+}
+
+// Does `userId` have access to view `filename`? Yes if they uploaded it, or if it
+// is referenced by a note they own or that is shared with them. Answers via a
+// callback(err, allowed).
+function userCanAccessImage(filename, userId, callback) {
+  if (imageOwnerId(filename) === userId) {
+    return callback(null, true);
+  }
+  // Match the filename inside the stored JSON images array. Escape LIKE wildcards
+  // (`_` and `%`, both of which appear in filenames) so the match is exact.
+  const likePattern = '%' + filename.replace(/[\\%_]/g, '\\$&') + '%';
+  db.get(
+    `SELECT 1 AS ok
+     FROM notes
+     LEFT JOIN shares ON notes.id = shares.note_id AND shares.shared_with_user_id = ?
+     WHERE notes.images LIKE ? ESCAPE '\\'
+       AND (notes.user_id = ? OR shares.shared_with_user_id IS NOT NULL)
+     LIMIT 1`,
+    [userId, likePattern, userId],
+    (err, row) => callback(err, !!row)
+  );
+}
+
 // Helper function to delete note image files from disk
 async function deleteNoteImageFiles(imageFilenames) {
   if (!imageFilenames || !Array.isArray(imageFilenames)) return;
@@ -527,6 +615,54 @@ async function deleteNoteImageFiles(imageFilenames) {
   await Promise.allSettled(
     valid.map(filename => fsp.unlink(path.join(imageDir, filename)))
   );
+}
+
+// Sweep the note-images directory for files no note references any more. This
+// reclaims images that were uploaded but never attached (or dropped when a note
+// exceeded MAX_IMAGES_PER_NOTE). Files younger than ORPHAN_GRACE_MS are spared so
+// an image uploaded but not yet saved onto a note isn't deleted mid-edit.
+const ORPHAN_GRACE_MS = 60 * 60 * 1000; // 1 hour
+async function cleanupOrphanImages() {
+  const imageDir = path.join(__dirname, 'data', 'note-images');
+  let files;
+  try {
+    files = await fsp.readdir(imageDir);
+  } catch (err) {
+    if (err.code !== 'ENOENT') logger.error('Orphan image sweep: readdir failed:', err);
+    return;
+  }
+
+  // Build the set of filenames still referenced by any note.
+  const referenced = await new Promise((resolve) => {
+    db.all('SELECT images FROM notes WHERE images IS NOT NULL', [], (err, rows) => {
+      if (err) {
+        logger.error('Orphan image sweep: query failed:', err);
+        return resolve(null); // null => skip this run rather than risk deleting live files
+      }
+      const set = new Set();
+      for (const row of rows) {
+        try {
+          for (const name of JSON.parse(row.images)) set.add(name);
+        } catch (e) { /* ignore malformed row */ }
+      }
+      resolve(set);
+    });
+  });
+  if (!referenced) return;
+
+  const now = Date.now();
+  let removed = 0;
+  for (const file of files) {
+    if (!IMAGE_FILENAME_RE.test(file) || referenced.has(file)) continue;
+    const full = path.join(imageDir, file);
+    try {
+      const stat = await fsp.stat(full);
+      if (now - stat.mtimeMs < ORPHAN_GRACE_MS) continue; // too fresh, may be mid-attach
+      await fsp.unlink(full);
+      removed++;
+    } catch (e) { /* file vanished or unreadable; ignore */ }
+  }
+  if (removed > 0) logger.info(`Orphan image sweep: removed ${removed} unreferenced image file(s)`);
 }
 
 async function dedupImagesByHash(imageFilenames) {
@@ -799,7 +935,9 @@ app.post('/api/password-reset/request', passwordResetLimiter, csrfProtection, as
           mailer.sendPasswordResetEmail(user.email, user.username, resetToken, resetUrl)
             .then((emailSent) => {
               if (emailSent) {
-                logger.info(`Password reset email sent to ${user.email}`);
+                // Log by user id, not the email address (PII), so combined logs
+                // don't accumulate account email addresses.
+                logger.info(`Password reset email sent (userId=${user.id})`);
               } else {
                 logger.error('Failed to send password reset email');
               }
@@ -1042,22 +1180,40 @@ app.post('/api/notes/image', requireAuth, csrfProtection, apiLimiter, noteImageU
   }
 });
 
-app.get('/api/notes/image/:filename', (req, res) => {
+app.get('/api/notes/image/:filename', requireAuth, imageLimiter, (req, res) => {
   const filename = path.basename(req.params.filename); // Prevent path traversal
-  const filepath = path.join(__dirname, 'data', 'note-images', filename);
 
-  if (!fs.existsSync(filepath)) {
+  // Reject anything that isn't a well-formed image name before touching disk/DB.
+  if (!IMAGE_FILENAME_RE.test(filename)) {
     return res.status(404).send('Bild hittades inte');
   }
 
-  // Set cache headers for better performance
-  // Images are immutable (filename is unique hash), cache for 1 year
-  res.set({
-    'Cache-Control': 'public, max-age=31536000, immutable',
-    'ETag': filename // Use filename as ETag since it's content-based
-  });
+  // Authorization: only serve images the user uploaded or that are referenced by
+  // a note they own or that is shared with them. Prevents enumerating other
+  // users' private photos by guessing the timestamp in the filename.
+  userCanAccessImage(filename, req.session.userId, (err, allowed) => {
+    if (err) {
+      logger.error('Image access check error:', err);
+      return res.status(500).send('Kunde inte hämta bild');
+    }
+    if (!allowed) {
+      // 404 (not 403) so the endpoint doesn't confirm which filenames exist.
+      return res.status(404).send('Bild hittades inte');
+    }
 
-  res.sendFile(filepath);
+    const filepath = path.join(__dirname, 'data', 'note-images', filename);
+    // Images are immutable (filename encodes a unique timestamp). Private, since
+    // access is per-user — never let a shared proxy cache them across users.
+    res.set({
+      'Cache-Control': 'private, max-age=31536000, immutable',
+      'ETag': filename
+    });
+    res.sendFile(filepath, (sendErr) => {
+      if (sendErr && !res.headersSent) {
+        res.status(404).send('Bild hittades inte');
+      }
+    });
+  });
 });
 
 // ===== USER ROUTES (for sharing) =====
@@ -1300,10 +1456,8 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, async (req, res)
   let imagesData = null;
   let duplicatesSkipped = 0;
   if (images && Array.isArray(images)) {
-    const sanitizedImages = images
-      .slice(0, MAX_IMAGES_PER_NOTE)
-      .map(img => path.basename(img))
-      .filter(img => /^note_\d+_\d+\.webp$/.test(img));
+    // A new note may only reference the user's own freshly uploaded images.
+    const sanitizedImages = filterAttachableImages(images, req.session.userId);
 
     if (sanitizedImages.length > 0) {
       const { kept, duplicates } = await dedupImagesByHash(sanitizedImages);
@@ -1400,14 +1554,23 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
         checklistData = JSON.stringify(sanitizedItems);
       }
 
+      // Parse the note's current images first: a shared editor is allowed to keep
+      // (and remove) images already on the note even though they belong to the
+      // owner, but may not inject arbitrary foreign filenames.
+      let currentImages = [];
+      if (note.images) {
+        try {
+          currentImages = JSON.parse(note.images);
+        } catch (e) {
+          currentImages = [];
+        }
+      }
+
       // Validate and sanitize images array
       let newImages = [];
       let duplicatesSkipped = 0;
       if (images && Array.isArray(images)) {
-        const rawImages = images
-          .slice(0, MAX_IMAGES_PER_NOTE)
-          .map(img => path.basename(img))
-          .filter(img => /^note_\d+_\d+\.webp$/.test(img));
+        const rawImages = filterAttachableImages(images, req.session.userId, currentImages);
 
         if (rawImages.length > 0) {
           const { kept, duplicates } = await dedupImagesByHash(rawImages);
@@ -1423,14 +1586,6 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
       const imagesData = newImages.length > 0 ? JSON.stringify(newImages) : null;
 
       // Find and delete removed images
-      let currentImages = [];
-      if (note.images) {
-        try {
-          currentImages = JSON.parse(note.images);
-        } catch (e) {
-          currentImages = [];
-        }
-      }
       const removedImages = currentImages.filter(img => !newImages.includes(img));
       if (removedImages.length > 0) {
         deleteNoteImageFiles(removedImages);
@@ -1864,6 +2019,17 @@ app.post('/api/import/keep', requireAuth, importLimiter, upload.single('zipfile'
   try {
     logger.info('Extracting zip file...');
     const zip = new AdmZip(zipPath);
+
+    // Guard against zip bombs: refuse to extract if the total uncompressed size
+    // exceeds the cap (a small compressed archive can expand to many GB and fill
+    // the disk). adm-zip already blocks path traversal (zip-slip) on extract.
+    const MAX_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+    const totalUncompressed = zip.getEntries().reduce((sum, e) => sum + (e.header.size || 0), 0);
+    if (totalUncompressed > MAX_UNCOMPRESSED_BYTES) {
+      try { await fsp.unlink(zipPath); } catch (e) { /* ignore */ }
+      return res.status(400).json({ error: 'Arkivet är för stort när det packas upp.' });
+    }
+
     zip.extractAllTo(extractPath, true);
 
     logger.info('Parsing Google Keep data...');
@@ -2047,4 +2213,10 @@ server.listen(PORT, () => {
   if (!process.env.SESSION_SECRET) {
     logger.warn('⚠️  Using default session secret - Set SESSION_SECRET environment variable for production!');
   }
+
+  // Reclaim orphaned image files at startup and hourly thereafter.
+  cleanupOrphanImages().catch(e => logger.error('Initial orphan image sweep failed:', e));
+  setInterval(() => {
+    cleanupOrphanImages().catch(e => logger.error('Orphan image sweep failed:', e));
+  }, ORPHAN_GRACE_MS);
 });

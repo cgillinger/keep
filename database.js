@@ -11,6 +11,18 @@ if (!fs.existsSync(dataDir)) {
 const dbPath = path.join(dataDir, 'keep.db');
 const db = new sqlite3.Database(dbPath);
 
+// Connection-level PRAGMAs. These are per-connection in SQLite and off by default:
+//  - foreign_keys=ON makes the schema's ON DELETE CASCADE rules actually fire
+//    (e.g. deleting a note removes its shares) instead of leaving orphaned rows.
+//  - busy_timeout makes a writer wait for a held lock instead of failing
+//    immediately with SQLITE_BUSY under concurrent access.
+//  - WAL journalling lets reads proceed while a write is in progress.
+db.serialize(() => {
+  db.run('PRAGMA foreign_keys = ON');
+  db.run('PRAGMA busy_timeout = 5000');
+  db.run('PRAGMA journal_mode = WAL');
+});
+
 db.serialize(() => {
   // Users table
   db.run(`CREATE TABLE IF NOT EXISTS users (

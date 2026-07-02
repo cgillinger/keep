@@ -39,6 +39,8 @@
     "forgot_password_help": "Gib deinen Benutzernamen oder deine E-Mail-Adresse ein. Wenn das Konto existiert und eine E-Mail verknüpft ist, erhältst du einen Zurücksetzungslink.",
     "username_or_email_placeholder": "Benutzername oder E-Mail",
     "send_reset_link_button": "Zurücksetzungslink senden",
+    "sending_reset_link": "Zurücksetzungslink wird gesendet …",
+    "remember_me": "Angemeldet bleiben",
     "back_to_login": "Zurück zur Anmeldung",
     "reset_password_title": "Neues Passwort",
     "reset_password_help": "Gib unten dein neues Passwort ein.",

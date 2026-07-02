@@ -39,6 +39,8 @@
     "forgot_password_help": "Skriv inn brukernavnet eller e-postadressen din. Hvis kontoen finnes og har en e-post tilknyttet, vil du motta en tilbakestillingslenke.",
     "username_or_email_placeholder": "Brukernavn eller e-post",
     "send_reset_link_button": "Send tilbakestillingslenke",
+    "sending_reset_link": "Sender tilbakestillingslenke …",
+    "remember_me": "Forbli innlogget",
     "back_to_login": "Tilbake til innlogging",
     "reset_password_title": "Nytt passord",
     "reset_password_help": "Skriv inn ditt nye passord nedenfor.",

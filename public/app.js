@@ -114,6 +114,8 @@ function updateUITranslations() {
   document.querySelector('#login-username').placeholder = t('auth.username_placeholder');
   document.querySelector('#login-password').placeholder = t('auth.password_placeholder');
   document.querySelector('#login-form button[onclick="login()"]').textContent = t('auth.login_button');
+  const rememberText = document.getElementById('login-remember-text');
+  if (rememberText) rememberText.textContent = t('auth.remember_me');
   document.querySelector('#login-form .auth-switch').innerHTML =
     `${t('auth.new_user')} <a href="#" onclick="showRegister(); return false;">${t('auth.register_link')}</a>`;
   document.querySelector('#forgot-password-link a').textContent = t('auth.forgot_password_link');
@@ -296,7 +298,6 @@ let newNoteImages = []; // Filenames of images uploaded for new note
 let editNoteImages = []; // Filenames of images for editing note
 let maxImagesPerNote = 30; // Fallback om servern ej returnerar värdet
 let showCreatedDate = localStorage.getItem('showCreatedDate') === 'true'; // User preference for showing created date
-let renderedNotesMap = new Map(); // Cache of rendered notes by ID for incremental updates
 
 // ===== NOTES CACHE & PAGINATION =====
 const PAGE_SIZE = 20; // Notes per page (matches server DEFAULT_PAGE_SIZE)
@@ -494,14 +495,10 @@ function showResetPassword() {
 }
 
 async function login() {
-  console.log('[LOGIN] Function called');
-
   const username = document.getElementById('login-username').value;
   const password = document.getElementById('login-password').value;
   const rememberEl = document.getElementById('login-remember');
   const rememberMe = rememberEl ? rememberEl.checked : false;
-
-  console.log('[LOGIN] Username:', username, 'Password length:', password.length);
 
   if (!username || !password) {
     showAuthError('Fyll i användarnamn och lösenord');
@@ -509,18 +506,14 @@ async function login() {
   }
 
   try {
-    console.log('[LOGIN] Sending login request...');
     const response = await apiFetch('/api/login', {
       method: 'POST',
       body: { username, password, rememberMe }
     });
 
-    console.log('[LOGIN] Response status:', response.status);
     const data = await response.json();
-    console.log('[LOGIN] Response data:', data);
 
     if (response.ok) {
-      console.log('[LOGIN] Login successful, setting currentUser');
       // Set current user immediately so session is available
       currentUser = data;
       maxImagesPerNote = data.maxImages || 30;
@@ -528,7 +521,6 @@ async function login() {
       // Clear password field for security
       document.getElementById('login-password').value = '';
 
-      console.log('[LOGIN] Transitioning to app...');
       // Show app immediately
       showApp();
       loadNotes();
@@ -539,7 +531,6 @@ async function login() {
       // Show success message after transition
       showAuthSuccess(t('messages.login_success'));
     } else {
-      console.log('[LOGIN] Login failed:', data.error);
       showAuthError(data.error || t('messages.login_failed'));
       // Refresh CSRF token on auth failure
       await fetchCSRFToken();
@@ -2550,7 +2541,9 @@ async function saveShares() {
       }
       document.getElementById('share-modal').classList.remove('active');
       resetShareModalState();
-      // Reload notes to update share_count indicator
+      // Invalidate the cache first, otherwise loadNotes() serves the stale
+      // share_count badge from cache until the TTL expires.
+      invalidateNotesCache();
       loadNotes();
     } else {
       showToast(`${errorCount} fel uppstod vid sparning`, 'error');
@@ -2975,17 +2968,25 @@ async function startImport() {
 
     // When server responds
     xhr.addEventListener('load', () => {
-      if (xhr.status === 200) {
-        const result = JSON.parse(xhr.responseText);
+      // The server always returns JSON, but a reverse proxy can return an HTML
+      // error page (502/504) — parse defensively so a non-JSON body shows an
+      // error toast instead of leaving the spinner up forever.
+      let payload = null;
+      try {
+        payload = JSON.parse(xhr.responseText);
+      } catch (e) {
+        payload = null;
+      }
+
+      document.getElementById('import-processing').style.display = 'none';
+
+      if (xhr.status === 200 && payload) {
         // Hide processing, show results
-        document.getElementById('import-processing').style.display = 'none';
-        showImportResults(result);
+        showImportResults(payload);
         loadNotes();
       } else {
-        const error = JSON.parse(xhr.responseText);
-        // Hide processing, show error
-        document.getElementById('import-processing').style.display = 'none';
-        showToast(`Import misslyckades: ${error.message || error.error}`, 'error');
+        const message = (payload && (payload.message || payload.error)) || `HTTP ${xhr.status}`;
+        showToast(`Import misslyckades: ${message}`, 'error');
         document.getElementById('import-instructions').style.display = 'block';
         document.getElementById('import-button').disabled = false;
       }

@@ -178,8 +178,18 @@ class BackupParser {
 
     imageFiles.forEach(imageFile => {
       try {
-        const sourcePath = path.join(imagesDir, imageFile);
-        const destPath = path.join(noteImagesDir, imageFile);
+        // Only accept well-formed image names. The backup is user-supplied, so
+        // without this a crafted archive could drop e.g. `evil.html` into the
+        // web-served note-images directory (stored XSS / arbitrary file write).
+        const safeName = path.basename(imageFile);
+        if (!/^note_\d+_\d+\.webp$/.test(safeName)) {
+          console.warn(`Skipping image with unexpected name during restore: ${imageFile}`);
+          this.stats.errors.push({ file: imageFile, error: 'Invalid image filename' });
+          return;
+        }
+
+        const sourcePath = path.join(imagesDir, safeName);
+        const destPath = path.join(noteImagesDir, safeName);
 
         // Skip if file already exists (avoid overwriting)
         if (!fs.existsSync(destPath)) {

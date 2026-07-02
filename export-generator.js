@@ -116,12 +116,15 @@ class BackupGenerator {
 
         // Save each note as separate JSON file
         notes.forEach((note, index) => {
-          // Parse JSON fields
+          // Parse JSON fields. Guard each parse so one corrupt row doesn't abort
+          // the entire backup export.
           if (note.checklist_items && typeof note.checklist_items === 'string') {
-            note.checklist_items = JSON.parse(note.checklist_items);
+            try { note.checklist_items = JSON.parse(note.checklist_items); }
+            catch (e) { note.checklist_items = []; }
           }
           if (note.images && typeof note.images === 'string') {
-            note.images = JSON.parse(note.images);
+            try { note.images = JSON.parse(note.images); }
+            catch (e) { note.images = []; }
           }
 
           // Convert boolean fields
