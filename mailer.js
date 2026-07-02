@@ -1,5 +1,16 @@
 const nodemailer = require('nodemailer');
 
+// Escape user-supplied text before interpolating it into the HTML email body so a
+// username like `<img onerror=...>` can't inject markup into the message.
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // Check if email is configured
 function isEmailConfigured() {
   return !!(
@@ -54,6 +65,7 @@ async function sendPasswordResetEmail(email, username, resetToken, resetUrl) {
   }
 
   try {
+    const safeUsername = escapeHtml(username);
     const mailOptions = {
       from: process.env.EMAIL_FROM,
       to: email,
@@ -71,7 +83,7 @@ async function sendPasswordResetEmail(email, username, resetToken, resetUrl) {
           </div>
 
           <div style="background-color: #f5f5f5; padding: 30px; border-radius: 0 0 5px 5px;">
-            <p>Hej <strong>${username}</strong>,</p>
+            <p>Hej <strong>${safeUsername}</strong>,</p>
 
             <p>Vi har fått en förfrågan om att återställa lösenordet för ditt Keep Clone-konto.</p>
 

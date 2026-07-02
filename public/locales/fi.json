@@ -39,6 +39,8 @@
     "forgot_password_help": "Syötä käyttäjänimesi tai sähköpostiosoitteesi. Jos tili on olemassa ja siihen on liitetty sähköposti, saat palautuslinkin.",
     "username_or_email_placeholder": "Käyttäjänimi tai sähköposti",
     "send_reset_link_button": "Lähetä palautuslinkki",
+    "sending_reset_link": "Lähetetään palautuslinkkiä …",
+    "remember_me": "Pysy kirjautuneena",
     "back_to_login": "Takaisin kirjautumiseen",
     "reset_password_title": "Uusi salasana",
     "reset_password_help": "Syötä uusi salasanasi alle.",

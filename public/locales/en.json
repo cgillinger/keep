@@ -39,6 +39,8 @@
     "forgot_password_help": "Enter your username or email address. If the account exists and has an email linked, you will receive a reset link.",
     "username_or_email_placeholder": "Username or email",
     "send_reset_link_button": "Send reset link",
+    "sending_reset_link": "Sending reset link …",
+    "remember_me": "Stay signed in",
     "back_to_login": "Back to login",
     "reset_password_title": "New password",
     "reset_password_help": "Enter your new password below.",

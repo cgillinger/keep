@@ -39,6 +39,8 @@
     "forgot_password_help": "Entrez votre nom d'utilisateur ou votre adresse e-mail. Si le compte existe et a une adresse e-mail associée, vous recevrez un lien de réinitialisation.",
     "username_or_email_placeholder": "Nom d'utilisateur ou e-mail",
     "send_reset_link_button": "Envoyer le lien de réinitialisation",
+    "sending_reset_link": "Envoi du lien de réinitialisation …",
+    "remember_me": "Rester connecté",
     "back_to_login": "Retour à la connexion",
     "reset_password_title": "Nouveau mot de passe",
     "reset_password_help": "Entrez votre nouveau mot de passe ci-dessous.",

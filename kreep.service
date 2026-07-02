@@ -6,11 +6,14 @@ After=network.target
 Type=simple
 User=your-username
 WorkingDirectory=/path/to/kreep
+# Rebuild the fingerprinted frontend bundles before starting, so a git pull that
+# changed public/app.js is actually served instead of a stale public/dist.
+ExecStartPre=/usr/bin/npm run build
 ExecStart=/usr/bin/node server.js
-Restart=on-failure
+Restart=always
 RestartSec=10
-StandardOutput=syslog
-StandardError=syslog
+StandardOutput=journal
+StandardError=journal
 SyslogIdentifier=kreep
 
 Environment=NODE_ENV=production

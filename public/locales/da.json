@@ -39,6 +39,8 @@
     "forgot_password_help": "Indtast dit brugernavn eller din e-mailadresse. Hvis kontoen findes og har en e-mail tilknyttet, vil du modtage et nulstillingslink.",
     "username_or_email_placeholder": "Brugernavn eller e-mail",
     "send_reset_link_button": "Send nulstillingslink",
+    "sending_reset_link": "Sender nulstillingslink …",
+    "remember_me": "Forbliv logget ind",
     "back_to_login": "Tilbage til login",
     "reset_password_title": "Ny adgangskode",
     "reset_password_help": "Indtast din nye adgangskode nedenfor.",
