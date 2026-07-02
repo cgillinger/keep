@@ -597,7 +597,15 @@ function userCanAccessImage(filename, userId, callback) {
   );
 }
 
-// Helper function to delete note image files from disk
+// Removing an image doesn't unlink it immediately — it's moved to a hidden trash
+// folder and only purged after TRASH_GRACE_MS, so an accidental removal (a mis-tap
+// on the ✕, or a note deleted by mistake) is recoverable rather than instantly
+// destroyed. `.trash` lives inside note-images but is ignored by the orphan sweep
+// (its name doesn't match IMAGE_FILENAME_RE).
+const TRASH_GRACE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const NOTE_IMAGES_TRASH_DIR = path.join(__dirname, 'data', 'note-images', '.trash');
+
+// Move note image files to the trash folder (was: unlink).
 async function deleteNoteImageFiles(imageFilenames) {
   if (!imageFilenames || !Array.isArray(imageFilenames)) return;
 
@@ -611,10 +619,80 @@ async function deleteNoteImageFiles(imageFilenames) {
     }
     return true;
   });
+  if (valid.length === 0) return;
+
+  try {
+    await fsp.mkdir(NOTE_IMAGES_TRASH_DIR, { recursive: true });
+  } catch (e) { /* best effort */ }
 
   await Promise.allSettled(
-    valid.map(filename => fsp.unlink(path.join(imageDir, filename)))
+    valid.map(filename =>
+      fsp.rename(path.join(imageDir, filename), path.join(NOTE_IMAGES_TRASH_DIR, filename))
+        .catch(err => {
+          // If rename fails (e.g. source already gone), fall back to unlink so we
+          // don't leak the file; ignore if it simply no longer exists.
+          if (err.code !== 'ENOENT') {
+            return fsp.unlink(path.join(imageDir, filename)).catch(() => {});
+          }
+        })
+    )
   );
+}
+
+// Permanently delete trashed image files older than the grace period.
+async function purgeTrashedImages() {
+  let files;
+  try {
+    files = await fsp.readdir(NOTE_IMAGES_TRASH_DIR);
+  } catch (err) {
+    if (err.code !== 'ENOENT') logger.error('Trash purge: readdir failed:', err);
+    return;
+  }
+  const now = Date.now();
+  let removed = 0;
+  for (const file of files) {
+    const full = path.join(NOTE_IMAGES_TRASH_DIR, file);
+    try {
+      const stat = await fsp.stat(full);
+      if (now - stat.mtimeMs < TRASH_GRACE_MS) continue;
+      await fsp.unlink(full);
+      removed++;
+    } catch (e) { /* ignore */ }
+  }
+  if (removed > 0) logger.info(`Trash purge: permanently removed ${removed} old image file(s)`);
+}
+
+// Hard-delete notes that have been in the trash past the grace period, moving
+// their images to the image trash (which is itself purged above).
+async function purgeDeletedNotes() {
+  const rows = await new Promise((resolve) => {
+    db.all(
+      `SELECT id, images FROM notes
+       WHERE deleted_at IS NOT NULL
+         AND (julianday('now') - julianday(deleted_at)) * 86400000 > ?`,
+      [TRASH_GRACE_MS],
+      (err, r) => {
+        if (err) { logger.error('Note purge: query failed:', err); return resolve(null); }
+        resolve(r);
+      }
+    );
+  });
+  if (!rows || rows.length === 0) return;
+
+  for (const row of rows) {
+    let images = [];
+    if (row.images) {
+      try { images = JSON.parse(row.images); } catch (e) { images = []; }
+    }
+    if (images.length > 0) await deleteNoteImageFiles(images);
+    await new Promise((resolve) => {
+      db.run('DELETE FROM notes WHERE id = ?', [row.id], (err) => {
+        if (err) logger.error(`Note purge: failed to delete note ${row.id}:`, err);
+        resolve();
+      });
+    });
+  }
+  logger.info(`Note purge: permanently deleted ${rows.length} expired trashed note(s)`);
 }
 
 // Sweep the note-images directory for files no note references any more. This
@@ -1276,7 +1354,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
     db.get(
       `SELECT COUNT(*) as total FROM notes
        JOIN shares ON notes.id = shares.note_id
-       WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0`,
+       WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0 AND notes.deleted_at IS NULL`,
       [req.session.userId],
       (err, countResult) => {
         if (err) {
@@ -1298,6 +1376,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
            JOIN users ON notes.user_id = users.id
            WHERE shares.shared_with_user_id = ?
              AND notes.is_archived = 0
+             AND notes.deleted_at IS NULL
            ORDER BY shares.is_pinned DESC, notes.${sortBy} DESC
            LIMIT ? OFFSET ?`,
           [req.session.userId, limit, offset],
@@ -1320,7 +1399,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
   } else if (showArchived) {
     // Get user's own archived notes only
     db.get(
-      `SELECT COUNT(*) as total FROM notes WHERE user_id = ? AND is_archived = 1`,
+      `SELECT COUNT(*) as total FROM notes WHERE user_id = ? AND is_archived = 1 AND deleted_at IS NULL`,
       [req.session.userId],
       (err, countResult) => {
         if (err) {
@@ -1334,7 +1413,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
           `SELECT notes.*,
             (SELECT COUNT(*) FROM shares WHERE shares.note_id = notes.id) as share_count
            FROM notes
-           WHERE user_id = ? AND is_archived = 1
+           WHERE user_id = ? AND is_archived = 1 AND deleted_at IS NULL
            ORDER BY is_pinned DESC, ${sortBy} DESC
            LIMIT ? OFFSET ?`,
           [req.session.userId, limit, offset],
@@ -1359,10 +1438,10 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
     // First get total count from both sources
     db.get(
       `SELECT
-        (SELECT COUNT(*) FROM notes WHERE user_id = ? AND is_archived = 0) +
+        (SELECT COUNT(*) FROM notes WHERE user_id = ? AND is_archived = 0 AND deleted_at IS NULL) +
         (SELECT COUNT(*) FROM notes
          JOIN shares ON notes.id = shares.note_id
-         WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0) as total`,
+         WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0 AND notes.deleted_at IS NULL) as total`,
       [req.session.userId, req.session.userId],
       (err, countResult) => {
         if (err) {
@@ -1385,7 +1464,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
               NULL as permission,
               0 as isShared
             FROM notes
-            WHERE user_id = ? AND is_archived = 0
+            WHERE user_id = ? AND is_archived = 0 AND deleted_at IS NULL
 
             UNION ALL
 
@@ -1401,7 +1480,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
             FROM notes
             JOIN shares ON notes.id = shares.note_id
             JOIN users ON notes.user_id = users.id
-            WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0
+            WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0 AND notes.deleted_at IS NULL
           )
           ORDER BY is_pinned DESC, ${sortBy} DESC
           LIMIT ? OFFSET ?`,
@@ -1519,7 +1598,7 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
     `SELECT notes.*, shares.permission
      FROM notes
      LEFT JOIN shares ON notes.id = shares.note_id AND shares.shared_with_user_id = ?
-     WHERE notes.id = ? AND (notes.user_id = ? OR shares.permission = 'edit')`,
+     WHERE notes.id = ? AND notes.deleted_at IS NULL AND (notes.user_id = ? OR shares.permission = 'edit')`,
     [req.session.userId, id, req.session.userId],
     async (err, note) => {
       if (err) {
@@ -1659,8 +1738,10 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
 app.delete('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) => {
   const { id } = req.params;
 
-  // Only owner can delete - also fetch images for cleanup
-  db.get('SELECT user_id, images FROM notes WHERE id = ?', [id], (err, note) => {
+  // Only the owner can delete. Soft-delete: mark deleted_at so the note vanishes
+  // from every list but can be restored (see /restore) until the purge sweep
+  // hard-deletes it after DELETED_NOTE_GRACE_MS. Images stay on disk meanwhile.
+  db.get('SELECT user_id FROM notes WHERE id = ? AND deleted_at IS NULL', [id], (err, note) => {
     if (err) {
       logger.error('Check note owner error:', err);
       return res.status(500).json({ error: 'Kunde inte radera anteckning' });
@@ -1670,29 +1751,14 @@ app.delete('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res)
       return res.status(404).json({ error: 'Anteckning hittades inte eller du saknar rättigheter' });
     }
 
-    // Parse images for later cleanup
-    let noteImages = [];
-    if (note.images) {
-      try {
-        noteImages = JSON.parse(note.images);
-      } catch (e) {
-        noteImages = [];
-      }
-    }
-
-    // Get all users this note is shared with before deleting
+    // Get all users this note is shared with so their UI removes it too
     db.all('SELECT shared_with_user_id FROM shares WHERE note_id = ?', [id], (err, shares) => {
       const sharedUserIds = shares ? shares.map(s => s.shared_with_user_id) : [];
 
-      db.run('DELETE FROM notes WHERE id = ?', [id], function(err) {
+      db.run('UPDATE notes SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [id], function(err) {
         if (err) {
           logger.error('Delete note error:', err);
           return res.status(500).json({ error: 'Kunde inte radera anteckning' });
-        }
-
-        // Delete associated image files
-        if (noteImages.length > 0) {
-          deleteNoteImageFiles(noteImages);
         }
 
         // Broadcast to owner (parseInt so the id type matches the numeric note
@@ -1711,7 +1777,54 @@ app.delete('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res)
           });
         });
 
-        res.json({ message: 'Anteckning raderad' });
+        res.json({ message: 'Anteckning raderad', noteId: deletedNoteId });
+      });
+    });
+  });
+});
+
+// Restore a soft-deleted note (undo). Owner only, and only while still in the
+// grace window (a hard-purged note no longer exists to restore).
+app.post('/api/notes/:id/restore', requireAuth, apiLimiter, csrfProtection, (req, res) => {
+  const { id } = req.params;
+
+  db.get('SELECT user_id FROM notes WHERE id = ? AND deleted_at IS NOT NULL', [id], (err, note) => {
+    if (err) {
+      logger.error('Check note owner error (restore):', err);
+      return res.status(500).json({ error: 'Kunde inte återställa anteckning' });
+    }
+    if (!note || note.user_id !== req.session.userId) {
+      return res.status(404).json({ error: 'Anteckning hittades inte' });
+    }
+
+    db.run('UPDATE notes SET deleted_at = NULL WHERE id = ?', [id], function(err) {
+      if (err) {
+        logger.error('Restore note error:', err);
+        return res.status(500).json({ error: 'Kunde inte återställa anteckning' });
+      }
+
+      // Re-fetch the full note and re-broadcast it so it reappears in every UI.
+      db.get('SELECT * FROM notes WHERE id = ?', [id], (err, restored) => {
+        if (err || !restored) {
+          return res.json({ message: 'Anteckning återställd', noteId: parseInt(id) });
+        }
+        if (restored.checklist_items) {
+          try { restored.checklist_items = JSON.parse(restored.checklist_items); }
+          catch (e) { restored.checklist_items = []; }
+        }
+        if (restored.images) {
+          try { restored.images = JSON.parse(restored.images); }
+          catch (e) { restored.images = []; }
+        }
+
+        broadcastToUser(req.session.userId, { type: 'note_created', note: restored });
+        db.all('SELECT shared_with_user_id FROM shares WHERE note_id = ?', [id], (err, shares) => {
+          if (!err && shares) {
+            shares.forEach(s => broadcastToUser(s.shared_with_user_id, { type: 'note_created', note: restored }));
+          }
+        });
+
+        res.json({ message: 'Anteckning återställd', note: restored });
       });
     });
   });
@@ -2214,9 +2327,13 @@ server.listen(PORT, () => {
     logger.warn('⚠️  Using default session secret - Set SESSION_SECRET environment variable for production!');
   }
 
-  // Reclaim orphaned image files at startup and hourly thereafter.
-  cleanupOrphanImages().catch(e => logger.error('Initial orphan image sweep failed:', e));
-  setInterval(() => {
+  // Maintenance sweeps: reclaim orphaned images, purge trashed images and
+  // expired trashed notes. Run at startup and hourly thereafter.
+  const runMaintenance = () => {
     cleanupOrphanImages().catch(e => logger.error('Orphan image sweep failed:', e));
-  }, ORPHAN_GRACE_MS);
+    purgeTrashedImages().catch(e => logger.error('Trash purge failed:', e));
+    purgeDeletedNotes().catch(e => logger.error('Note purge failed:', e));
+  };
+  runMaintenance();
+  setInterval(runMaintenance, ORPHAN_GRACE_MS);
 });

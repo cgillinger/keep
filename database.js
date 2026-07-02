@@ -108,6 +108,19 @@ db.serialize(() => {
         }
       });
     }
+
+    // Soft-delete timestamp: non-null means the note is in the trash (recoverable
+    // for a grace period, then purged). NULL means the note is live.
+    const hasDeletedAt = columns.some(col => col.name === 'deleted_at');
+    if (!hasDeletedAt) {
+      db.run(`ALTER TABLE notes ADD COLUMN deleted_at DATETIME DEFAULT NULL`, (err) => {
+        if (err) {
+          console.error('Error adding deleted_at column:', err);
+        } else {
+          console.log('Added deleted_at column to notes table');
+        }
+      });
+    }
   });
 
   // Migration: Add per-user is_pinned column to shares so a recipient can

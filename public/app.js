@@ -296,6 +296,11 @@ let ws = null;
 let csrfToken = null;
 let newNoteImages = []; // Filenames of images uploaded for new note
 let editNoteImages = []; // Filenames of images for editing note
+// Images the user has marked for removal in the editor but not yet saved. Kept
+// separate (instead of splicing immediately) so a mis-tap on the ✕ can be undone
+// before saving; on save these are excluded and the server moves them to trash.
+let newNoteRemovedImages = [];
+let editNoteRemovedImages = [];
 let maxImagesPerNote = 30; // Fallback om servern ej returnerar värdet
 let showCreatedDate = localStorage.getItem('showCreatedDate') === 'true'; // User preference for showing created date
 
@@ -1729,6 +1734,7 @@ async function saveNote() {
       selectedColor = '#ffffff';
       isChecklistMode = false;
       newNoteImages = [];
+      newNoteRemovedImages = [];
       document.getElementById('checklist-container').style.display = 'none';
       document.getElementById('images-container').style.display = 'none';
       document.getElementById('images-preview').innerHTML = '';
@@ -1825,6 +1831,7 @@ function openEditModal(noteId) {
 
   // Handle images
   editNoteImages = note.images && Array.isArray(note.images) ? [...note.images] : [];
+  editNoteRemovedImages = [];
   if (editNoteImages.length > 0) {
     document.getElementById('edit-images-container').style.display = 'block';
     renderImagePreview('edit-images-preview', editNoteImages, canEdit);
@@ -2019,7 +2026,7 @@ async function updateNote() {
 async function deleteNote() {
   if (!currentEditingNote) return;
 
-  if (!confirm('Är du säker på att du vill ta bort denna anteckning?')) {
+  if (!confirm(t('messages.confirm_delete'))) {
     return;
   }
 
@@ -2028,8 +2035,12 @@ async function deleteNote() {
   const deleteBtn = document.getElementById('delete-note-btn');
   setBtnBusy(deleteBtn);
 
+  // Capture the id before closing the editor clears currentEditingNote, so the
+  // Undo action still knows which note to restore.
+  const deletedId = currentEditingNote.id;
+
   try {
-    const response = await apiFetch(`/api/notes/${currentEditingNote.id}`, {
+    const response = await apiFetch(`/api/notes/${deletedId}`, {
       method: 'DELETE',
       credentials: 'include',
       headers: getCSRFHeaders()
@@ -2039,7 +2050,11 @@ async function deleteNote() {
       forceCloseEditModal();
       invalidateNotesCache();
       loadNotes({ forceRefresh: true });
-      showToast('Anteckning borttagen', 'success');
+      // Soft-deleted on the server (recoverable). Offer an immediate Undo.
+      showToast(t('messages.note_deleted'), 'success', {
+        label: t('messages.undo'),
+        onClick: () => restoreNote(deletedId)
+      });
     } else if (response.status === 403) {
       await fetchCSRFToken();
       showToast('Sessionen gick ut, försök igen', 'error');
@@ -2052,6 +2067,31 @@ async function deleteNote() {
   } finally {
     isDeletingNote = false;
     clearBtnBusy(deleteBtn);
+  }
+}
+
+// Restore a soft-deleted note (Undo). The server re-broadcasts it over WebSocket,
+// but we also refresh so it reappears even if the socket is down.
+async function restoreNote(noteId) {
+  try {
+    const response = await apiFetch(`/api/notes/${noteId}/restore`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: getCSRFHeaders()
+    });
+    if (response.ok) {
+      invalidateNotesCache();
+      loadNotes({ forceRefresh: true });
+      showToast(t('messages.note_restored'), 'success');
+    } else if (response.status === 403) {
+      await fetchCSRFToken();
+      showToast(t('messages.restore_failed'), 'error');
+    } else {
+      showToast(t('messages.restore_failed'), 'error');
+    }
+  } catch (error) {
+    console.error('Failed to restore note:', error);
+    showToast(t('messages.restore_failed'), 'error');
   }
 }
 
@@ -2573,7 +2613,7 @@ async function saveShares() {
 }
 
 // Toast notification system
-function showToast(message, type = 'info') {
+function showToast(message, type = 'info', action = null) {
   // Remove existing toast if any
   const existingToast = document.querySelector('.toast-notification');
   if (existingToast) {
@@ -2582,7 +2622,27 @@ function showToast(message, type = 'info') {
 
   const toast = document.createElement('div');
   toast.className = `toast-notification toast-${type}`;
-  toast.textContent = message;
+
+  // Message text (kept as textContent so it can never inject markup)
+  const msgSpan = document.createElement('span');
+  msgSpan.className = 'toast-message';
+  msgSpan.textContent = message;
+  toast.appendChild(msgSpan);
+
+  // Optional action button (e.g. "Ångra"). An action toast stays up longer so
+  // there's time to react, and dismisses as soon as the action is taken.
+  let dismissAfter = 3000;
+  if (action && action.label && typeof action.onClick === 'function') {
+    dismissAfter = action.duration || 7000;
+    const btn = document.createElement('button');
+    btn.className = 'toast-action';
+    btn.textContent = action.label;
+    btn.addEventListener('click', () => {
+      hide();
+      action.onClick();
+    });
+    toast.appendChild(btn);
+  }
 
   document.body.appendChild(toast);
 
@@ -2591,11 +2651,16 @@ function showToast(message, type = 'info') {
     toast.classList.add('show');
   });
 
-  // Auto-remove after 3 seconds
-  setTimeout(() => {
+  let hidden = false;
+  function hide() {
+    if (hidden) return;
+    hidden = true;
+    clearTimeout(timer);
     toast.classList.remove('show');
     setTimeout(() => toast.remove(), 300);
-  }, 3000);
+  }
+
+  const timer = setTimeout(hide, dismissAfter);
 }
 
 // Put a button into a busy state (disabled + optional "working…" label) and
@@ -3311,33 +3376,69 @@ async function handleEditNoteImageSelect() {
 }
 
 // Render image preview
-function renderImagePreview(containerId, images, canRemove) {
-  const container = document.getElementById(containerId);
-  const imagesJson = JSON.stringify(images).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-  container.setAttribute('data-images', imagesJson);
-  container.innerHTML = images.map((img, index) => `
-    <div class="image-preview-item">
-      <img src="/api/notes/image/${img}" alt="Preview" loading="lazy" onclick="openImageModal('${img}', JSON.parse(this.closest('[data-images]').dataset.images))">
-      ${canRemove ? `<button class="remove-image" onclick="event.stopPropagation(); removeImage('${containerId}', ${index})">✕</button>` : ''}
-    </div>
-  `).join('');
+// Map a preview container to its active/removed image arrays.
+function imageArraysFor(containerId) {
+  if (containerId === 'images-preview') {
+    return { active: newNoteImages, removed: newNoteRemovedImages, containerEl: 'images-container' };
+  }
+  return { active: editNoteImages, removed: editNoteRemovedImages, containerEl: 'edit-images-container' };
 }
 
-// Remove image from preview
+function renderImagePreview(containerId, images, canRemove) {
+  const container = document.getElementById(containerId);
+  const { removed } = imageArraysFor(containerId);
+  const imagesJson = JSON.stringify(images).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+  container.setAttribute('data-images', imagesJson);
+
+  // Active images: clickable, with a ✕ to mark for removal.
+  const activeHtml = images.map((img, index) => `
+    <div class="image-preview-item">
+      <img src="/api/notes/image/${img}" alt="Preview" loading="lazy" onclick="openImageModal('${img}', JSON.parse(this.closest('[data-images]').dataset.images))">
+      ${canRemove ? `<button class="remove-image" onclick="event.stopPropagation(); removeImage('${containerId}', ${index})" aria-label="${t('messages.remove_image')}">✕</button>` : ''}
+    </div>
+  `).join('');
+
+  // Images pending removal: dimmed, with an Undo overlay so a mis-tap is reversible.
+  const removedHtml = (canRemove ? removed : []).map((img, index) => `
+    <div class="image-preview-item image-preview-item--removed">
+      <img src="/api/notes/image/${img}" alt="Preview" loading="lazy">
+      <button class="restore-image" onclick="event.stopPropagation(); restoreImageRemoval('${containerId}', ${index})">↺ ${t('messages.undo')}</button>
+    </div>
+  `).join('');
+
+  container.innerHTML = activeHtml + removedHtml;
+}
+
+// Mark an active image for removal (does not delete yet — see save handlers).
 function removeImage(containerId, index) {
+  const { active, removed, containerEl } = imageArraysFor(containerId);
+  if (index < 0 || index >= active.length) return;
+  removed.push(active[index]);
+  active.splice(index, 1);
+  rerenderPreview(containerId);
+  // Keep the container visible while there are removed items to undo.
+  if (active.length === 0 && removed.length === 0) {
+    document.getElementById(containerEl).style.display = 'none';
+  }
+}
+
+// Undo a pending removal, moving the image back to the active list.
+function restoreImageRemoval(containerId, index) {
+  const { active, removed } = imageArraysFor(containerId);
+  if (index < 0 || index >= removed.length) return;
+  active.push(removed[index]);
+  removed.splice(index, 1);
+  rerenderPreview(containerId);
+}
+
+// Re-render a preview using the right "can edit" flag for its container.
+function rerenderPreview(containerId) {
+  const { active } = imageArraysFor(containerId);
   if (containerId === 'images-preview') {
-    newNoteImages.splice(index, 1);
-    if (newNoteImages.length === 0) {
-      document.getElementById('images-container').style.display = 'none';
-    }
-    renderImagePreview('images-preview', newNoteImages, true);
-  } else if (containerId === 'edit-images-preview') {
-    editNoteImages.splice(index, 1);
-    if (editNoteImages.length === 0) {
-      document.getElementById('edit-images-container').style.display = 'none';
-    }
-    const canEdit = !currentEditingNote.isShared || currentEditingNote.permission === 'edit';
-    renderImagePreview('edit-images-preview', editNoteImages, canEdit);
+    renderImagePreview('images-preview', active, true);
+  } else {
+    const canEdit = !currentEditingNote || !currentEditingNote.isShared || currentEditingNote.permission === 'edit';
+    renderImagePreview('edit-images-preview', active, canEdit);
   }
 }
 
