@@ -374,6 +374,13 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   setupColorPickers();
 
+  // Paste-to-upload: images pasted from the clipboard land in the note
+  // that has focus (new-note form or the edit modal).
+  document.getElementById('new-note-form')
+    .addEventListener('paste', (e) => handleNotePaste(e, 'new'));
+  document.getElementById('modal-content')
+    .addEventListener('paste', (e) => handleNotePaste(e, 'edit'));
+
   // Non-critical: only toggles the login screen's "forgot password" link.
   // Fire-and-forget after the UI is shown so it never blocks first paint.
   checkEmailConfig();
@@ -3245,20 +3252,22 @@ function hideImageUploadProgress(prefix) {
   if (wrap) wrap.classList.add('hidden');
 }
 
-// Handle new note image selection
-async function handleNewNoteImageSelect() {
-  const input = document.getElementById('new-note-image-input');
-  const files = Array.from(input.files);
+// Shared upload path for note images, used by both the file pickers and
+// clipboard paste. context is 'new' (new-note form) or 'edit' (edit modal).
+async function uploadNoteImages(files, context) {
+  const isEdit = context === 'edit';
+  const prefix = isEdit ? 'edit-note' : 'new-note';
+  const images = isEdit ? editNoteImages : newNoteImages;
 
   if (files.length === 0) return;
 
-  const remainingSlots = maxImagesPerNote - newNoteImages.length;
+  const remainingSlots = maxImagesPerNote - images.length;
   if (files.length > remainingSlots) {
     showToast(`Du kan bara lägga till ${remainingSlots} till bilder (max ${maxImagesPerNote} per anteckning)`, 'error');
     return;
   }
 
-  showImageUploadProgress('new-note', files.length);
+  showImageUploadProgress(prefix, files.length);
   let uploaded = 0;
   try {
     for (const file of files) {
@@ -3268,7 +3277,7 @@ async function handleNewNoteImageSelect() {
         continue;
       }
 
-      updateImageUploadProgress('new-note', uploaded, files.length);
+      updateImageUploadProgress(prefix, uploaded, files.length);
 
       // Upload image
       const formData = new FormData();
@@ -3283,9 +3292,9 @@ async function handleNewNoteImageSelect() {
 
       if (response.ok) {
         const data = await response.json();
-        newNoteImages.push(data.filename);
+        images.push(data.filename);
         uploaded++;
-        updateImageUploadProgress('new-note', uploaded, files.length);
+        updateImageUploadProgress(prefix, uploaded, files.length);
       } else if (response.status === 403) {
         await fetchCSRFToken();
         showToast('Session expired, please try again', 'error');
@@ -3296,83 +3305,54 @@ async function handleNewNoteImageSelect() {
     }
 
     // Show images container and render previews
-    if (newNoteImages.length > 0) {
-      document.getElementById('images-container').style.display = 'block';
-      renderImagePreview('images-preview', newNoteImages, true);
+    if (images.length > 0) {
+      if (isEdit) {
+        document.getElementById('edit-images-container').style.display = 'block';
+        const canEdit = !currentEditingNote || !currentEditingNote.isShared || currentEditingNote.permission === 'edit';
+        renderImagePreview('edit-images-preview', editNoteImages, canEdit);
+      } else {
+        document.getElementById('images-container').style.display = 'block';
+        renderImagePreview('images-preview', newNoteImages, true);
+      }
     }
-
-    // Reset input
-    input.value = '';
   } catch (error) {
     console.error('Failed to upload images:', error);
     showToast('Kunde inte ladda upp bilder', 'error');
   } finally {
-    hideImageUploadProgress('new-note');
+    hideImageUploadProgress(prefix);
   }
+}
+
+// Handle new note image selection
+async function handleNewNoteImageSelect() {
+  const input = document.getElementById('new-note-image-input');
+  await uploadNoteImages(Array.from(input.files), 'new');
+  input.value = '';
 }
 
 // Handle edit note image selection
 async function handleEditNoteImageSelect() {
   const input = document.getElementById('edit-note-image-input');
-  const files = Array.from(input.files);
+  await uploadNoteImages(Array.from(input.files), 'edit');
+  input.value = '';
+}
 
+// Clipboard paste: upload images pasted into the new-note form or edit modal
+// (e.g. a screenshot copied to the clipboard). Plain-text pastes are untouched.
+function handleNotePaste(event, context) {
+  const files = Array.from(event.clipboardData?.files || [])
+    .filter((file) => file.type.startsWith('image/'));
   if (files.length === 0) return;
 
-  const remainingSlots = maxImagesPerNote - editNoteImages.length;
-  if (files.length > remainingSlots) {
-    showToast(`Du kan bara lägga till ${remainingSlots} till bilder (max ${maxImagesPerNote} per anteckning)`, 'error');
-    return;
+  if (context === 'edit') {
+    if (!currentEditingNote) return; // no note open in the modal
+    if (currentEditingNote.isShared && currentEditingNote.permission !== 'edit') {
+      return; // read-only shared note
+    }
   }
 
-  showImageUploadProgress('edit-note', files.length);
-  let uploaded = 0;
-  try {
-    for (const file of files) {
-      if (file.size > 10 * 1024 * 1024) {
-        showToast(`Bilden "${file.name}" är för stor (max 10MB)`, 'error');
-        continue;
-      }
-
-      updateImageUploadProgress('edit-note', uploaded, files.length);
-
-      const formData = new FormData();
-      formData.append('image', file);
-
-      const response = await apiFetch('/api/notes/image', {
-        method: 'POST',
-        credentials: 'include',
-        headers: getCSRFHeaders(),
-        body: formData
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        editNoteImages.push(data.filename);
-        uploaded++;
-        updateImageUploadProgress('edit-note', uploaded, files.length);
-      } else if (response.status === 403) {
-        await fetchCSRFToken();
-        showToast('Session expired, please try again', 'error');
-        return;
-      } else {
-        throw new Error('Failed to upload image');
-      }
-    }
-
-    // Show images container and render previews
-    if (editNoteImages.length > 0) {
-      document.getElementById('edit-images-container').style.display = 'block';
-      const canEdit = !currentEditingNote.isShared || currentEditingNote.permission === 'edit';
-      renderImagePreview('edit-images-preview', editNoteImages, canEdit);
-    }
-
-    input.value = '';
-  } catch (error) {
-    console.error('Failed to upload images:', error);
-    showToast('Kunde inte ladda upp bilder', 'error');
-  } finally {
-    hideImageUploadProgress('edit-note');
-  }
+  event.preventDefault(); // don't paste the image's filename as text
+  uploadNoteImages(files, context);
 }
 
 // Render image preview
