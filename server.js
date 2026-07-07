@@ -553,12 +553,26 @@ function maybeTriggerAiCommand(noteId, triggeredByUserId) {
   });
 }
 
-const IMAGE_FILENAME_RE = /^note_(\d+)_\d+\.webp$/;
+// Two valid note-image naming schemes exist on disk:
+//  1. Uploads   — note_<userId>_<timestamp>.webp   (owner id embedded)
+//  2. Imports   — <timestamp>_<random>.<ext>        (from Google Keep Takeout /
+//                 backup import; keeps the original extension, no owner id)
+// The uploader's id can only be read off scheme 1; imported images carry no
+// owner, so access to them is gated solely by the note that references them.
+const UPLOADED_IMAGE_RE = /^note_(\d+)_\d+\.webp$/;
+const IMPORTED_IMAGE_RE = /^\d+_[a-zA-Z0-9]+\.(webp|jpe?g|png|gif|heic|heif|bmp|avif)$/i;
+
+// Is `name` a well-formed, servable note-image filename (either scheme)? Used to
+// validate before touching disk/DB and to scope the orphan sweep. Path traversal
+// is already prevented by path.basename() at the call sites.
+function isValidImageName(name) {
+  return UPLOADED_IMAGE_RE.test(name) || IMPORTED_IMAGE_RE.test(name);
+}
 
 // Return the uploader's user id encoded in an image filename, or null if the
-// name doesn't match the expected `note_<userId>_<timestamp>.webp` shape.
+// name isn't an upload (`note_<userId>_<timestamp>.webp`) — e.g. imported images.
 function imageOwnerId(filename) {
-  const m = IMAGE_FILENAME_RE.exec(filename);
+  const m = UPLOADED_IMAGE_RE.exec(filename);
   return m ? parseInt(m[1], 10) : null;
 }
 
@@ -571,7 +585,7 @@ function filterAttachableImages(images, userId, existingImages = []) {
   return images
     .slice(0, MAX_IMAGES_PER_NOTE)
     .map(img => path.basename(String(img)))
-    .filter(img => IMAGE_FILENAME_RE.test(img))
+    .filter(img => isValidImageName(img))
     .filter(img => imageOwnerId(img) === userId || existing.has(img));
 }
 
@@ -601,7 +615,7 @@ function userCanAccessImage(filename, userId, callback) {
 // folder and only purged after TRASH_GRACE_MS, so an accidental removal (a mis-tap
 // on the ✕, or a note deleted by mistake) is recoverable rather than instantly
 // destroyed. `.trash` lives inside note-images but is ignored by the orphan sweep
-// (its name doesn't match IMAGE_FILENAME_RE).
+// (its name doesn't match a valid image scheme).
 const TRASH_GRACE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const NOTE_IMAGES_TRASH_DIR = path.join(__dirname, 'data', 'note-images', '.trash');
 
@@ -731,7 +745,7 @@ async function cleanupOrphanImages() {
   const now = Date.now();
   let removed = 0;
   for (const file of files) {
-    if (!IMAGE_FILENAME_RE.test(file) || referenced.has(file)) continue;
+    if (!isValidImageName(file) || referenced.has(file)) continue;
     const full = path.join(imageDir, file);
     try {
       const stat = await fsp.stat(full);
@@ -1262,7 +1276,7 @@ app.get('/api/notes/image/:filename', requireAuth, imageLimiter, (req, res) => {
   const filename = path.basename(req.params.filename); // Prevent path traversal
 
   // Reject anything that isn't a well-formed image name before touching disk/DB.
-  if (!IMAGE_FILENAME_RE.test(filename)) {
+  if (!isValidImageName(filename)) {
     return res.status(404).send('Bild hittades inte');
   }
 
