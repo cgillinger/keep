@@ -181,8 +181,12 @@ class BackupParser {
         // Only accept well-formed image names. The backup is user-supplied, so
         // without this a crafted archive could drop e.g. `evil.html` into the
         // web-served note-images directory (stored XSS / arbitrary file write).
+        // Two naming schemes exist (see server.js): uploads and files that
+        // came in through a Google Keep import.
         const safeName = path.basename(imageFile);
-        if (!/^note_\d+_\d+\.webp$/.test(safeName)) {
+        const isUpload = /^note_\d+_\d+\.webp$/.test(safeName);
+        const isImported = /^\d+_[a-zA-Z0-9]+\.(webp|jpe?g|png|gif|heic|heif|bmp|avif)$/i.test(safeName);
+        if (!isUpload && !isImported) {
           console.warn(`Skipping image with unexpected name during restore: ${imageFile}`);
           this.stats.errors.push({ file: imageFile, error: 'Invalid image filename' });
           return;

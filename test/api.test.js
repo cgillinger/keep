@@ -247,3 +247,36 @@ test('websocket: foreign origin refused, same origin gets broadcasts', async () 
   assert.ok(msgs.some(m => m.type === 'note_pinned' && m.noteId === note.id), 'note_pinned');
   ws.close();
 });
+
+test('a kreep backup can be restored through the import endpoint', async () => {
+  const { c: src } = await newUser('bsrc');
+  const { c: dst } = await newUser('bdst');
+  const fd0 = new FormData();
+  fd0.append('image', new Blob([await png()], { type: 'image/png' }), 'a.png');
+  const { filename } = await (await src.req('/api/notes/image', { method: 'POST', body: fd0 })).json();
+  await expectStatus(await src.req('/api/notes', { method: 'POST', json: { title: 'with image', content: 'c', images: [filename] } }), 200, 'seed 1');
+  await expectStatus(await src.req('/api/notes', { method: 'POST', json: { title: 'list', is_checklist: true, checklist_items: [{ text: 'a', checked: true }], color: '#ccff90' } }), 200, 'seed 2');
+
+  let r = await src.req('/api/backup/export');
+  await expectStatus(r, 200, 'export');
+  const zipBuf = Buffer.from(await r.arrayBuffer());
+
+  const fd = new FormData();
+  fd.append('zipfile', new Blob([zipBuf], { type: 'application/zip' }), 'kreep-backup.zip');
+  r = await dst.req('/api/import/keep', { method: 'POST', body: fd });
+  await expectStatus(r, 200, 'restore');
+  const result = await r.json();
+  assert.equal(result.stats.source, 'kreep-backup');
+  assert.equal(result.imported, 2);
+  assert.equal(result.failed, 0);
+  assert.equal(result.stats.attachments, 1);
+
+  const d = await (await dst.req('/api/notes')).json();
+  assert.equal(d.total, 2);
+  const withImage = d.notes.find(n => n.title === 'with image');
+  assert.equal(withImage.images.length, 1);
+  await expectStatus(await dst.req(`/api/notes/image/${withImage.images[0]}`), 200, 'restored image is served to the new owner');
+  const list = d.notes.find(n => n.title === 'list');
+  assert.equal(list.checklist_items[0].checked, true);
+  assert.equal(list.color, '#ccff90');
+});
