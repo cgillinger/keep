@@ -16,7 +16,7 @@ const fs = require('fs');
 const fsp = require('fs').promises;
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const csrf = require('csurf');
+const { doubleCsrf } = require('csrf-csrf');
 const cookieParser = require('cookie-parser');
 const sharp = require('sharp');
 
@@ -238,8 +238,20 @@ const sessionConfig = {
 
 app.use(session(sessionConfig));
 
-// CSRF protection (except for specific routes)
-const csrfProtection = csrf({ cookie: true });
+// CSRF protection: double-submit cookie (csrf-csrf, replacing the archived
+// csurf). The token the client fetches from /api/csrf-token is an HMAC over a
+// random value, stored in an httpOnly cookie and echoed back in the CSRF-Token
+// header; the two must match. The token is deliberately NOT bound to the
+// session id (which changes on login) so one token fetched at page load stays
+// valid across login/register, exactly as csurf's cookie mode behaved.
+const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
+  getSecret: () => sessionConfig.secret,
+  getSessionIdentifier: () => '',
+  cookieName: isHttps ? '__Host-kreep.csrf' : 'kreep.csrf',
+  cookieOptions: { sameSite: 'lax', path: '/', secure: isHttps, httpOnly: true },
+  getCsrfTokenFromRequest: (req) => req.headers['csrf-token'],
+});
+const csrfProtection = doubleCsrfProtection;
 
 // Serve the built (fingerprinted) index.html for the app root when present,
 // falling back to the source index.html in dev (no build run). index.html itself
@@ -883,8 +895,8 @@ async function dedupImagesByHash(imageFilenames) {
 // ===== AUTH ROUTES =====
 
 // Get CSRF token
-app.get('/api/csrf-token', csrfProtection, (req, res) => {
-  res.json({ csrfToken: req.csrfToken() });
+app.get('/api/csrf-token', (req, res) => {
+  res.json({ csrfToken: generateCsrfToken(req, res) });
 });
 
 app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
