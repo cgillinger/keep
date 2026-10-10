@@ -3,9 +3,10 @@
  * Build step: minify + fingerprint the frontend so it can be cached
  * immutably. Output goes to public/dist/ (git-ignored, generated in Docker).
  *
- * IMPORTANT: app.js is a classic script whose functions are called from inline
- * onclick="fn()" handlers in index.html. They MUST stay global, so we minify
- * whitespace + syntax only and never rename identifiers.
+ * app.js is a classic (non-module) script. Event handlers are wired through
+ * data-action attributes and an in-file dispatch table, so there are no inline
+ * onclick="fn()" references any more; identifiers are still left unmangled to
+ * keep stack traces and the global function names readable.
  */
 const fs = require('fs');
 const path = require('path');

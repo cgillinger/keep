@@ -54,7 +54,7 @@
         <input type="text" id="login-username" placeholder="Användarnamn" autocomplete="username">
         <div class="password-input-container">
           <input type="password" id="login-password" placeholder="Lösenord" autocomplete="current-password">
-          <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('login-password')" aria-label="Visa lösenord">
+          <button class="password-toggle-btn" type="button" data-action="togglePasswordVisibility" data-arg="login-password" aria-label="Visa lösenord">
             <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
               <circle cx="12" cy="12" r="3"></circle>
@@ -64,12 +64,12 @@
         <label class="remember-me" id="login-remember-label">
           <input type="checkbox" id="login-remember"> <span id="login-remember-text">Fortsätt vara inloggad</span>
         </label>
-        <button type="button" onclick="login()">Logga in</button>
+        <button type="button" data-action="login">Logga in</button>
         <p class="auth-switch">
-          Ny användare? <a href="#" onclick="showRegister(); return false;">Registrera dig</a>
+          Ny användare? <a href="#" data-action="showRegister">Registrera dig</a>
         </p>
         <p class="auth-switch hidden" id="forgot-password-link">
-          <a href="#" onclick="showForgotPassword(); return false;">Glömt lösenord?</a>
+          <a href="#" data-action="showForgotPassword">Glömt lösenord?</a>
         </p>
       </div>
 
@@ -79,7 +79,7 @@
         <input type="email" id="register-email" placeholder="E-post (valfritt, för återställning)" autocomplete="email">
         <div class="password-input-container">
           <input type="password" id="register-password" placeholder="Lösenord" autocomplete="new-password">
-          <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('register-password')" aria-label="Visa lösenord">
+          <button class="password-toggle-btn" type="button" data-action="togglePasswordVisibility" data-arg="register-password" aria-label="Visa lösenord">
             <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
               <circle cx="12" cy="12" r="3"></circle>
@@ -88,7 +88,7 @@
         </div>
         <div class="password-input-container">
           <input type="password" id="register-password-confirm" placeholder="Bekräfta lösenord" autocomplete="new-password">
-          <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('register-password-confirm')" aria-label="Visa lösenord">
+          <button class="password-toggle-btn" type="button" data-action="togglePasswordVisibility" data-arg="register-password-confirm" aria-label="Visa lösenord">
             <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
               <circle cx="12" cy="12" r="3"></circle>
@@ -104,9 +104,9 @@
             💡 <strong>Viktigt:</strong> Om du lägger till en e-postadress kan du återställa ditt lösenord via e-post om du glömmer det. Utan e-post finns ingen möjlighet till återställning.
           </p>
         </div>
-        <button type="button" onclick="register()">Registrera</button>
+        <button type="button" data-action="register">Registrera</button>
         <p class="auth-switch">
-          Har redan ett konto? <a href="#" onclick="showLogin(); return false;">Logga in</a>
+          Har redan ett konto? <a href="#" data-action="showLogin">Logga in</a>
         </p>
       </div>
 
@@ -116,9 +116,9 @@
           Ange ditt användarnamn eller e-postadress. Om kontot finns och har en e-post kopplad kommer du att få en återställningslänk.
         </p>
         <input type="text" id="forgot-password-input" placeholder="Användarnamn eller e-post" autocomplete="username">
-        <button type="button" onclick="requestPasswordReset()">Skicka återställningslänk</button>
+        <button type="button" data-action="requestPasswordReset">Skicka återställningslänk</button>
         <p class="auth-switch">
-          <a href="#" onclick="showLogin(); return false;">Tillbaka till inloggning</a>
+          <a href="#" data-action="showLogin">Tillbaka till inloggning</a>
         </p>
       </div>
 
@@ -129,7 +129,7 @@
         </p>
         <div class="password-input-container">
           <input type="password" id="reset-password-new" placeholder="Nytt lösenord" autocomplete="new-password">
-          <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('reset-password-new')" aria-label="Visa lösenord">
+          <button class="password-toggle-btn" type="button" data-action="togglePasswordVisibility" data-arg="reset-password-new" aria-label="Visa lösenord">
             <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
               <circle cx="12" cy="12" r="3"></circle>
@@ -138,7 +138,7 @@
         </div>
         <div class="password-input-container">
           <input type="password" id="reset-password-confirm" placeholder="Bekräfta nytt lösenord" autocomplete="new-password">
-          <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('reset-password-confirm')" aria-label="Visa lösenord">
+          <button class="password-toggle-btn" type="button" data-action="togglePasswordVisibility" data-arg="reset-password-confirm" aria-label="Visa lösenord">
             <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
               <circle cx="12" cy="12" r="3"></circle>
@@ -151,9 +151,9 @@
             <li>Minst 5 tecken</li>
           </ul>
         </div>
-        <button type="button" onclick="resetPassword()">Återställ lösenord</button>
+        <button type="button" data-action="resetPassword">Återställ lösenord</button>
         <p class="auth-switch">
-          <a href="#" onclick="showLogin(); return false;">Tillbaka till inloggning</a>
+          <a href="#" data-action="showLogin">Tillbaka till inloggning</a>
         </p>
       </div>
 
@@ -169,21 +169,21 @@
       <div class="header-content">
         <div class="header-title-row">
           <h1>Keep Clone</h1>
-          <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Meny">
+          <button class="mobile-menu-btn" id="mobile-menu-btn" data-action="toggleMobileMenu" aria-label="Meny">
             <span class="hamburger-icon"></span>
           </button>
         </div>
         <div class="header-actions" id="header-actions">
-          <input type="text" id="search-input" placeholder="Sök anteckningar..." onkeyup="searchNotes()">
-          <button class="btn-secondary" onclick="toggleShared()">
+          <input type="text" id="search-input" placeholder="Sök anteckningar..." data-input="searchNotes">
+          <button class="btn-secondary" data-action="toggleShared">
             <span id="shared-toggle-text">Visa delade</span>
           </button>
-          <button class="btn-secondary" onclick="toggleArchived()">
+          <button class="btn-secondary" data-action="toggleArchived">
             <span id="archive-toggle-text">Visa arkiv</span>
           </button>
-          <div id="user-profile-pic" class="profile-pic-header" onclick="openProfileModal()"></div>
-          <span id="user-info" onclick="openProfileModal()"></span>
-          <button class="btn-secondary" onclick="logout()">Logga ut</button>
+          <div id="user-profile-pic" class="profile-pic-header" data-action="openProfileModal"></div>
+          <span id="user-info" data-action="openProfileModal"></span>
+          <button class="btn-secondary" data-action="logout">Logga ut</button>
         </div>
       </div>
     </header>
@@ -199,7 +199,7 @@
           <!-- Checklist Container -->
           <div id="checklist-container" class="hidden">
             <div id="checklist-items"></div>
-            <button class="btn-text" onclick="addChecklistItem()">+ Lägg till punkt</button>
+            <button class="btn-text" data-action="addChecklistItem">+ Lägg till punkt</button>
           </div>
 
           <!-- Images Container -->
@@ -217,11 +217,11 @@
 
           <div class="note-form-actions">
             <div class="note-options">
-              <input type="file" id="new-note-image-input" accept="image/*" onchange="handleNewNoteImageSelect()" class="hidden" multiple>
-              <button class="btn-icon" onclick="document.getElementById('new-note-image-input').click()" title="Lägg till bild">
+              <input type="file" id="new-note-image-input" accept="image/*" data-change="handleNewNoteImageSelect" class="hidden" multiple>
+              <button class="btn-icon" data-action="clickInput" data-arg="new-note-image-input" title="Lägg till bild">
                 📷
               </button>
-              <button class="btn-icon" onclick="toggleChecklist()" title="Checklista">
+              <button class="btn-icon" data-action="toggleChecklist" title="Checklista">
                 <span id="checklist-toggle">☐</span>
               </button>
               <div class="color-picker">
@@ -242,7 +242,7 @@
                 </div>
               </div>
             </div>
-            <button id="save-note-btn" class="btn-primary" onclick="saveNote()">Spara</button>
+            <button id="save-note-btn" class="btn-primary" data-action="saveNote">Spara</button>
           </div>
         </div>
       </div>
@@ -277,9 +277,9 @@
   </div>
 
   <!-- Edit Note Modal -->
-  <div id="edit-modal" class="modal" onclick="closeEditModal(event)">
-    <div class="modal-content" id="modal-content" onclick="event.stopPropagation()">
-      <button class="modal-close-btn" onclick="closeEditModal()">✕</button>
+  <div id="edit-modal" class="modal" data-action="closeEditModal">
+    <div class="modal-content" id="modal-content" data-stop>
+      <button class="modal-close-btn" data-action="closeEditModal">✕</button>
       <div class="note-edit-form">
         <input type="text" id="edit-note-title" placeholder="Titel">
         <textarea id="edit-note-content" placeholder="Skriv en anteckning..." rows="6"></textarea>
@@ -287,7 +287,7 @@
         <!-- Edit Checklist Container -->
         <div id="edit-checklist-container" class="hidden">
           <div id="edit-checklist-items"></div>
-          <button class="btn-text" onclick="addEditChecklistItem()">+ Lägg till punkt</button>
+          <button class="btn-text" data-action="addEditChecklistItem">+ Lägg till punkt</button>
         </div>
 
         <!-- Edit Images Container -->
@@ -305,11 +305,11 @@
 
         <div class="note-form-actions">
           <div class="note-options">
-            <input type="file" id="edit-note-image-input" accept="image/*" onchange="handleEditNoteImageSelect()" class="hidden" multiple>
-            <button class="btn-icon" onclick="document.getElementById('edit-note-image-input').click()" title="Lägg till bild">
+            <input type="file" id="edit-note-image-input" accept="image/*" data-change="handleEditNoteImageSelect" class="hidden" multiple>
+            <button class="btn-icon" data-action="clickInput" data-arg="edit-note-image-input" title="Lägg till bild">
               📷
             </button>
-            <button class="btn-icon" onclick="toggleEditChecklist()" title="Checklista">
+            <button class="btn-icon" data-action="toggleEditChecklist" title="Checklista">
               <span id="edit-checklist-toggle">☐</span>
             </button>
             <div class="color-picker">
@@ -329,31 +329,31 @@
                 <button class="color-btn edit-color-btn" data-color="#e8eaed"></button>
               </div>
             </div>
-            <button id="share-note-btn" class="btn-icon" onclick="openShareModal()" title="Dela">
+            <button id="share-note-btn" class="btn-icon" data-action="openShareModal" title="Dela">
               👥
             </button>
-            <button id="pin-note-btn" class="btn-icon" onclick="togglePinNote()" title="Fäst">
+            <button id="pin-note-btn" class="btn-icon" data-action="togglePinNote" title="Fäst">
               📌
             </button>
-            <button id="archive-note-btn" class="btn-icon" onclick="toggleArchiveNote()" title="Arkivera">
+            <button id="archive-note-btn" class="btn-icon" data-action="toggleArchiveNote" title="Arkivera">
               📦
             </button>
-            <button id="delete-note-btn" class="btn-icon" onclick="deleteNote()" title="Ta bort">
+            <button id="delete-note-btn" class="btn-icon" data-action="deleteNote" title="Ta bort">
               🗑️
             </button>
-            <button id="dismiss-share-btn" class="btn-icon" onclick="dismissShare()" title="Ta bort från min vy" style="display: none;">
+            <button id="dismiss-share-btn" class="btn-icon" data-action="dismissShare" title="Ta bort från min vy" style="display: none;">
               🚫
             </button>
           </div>
-          <button id="update-note-btn" class="btn-primary" onclick="updateNote()">Uppdatera</button>
+          <button id="update-note-btn" class="btn-primary" data-action="updateNote">Uppdatera</button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Import Modal -->
-  <div id="import-modal" class="modal" onclick="closeImportModal(event)">
-    <div class="modal-content" onclick="event.stopPropagation()">
+  <div id="import-modal" class="modal" data-action="closeImportModal">
+    <div class="modal-content" data-stop>
       <h2>Importera från Google Keep</h2>
 
       <div id="import-instructions" class="settings-section">
@@ -367,8 +367,8 @@
         </ol>
 
         <div class="import-upload-area">
-          <input type="file" id="import-file-input" accept=".zip" onchange="handleImportFile()" class="hidden">
-          <button class="btn-primary" onclick="document.getElementById('import-file-input').click()">
+          <input type="file" id="import-file-input" accept=".zip" data-change="handleImportFile" class="hidden">
+          <button class="btn-primary" data-action="clickInput" data-arg="import-file-input">
             📁 Välj Google Keep export (.zip)
           </button>
           <p id="import-file-name" class="profile-username"></p>
@@ -400,8 +400,8 @@
       </div>
 
       <div class="note-form-actions settings-section">
-        <button class="btn-secondary" onclick="closeImportModal()">Stäng</button>
-        <button id="import-button" class="btn-primary" onclick="startImport()" disabled>
+        <button class="btn-secondary" data-action="closeImportModal">Stäng</button>
+        <button id="import-button" class="btn-primary" data-action="startImport" disabled>
           Importera
         </button>
       </div>
@@ -409,9 +409,9 @@
   </div>
 
   <!-- Profile Modal -->
-  <div id="profile-modal" class="modal" onclick="closeProfileModal(event)">
-    <div class="modal-content modal-content--small" onclick="event.stopPropagation()">
-      <button class="modal-close-btn" onclick="closeProfileModal()">✕</button>
+  <div id="profile-modal" class="modal" data-action="closeProfileModal">
+    <div class="modal-content modal-content--small" data-stop>
+      <button class="modal-close-btn" data-action="closeProfileModal">✕</button>
       <h2>Din profil</h2>
 
       <div class="text-center settings-section">
@@ -424,16 +424,16 @@
           Välj avatarfärg
         </label>
         <div class="avatar-color-grid">
-          <button class="avatar-color-option" data-color="#1a73e8" onclick="selectAvatarColor('#1a73e8')"></button>
-          <button class="avatar-color-option" data-color="#d93025" onclick="selectAvatarColor('#d93025')"></button>
-          <button class="avatar-color-option" data-color="#0f9d58" onclick="selectAvatarColor('#0f9d58')"></button>
-          <button class="avatar-color-option" data-color="#f29900" onclick="selectAvatarColor('#f29900')"></button>
-          <button class="avatar-color-option" data-color="#a142f4" onclick="selectAvatarColor('#a142f4')"></button>
-          <button class="avatar-color-option" data-color="#e91e63" onclick="selectAvatarColor('#e91e63')"></button>
-          <button class="avatar-color-option" data-color="#00acc1" onclick="selectAvatarColor('#00acc1')"></button>
-          <button class="avatar-color-option" data-color="#7cb342" onclick="selectAvatarColor('#7cb342')"></button>
-          <button class="avatar-color-option" data-color="#ff6f00" onclick="selectAvatarColor('#ff6f00')"></button>
-          <button class="avatar-color-option" data-color="#5e35b1" onclick="selectAvatarColor('#5e35b1')"></button>
+          <button class="avatar-color-option" data-color="#1a73e8" data-action="selectAvatarColor" data-arg="#1a73e8"></button>
+          <button class="avatar-color-option" data-color="#d93025" data-action="selectAvatarColor" data-arg="#d93025"></button>
+          <button class="avatar-color-option" data-color="#0f9d58" data-action="selectAvatarColor" data-arg="#0f9d58"></button>
+          <button class="avatar-color-option" data-color="#f29900" data-action="selectAvatarColor" data-arg="#f29900"></button>
+          <button class="avatar-color-option" data-color="#a142f4" data-action="selectAvatarColor" data-arg="#a142f4"></button>
+          <button class="avatar-color-option" data-color="#e91e63" data-action="selectAvatarColor" data-arg="#e91e63"></button>
+          <button class="avatar-color-option" data-color="#00acc1" data-action="selectAvatarColor" data-arg="#00acc1"></button>
+          <button class="avatar-color-option" data-color="#7cb342" data-action="selectAvatarColor" data-arg="#7cb342"></button>
+          <button class="avatar-color-option" data-color="#ff6f00" data-action="selectAvatarColor" data-arg="#ff6f00"></button>
+          <button class="avatar-color-option" data-color="#5e35b1" data-action="selectAvatarColor" data-arg="#5e35b1"></button>
         </div>
       </div>
 
@@ -442,27 +442,27 @@
           Välj bakgrundsfärg
         </label>
         <div class="background-color-grid">
-          <button class="bg-color-option" data-theme="default" onclick="selectBackgroundTheme('default')" title="Standard vit">
+          <button class="bg-color-option" data-theme="default" data-action="selectBackgroundTheme" data-arg="default" title="Standard vit">
             <span class="theme-preview" style="background: #ffffff;"></span>
             <span class="theme-label">Standard</span>
           </button>
-          <button class="bg-color-option" data-theme="warm-beige" onclick="selectBackgroundTheme('warm-beige')" title="Varm beige">
+          <button class="bg-color-option" data-theme="warm-beige" data-action="selectBackgroundTheme" data-arg="warm-beige" title="Varm beige">
             <span class="theme-preview" style="background: #f5f1e8;"></span>
             <span class="theme-label">Beige</span>
           </button>
-          <button class="bg-color-option" data-theme="soft-blue" onclick="selectBackgroundTheme('soft-blue')" title="Mjuk blå">
+          <button class="bg-color-option" data-theme="soft-blue" data-action="selectBackgroundTheme" data-arg="soft-blue" title="Mjuk blå">
             <span class="theme-preview" style="background: #e8f4f8;"></span>
             <span class="theme-label">Blå</span>
           </button>
-          <button class="bg-color-option" data-theme="mint-green" onclick="selectBackgroundTheme('mint-green')" title="Mint grön">
+          <button class="bg-color-option" data-theme="mint-green" data-action="selectBackgroundTheme" data-arg="mint-green" title="Mint grön">
             <span class="theme-preview" style="background: #e8f5e9;"></span>
             <span class="theme-label">Grön</span>
           </button>
-          <button class="bg-color-option" data-theme="light-lavender" onclick="selectBackgroundTheme('light-lavender')" title="Ljus lavendel">
+          <button class="bg-color-option" data-theme="light-lavender" data-action="selectBackgroundTheme" data-arg="light-lavender" title="Ljus lavendel">
             <span class="theme-preview" style="background: #f3e5f5;"></span>
             <span class="theme-label">Lavendel</span>
           </button>
-          <button class="bg-color-option" data-theme="dark" onclick="selectBackgroundTheme('dark')" title="Nattläge">
+          <button class="bg-color-option" data-theme="dark" data-action="selectBackgroundTheme" data-arg="dark" title="Nattläge">
             <span class="theme-preview" style="background: #1e1e1e;"></span>
             <span class="theme-label">Nattläge</span>
           </button>
@@ -471,7 +471,7 @@
 
       <div class="settings-section-highlight">
         <label class="checkbox-label">
-          <input type="checkbox" id="show-created-date-toggle" onchange="toggleShowCreatedDate()">
+          <input type="checkbox" id="show-created-date-toggle" data-change="toggleShowCreatedDate">
           <span>Visa när skapad</span>
         </label>
       </div>
@@ -480,7 +480,7 @@
         <label class="settings-label">
           Välj språk
         </label>
-        <select id="language-selector" onchange="changeLanguage(this.value)" class="language-selector">
+        <select id="language-selector" data-change="changeLanguage" class="language-selector">
           <option value="da">Dansk</option>
           <option value="de">Deutsch</option>
           <option value="en">English</option>
@@ -496,7 +496,7 @@
         <div id="change-password-form" class="flex-col gap-1">
           <div class="password-input-container">
             <input type="password" id="current-password" placeholder="Nuvarande lösenord" autocomplete="current-password">
-            <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('current-password')" aria-label="Visa lösenord">
+            <button class="password-toggle-btn" type="button" data-action="togglePasswordVisibility" data-arg="current-password" aria-label="Visa lösenord">
               <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                 <circle cx="12" cy="12" r="3"></circle>
@@ -505,7 +505,7 @@
           </div>
           <div class="password-input-container">
             <input type="password" id="new-password" placeholder="Nytt lösenord" autocomplete="new-password">
-            <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('new-password')" aria-label="Visa lösenord">
+            <button class="password-toggle-btn" type="button" data-action="togglePasswordVisibility" data-arg="new-password" aria-label="Visa lösenord">
               <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                 <circle cx="12" cy="12" r="3"></circle>
@@ -514,14 +514,14 @@
           </div>
           <div class="password-input-container">
             <input type="password" id="confirm-new-password" placeholder="Bekräfta nytt lösenord" autocomplete="new-password">
-            <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('confirm-new-password')" aria-label="Visa lösenord">
+            <button class="password-toggle-btn" type="button" data-action="togglePasswordVisibility" data-arg="confirm-new-password" aria-label="Visa lösenord">
               <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                 <circle cx="12" cy="12" r="3"></circle>
               </svg>
             </button>
           </div>
-          <button class="btn-primary w-full justify-center" onclick="changePassword()">
+          <button class="btn-primary w-full justify-center" data-action="changePassword">
             🔑 Byt lösenord
           </button>
           <div id="change-password-message" class="message hidden"></div>
@@ -531,10 +531,10 @@
       <div class="settings-section-highlight">
         <h3 class="settings-heading">Data och backup</h3>
         <div class="flex-col gap-1">
-          <button class="btn-secondary w-full justify-center" onclick="openImportModal()">
+          <button class="btn-secondary w-full justify-center" data-action="openImportModal">
             📥 Importera från Google Keep
           </button>
-          <button class="btn-secondary w-full justify-center" onclick="exportBackup()">
+          <button class="btn-secondary w-full justify-center" data-action="exportBackup">
             📤 Exportera backup
           </button>
         </div>
@@ -552,11 +552,11 @@
   </div>
 
   <!-- Share Modal -->
-  <div id="share-modal" class="modal" onclick="closeShareModal(event)">
-    <div class="modal-content modal-content--medium" onclick="event.stopPropagation()">
+  <div id="share-modal" class="modal" data-action="closeShareModal">
+    <div class="modal-content modal-content--medium" data-stop>
       <div class="modal-header">
         <h2>Dela anteckning</h2>
-        <button class="modal-close-btn" onclick="cancelShareModal()" aria-label="Stäng">✕</button>
+        <button class="modal-close-btn" data-action="cancelShareModal" aria-label="Stäng">✕</button>
       </div>
 
       <!-- Share with new users -->
@@ -582,18 +582,18 @@
       </div>
 
       <div class="modal-actions">
-        <button class="btn-secondary" onclick="cancelShareModal()">Avbryt</button>
-        <button class="btn-primary" id="save-shares-btn" onclick="saveShares()">Spara delning</button>
+        <button class="btn-secondary" data-action="cancelShareModal">Avbryt</button>
+        <button class="btn-primary" id="save-shares-btn" data-action="saveShares">Spara delning</button>
       </div>
     </div>
   </div>
 
   <!-- Image View Modal -->
-  <div id="image-modal" class="image-modal" onclick="closeImageModal()">
-    <button class="close-image-modal" onclick="closeImageModal()">✕</button>
-    <button class="image-modal-nav prev" onclick="event.stopPropagation(); navigateImage(-1)">&#8249;</button>
-    <img id="image-modal-img" src="" alt="Full size image" onclick="event.stopPropagation()">
-    <button class="image-modal-nav next" onclick="event.stopPropagation(); navigateImage(1)">&#8250;</button>
+  <div id="image-modal" class="image-modal" data-action="closeImageModal">
+    <button class="close-image-modal" data-action="closeImageModal">✕</button>
+    <button class="image-modal-nav prev" data-action="navigateImage" data-arg="-1">&#8249;</button>
+    <img id="image-modal-img" src="" alt="Full size image" data-stop>
+    <button class="image-modal-nav next" data-action="navigateImage" data-arg="1">&#8250;</button>
     <div class="image-modal-counter" id="image-modal-counter"></div>
   </div>
 
