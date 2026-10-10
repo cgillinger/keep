@@ -46,9 +46,12 @@ exploitable in this app today; they're hygiene/future-proofing, not live holes.
       payoff is build-time-only.
 
 ### TL;DR of "what's the issue"
-`npm audit` reports ~9 vulnerabilities, but they split into two harmless-here
-buckets: (1) **build-time only** — the sqlite3/tar chain that runs during install
-and never at runtime; and (2) **not-exploitable-as-used** — csurf's old cookie dep,
-where the vulnerable code path isn't reachable given how we use it. Both are worth
-cleaning up eventually via the breaking upgrades above, but neither is an open door
-into the running app.
+The runtime dependencies were updated (adm-zip, sharp, nodemailer, multer and the
+express stack), so `npm audit` no longer reports anything reachable by app users
+at runtime. What remains falls into harmless-here buckets: (1) the **sqlite3
+install-time chain** (tar, cacache, node-gyp, ...) that only runs during
+`npm install` to build the native module; (2) **csurf**'s old cookie dep, where
+the vulnerable code path isn't reachable given how we use it; and (3) **nodemon's
+dev-only chain**, which never ships to production. Worth cleaning up eventually
+via the breaking upgrades above, but none of it is an open door into the running
+app.
