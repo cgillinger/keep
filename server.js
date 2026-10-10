@@ -18,8 +18,6 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const csrf = require('csurf');
 const cookieParser = require('cookie-parser');
-const { JSDOM } = require('jsdom');
-const DOMPurify = require('dompurify');
 const sharp = require('sharp');
 
 const db = require('./database');
@@ -29,10 +27,6 @@ const mailer = require('./mailer');
 const crypto = require('crypto');
 const logger = require('./logger');
 const commandProcessor = require('./command-processor');
-
-// Initialize DOMPurify with jsdom
-const window = new JSDOM('').window;
-const purify = DOMPurify(window);
 
 const app = express();
 app.use(compression({ threshold: 1024 }));
@@ -337,11 +331,22 @@ function validatePassword(password) {
   return null;
 }
 
+// Notes are plain text, stored verbatim and escaped by the frontend at render
+// time (escapeHtml/linkify, textContent, value=). The old DOMPurify pass here
+// HTML-serialised the text, so "2 < 3" was stored as "2 &lt; 3" and shown that
+// way, and anything tag-shaped like "<anna@example.se>" vanished. We now only
+// drop control characters (except tab/newline) and enforce the length cap.
 function sanitizeInput(input, maxLength = 10000) {
-  if (!input) return '';
-  const sanitized = purify.sanitize(input, { ALLOWED_TAGS: [] });
-  return sanitized.substring(0, maxLength);
+  if (input === undefined || input === null) return '';
+  return String(input)
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .substring(0, maxLength);
 }
+
+// Usernames are shown in many places (cards, share lists, avatar initials) and
+// used as the login key, so keep them to letters, digits, space, dot, dash and
+// underscore. Existing accounts are unaffected; this only gates new ones.
+const USERNAME_RE = /^[\p{L}\p{N} ._-]{3,50}$/u;
 
 function validateColor(color) {
   const validColors = [
@@ -893,6 +898,9 @@ app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
   const sanitizedUsername = sanitizeInput(username, 50).trim();
   if (sanitizedUsername.length < 3) {
     return res.status(400).json({ error: 'Användarnamnet måste vara minst 3 tecken' });
+  }
+  if (!USERNAME_RE.test(sanitizedUsername)) {
+    return res.status(400).json({ error: 'Användarnamnet får bara innehålla bokstäver, siffror, mellanslag, punkt, bindestreck och understreck' });
   }
 
   // Validate and sanitize email (optional)
