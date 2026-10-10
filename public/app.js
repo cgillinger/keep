@@ -931,10 +931,10 @@ function updateProfilePicture() {
   if (currentUser) {
     const initials = currentUser.username.substring(0, 2).toUpperCase();
     const avatarColor = currentUser.avatarColor || '#1a73e8';
-    profilePicElement.innerHTML = initials;
+    profilePicElement.textContent = initials;
     profilePicElement.style.backgroundColor = avatarColor;
   } else {
-    profilePicElement.innerHTML = '??';
+    profilePicElement.textContent = '??';
     profilePicElement.style.backgroundColor = '#e8eaed';
   }
 }
@@ -963,7 +963,7 @@ function openProfileModal() {
   if (profilePicPreview && currentUser) {
     const initials = currentUser.username.substring(0, 2).toUpperCase();
     const avatarColor = currentUser.avatarColor || '#1a73e8';
-    profilePicPreview.innerHTML = initials;
+    profilePicPreview.textContent = initials;
     profilePicPreview.style.backgroundColor = avatarColor;
 
     // Highlight selected avatar color
@@ -1324,7 +1324,7 @@ function renderNoteHTML(note) {
   if (note.isShared && note.owner_username) {
     const initials = note.owner_username.substring(0, 2).toUpperCase();
     const avatarColor = note.owner_avatar_color || '#1a73e8';
-    const ownerAvatar = `<div class="profile-initials-small" style="background-color: ${avatarColor};">${initials}</div>`;
+    const ownerAvatar = `<div class="profile-initials-small" style="background-color: ${avatarColor};">${escapeHtml(initials)}</div>`;
 
     ownerIndicator = `
       <div class="note-owner">
@@ -2438,7 +2438,7 @@ function renderShareModal() {
       <div class="share-user-item ${stateClass}"
            data-user-id="${user.id}"
            data-username="${escapeHtml(user.username)}">
-        <div class="profile-initials-small" style="background-color: ${avatarColor};">${initials}</div>
+        <div class="profile-initials-small" style="background-color: ${avatarColor};">${escapeHtml(initials)}</div>
         <span class="username">${escapeHtml(user.username)}</span>
         ${isPending ? '<span class="share-check">✓</span>' : ''}
       </div>
@@ -2455,7 +2455,7 @@ function renderShareModal() {
 
       return `
         <div class="current-share-item ${isNew ? 'pending-add' : ''}">
-          <div class="profile-initials-small" style="background-color: ${avatarColor};">${initials}</div>
+          <div class="profile-initials-small" style="background-color: ${avatarColor};">${escapeHtml(initials)}</div>
           <span class="username">${escapeHtml(share.username)}</span>
           <select data-user-id="${share.shared_with_user_id}">
             <option value="view" ${share.permission === 'view' ? 'selected' : ''}>Kan visa</option>

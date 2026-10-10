@@ -133,7 +133,76 @@ async function initialize() {
     console.error('Could not create unique e-mail index (duplicate e-mails in users table?):', err.message);
   }
 
+  // One-off data migrations, tracked in schema_meta so each runs exactly once.
+  await run(`CREATE TABLE IF NOT EXISTS schema_meta (key TEXT PRIMARY KEY, value TEXT)`);
+  await decodeHtmlEntitiesOnce();
+
   console.log('Database initialized');
+}
+
+// Up to and including v1.4.4 the server ran every title, note body, checklist
+// item and username through DOMPurify, which HTML-serialised the text: "<" was
+// stored as "&lt;", ">" as "&gt;", "&" as "&amp;" (when followed by a word
+// character). The frontend escapes on render, so users saw the entities
+// literally. Now that text is stored verbatim, decode what's already there.
+const ENTITY_RE = /&(lt|gt|quot|#39|#x27|apos|nbsp|amp);/g;
+const ENTITY_MAP = { lt: '<', gt: '>', quot: '"', '#39': "'", '#x27': "'", apos: "'", nbsp: ' ', amp: '&' };
+function decodeEntities(text) {
+  if (typeof text !== 'string' || text.indexOf('&') === -1) return text;
+  return text.replace(ENTITY_RE, (m, name) => ENTITY_MAP[name]);
+}
+
+async function decodeHtmlEntitiesOnce() {
+  const done = await all(`SELECT value FROM schema_meta WHERE key = 'html_entities_decoded'`);
+  if (done.length > 0) return;
+
+  const notes = await all(
+    `SELECT id, title, content, checklist_items FROM notes
+     WHERE title LIKE '%&%' OR content LIKE '%&%' OR checklist_items LIKE '%&%'`
+  );
+  const users = await all(`SELECT id, username FROM users WHERE username LIKE '%&%'`);
+
+  await run('BEGIN');
+  try {
+    let changed = 0;
+    for (const n of notes) {
+      const title = decodeEntities(n.title);
+      const content = decodeEntities(n.content);
+      let items = n.checklist_items;
+      if (typeof items === 'string' && items.indexOf('&') !== -1) {
+        try {
+          const parsed = JSON.parse(items);
+          if (Array.isArray(parsed)) {
+            for (const item of parsed) if (item && typeof item.text === 'string') item.text = decodeEntities(item.text);
+            items = JSON.stringify(parsed);
+          }
+        } catch (e) { /* leave malformed JSON untouched */ }
+      }
+      if (title !== n.title || content !== n.content || items !== n.checklist_items) {
+        // updated_at is deliberately left alone: this is a repair, not an edit.
+        await run(`UPDATE notes SET title = ?, content = ?, checklist_items = ? WHERE id = ?`, [title, content, items, n.id]);
+        changed++;
+      }
+    }
+    for (const u of users) {
+      const username = decodeEntities(u.username);
+      if (username !== u.username) {
+        try {
+          await run(`UPDATE users SET username = ? WHERE id = ?`, [username, u.id]);
+          changed++;
+        } catch (e) {
+          // Decoded name collides with an existing account; keep the encoded one.
+          console.error(`Could not decode username for user ${u.id}: ${e.message}`);
+        }
+      }
+    }
+    await run(`INSERT INTO schema_meta (key, value) VALUES ('html_entities_decoded', ?)`, [new Date().toISOString()]);
+    await run('COMMIT');
+    if (changed > 0) console.log(`Decoded HTML entities in ${changed} row(s)`);
+  } catch (err) {
+    await run('ROLLBACK').catch(() => {});
+    throw err;
+  }
 }
 
 // Resolves once the schema is in place. server.js awaits this before it starts
