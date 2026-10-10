@@ -46,7 +46,15 @@
     "reset_password_help": "Entrez votre nouveau mot de passe ci-dessous.",
     "new_password_placeholder": "Nouveau mot de passe",
     "confirm_new_password_placeholder": "Confirmer le nouveau mot de passe",
-    "reset_password_button": "Réinitialiser le mot de passe"
+    "reset_password_button": "Réinitialiser le mot de passe",
+    "fill_credentials": "Saisissez le nom d'utilisateur et le mot de passe",
+    "passwords_mismatch": "Les mots de passe ne correspondent pas",
+    "enter_username_or_email": "Saisissez votre nom d'utilisateur ou votre e-mail",
+    "email_not_configured": "L'e-mail n'est pas configuré. Contactez l'administrateur de votre famille pour activer la réinitialisation du mot de passe.",
+    "network_error_check": "Erreur réseau. Vérifiez votre connexion.",
+    "invalid_reset_link": "Lien de réinitialisation invalide. Demandez-en un nouveau.",
+    "fill_both_fields": "Remplissez les deux champs",
+    "resetting": "Réinitialisation…"
   },
   "header": {
     "search_placeholder": "Rechercher des notes...",
@@ -54,7 +62,9 @@
     "show_all": "Afficher tout",
     "show_archive": "Afficher l'archive",
     "show_active": "Afficher actives",
-    "logout_button": "Déconnexion"
+    "logout_button": "Déconnexion",
+    "hide_shared": "Masquer partagées",
+    "hide_archive": "Masquer l'archive"
   },
   "notes": {
     "title_placeholder": "Titre",
@@ -79,7 +89,13 @@
     "other_label": "AUTRES",
     "created": "Créée le",
     "can_view": "peut voir",
-    "can_edit": "peut modifier"
+    "can_edit": "peut modifier",
+    "image_alt": "Image de la note",
+    "image_preview_alt": "Aperçu",
+    "unsaved_text": "Vous avez des modifications non enregistrées. Voulez-vous les abandonner ?",
+    "discard_changes": "Abandonner les modifications",
+    "confirm_convert_checklist": "Cela convertit le texte existant en liste de contrôle. Voulez-vous continuer ?",
+    "list_item_placeholder": "Élément de liste"
   },
   "import": {
     "title": "Importer depuis Google Keep",
@@ -93,7 +109,22 @@
     "import_button": "Importer",
     "close_button": "Fermer",
     "import_complete": "Import terminé !",
-    "importing": "Import en cours..."
+    "importing": "Import en cours...",
+    "select_zip": "Veuillez sélectionner un fichier .zip",
+    "selected_file": "Fichier sélectionné",
+    "network_error": "Erreur réseau lors de l'importation. Veuillez réessayer.",
+    "error": "Une erreur s'est produite lors de l'importation.",
+    "imported_notes": "Notes importées",
+    "total_from_keep": "Total depuis Google Keep",
+    "checklists": "Listes de contrôle",
+    "attachments": "Pièces jointes",
+    "missing_attachments": "Pièces jointes manquantes",
+    "failed": "Échecs",
+    "warnings_errors": "Avertissements/Erreurs",
+    "unknown": "Inconnu",
+    "and": "et",
+    "more": "autres",
+    "confidence": "Indice de confiance"
   },
   "profile": {
     "title": "Votre profil",
@@ -119,7 +150,9 @@
     "import_from_keep": "📥 Importer depuis Google Keep",
     "export_backup": "📤 Exporter la sauvegarde",
     "close_button": "Fermer",
-    "select_language": "Choisir la langue"
+    "select_language": "Choisir la langue",
+    "avatar_update_failed": "Impossible de mettre à jour la couleur de l'avatar",
+    "theme_update_failed": "Impossible de mettre à jour le thème d'arrière-plan"
   },
   "share": {
     "title": "Partager la note",
@@ -137,7 +170,10 @@
     "new_share_notification": "Nouvelle note partagée avec vous",
     "permission_changed": "Votre permission a été modifiée",
     "confirm_dismiss": "Supprimer cette note partagée de votre vue ? La note restera chez le propriétaire.",
-    "dismiss_title": "Supprimer de ma vue"
+    "dismiss_title": "Supprimer de ma vue",
+    "permission_changed_to": "Votre autorisation a été modifiée en",
+    "load_error": "Impossible de charger les informations de partage",
+    "save_errors": "erreurs lors de l'enregistrement"
   },
   "messages": {
     "note_created": "Note créée",
@@ -173,7 +209,26 @@
     "no_notes": "Aucune note pour l'instant",
     "no_shared_notes": "Aucune note partagée",
     "no_archived_notes": "Aucune note archivée",
-    "confirm_delete": "Êtes-vous sûr de vouloir supprimer cette note ?"
+    "confirm_delete": "Êtes-vous sûr de vouloir supprimer cette note ?",
+    "cancel": "Annuler",
+    "saving": "Enregistrement…",
+    "updating": "Mise à jour…",
+    "note_saved": "Note enregistrée",
+    "session_expired": "Session expirée, veuillez réessayer",
+    "load_notes_failed": "Impossible de charger les notes",
+    "save_note_failed": "Impossible d'enregistrer la note",
+    "update_note_failed": "Impossible de mettre à jour la note",
+    "delete_note_failed": "Impossible de supprimer la note",
+    "pin_note_failed": "Impossible d'épingler la note",
+    "archive_note_failed": "Impossible d'archiver la note",
+    "duplicate_skipped": "1 doublon ignoré",
+    "duplicates_skipped": "doublons ignorés",
+    "confirm_export": "Voulez-vous exporter une sauvegarde de toutes vos notes ?",
+    "export_preparing": "Préparation de la sauvegarde…",
+    "export_failed_login": "Impossible d'exporter la sauvegarde. Vérifiez que vous êtes connecté.",
+    "conflict_changed_elsewhere": "La note a été modifiée sur un autre appareil depuis son ouverture.",
+    "overwrite": "Écraser",
+    "conflict_reopen": "La note a été modifiée sur un autre appareil. Fermez-la et rouvrez-la."
   },
   "attribution": {
     "icon_credit": "Icônes de notes créées par Freepik - Flaticon"
@@ -181,5 +236,15 @@
   "footer": {
     "version": "Keep Clone",
     "license": "Licence MIT"
+  },
+  "images": {
+    "uploading": "Téléversement de l'image",
+    "too_many": "Vous ne pouvez ajouter que ce nombre d'images supplémentaires",
+    "max_per_note": "max par note",
+    "too_large": "L'image est trop volumineuse (max 10MB)",
+    "upload_failed": "Impossible de téléverser les images"
+  },
+  "errors": {
+    "network_error": "Erreur réseau. Veuillez réessayer."
   }
 }

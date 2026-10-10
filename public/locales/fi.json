@@ -46,7 +46,15 @@
     "reset_password_help": "Syötä uusi salasanasi alle.",
     "new_password_placeholder": "Uusi salasana",
     "confirm_new_password_placeholder": "Vahvista uusi salasana",
-    "reset_password_button": "Palauta salasana"
+    "reset_password_button": "Palauta salasana",
+    "fill_credentials": "Täytä käyttäjänimi ja salasana",
+    "passwords_mismatch": "Salasanat eivät täsmää",
+    "enter_username_or_email": "Anna käyttäjänimesi tai sähköpostiosoitteesi",
+    "email_not_configured": "Sähköpostia ei ole määritetty. Ota yhteyttä perheesi ylläpitäjään salasanan palauttamisen käyttöönottoa varten.",
+    "network_error_check": "Verkkovirhe. Tarkista yhteytesi.",
+    "invalid_reset_link": "Virheellinen palautuslinkki. Pyydä uusi.",
+    "fill_both_fields": "Täytä molemmat kentät",
+    "resetting": "Palautetaan…"
   },
   "header": {
     "search_placeholder": "Hae muistiinpanoja...",
@@ -54,7 +62,9 @@
     "show_all": "Näytä kaikki",
     "show_archive": "Näytä arkisto",
     "show_active": "Näytä aktiiviset",
-    "logout_button": "Kirjaudu ulos"
+    "logout_button": "Kirjaudu ulos",
+    "hide_shared": "Piilota jaetut",
+    "hide_archive": "Piilota arkisto"
   },
   "notes": {
     "title_placeholder": "Otsikko",
@@ -79,7 +89,13 @@
     "other_label": "MUUT",
     "created": "Luotu",
     "can_view": "voi katsella",
-    "can_edit": "voi muokata"
+    "can_edit": "voi muokata",
+    "image_alt": "Muistiinpanon kuva",
+    "image_preview_alt": "Esikatselu",
+    "unsaved_text": "Sinulla on tallentamattomia muutoksia. Haluatko hylätä ne?",
+    "discard_changes": "Hylkää muutokset",
+    "confirm_convert_checklist": "Tämä muuntaa olemassa olevan tekstin tarkistuslistaksi. Haluatko jatkaa?",
+    "list_item_placeholder": "Luettelokohta"
   },
   "import": {
     "title": "Tuo Google Keepistä",
@@ -93,7 +109,22 @@
     "import_button": "Tuo",
     "close_button": "Sulje",
     "import_complete": "Tuonti valmis!",
-    "importing": "Tuodaan..."
+    "importing": "Tuodaan...",
+    "select_zip": "Valitse .zip-tiedosto",
+    "selected_file": "Valittu tiedosto",
+    "network_error": "Verkkovirhe tuonnin aikana. Yritä uudelleen.",
+    "error": "Tuonnin aikana tapahtui virhe.",
+    "imported_notes": "Tuodut muistiinpanot",
+    "total_from_keep": "Yhteensä Google Keepistä",
+    "checklists": "Tarkistuslistat",
+    "attachments": "Liitteet",
+    "missing_attachments": "Puuttuvat liitteet",
+    "failed": "Epäonnistui",
+    "warnings_errors": "Varoitukset/virheet",
+    "unknown": "Tuntematon",
+    "and": "ja",
+    "more": "lisää",
+    "confidence": "Varmuustaso"
   },
   "profile": {
     "title": "Profiilisi",
@@ -119,7 +150,9 @@
     "import_from_keep": "📥 Tuo Google Keepistä",
     "export_backup": "📤 Vie varmuuskopio",
     "close_button": "Sulje",
-    "select_language": "Valitse kieli"
+    "select_language": "Valitse kieli",
+    "avatar_update_failed": "Avatarin värin päivitys epäonnistui",
+    "theme_update_failed": "Taustateeman päivitys epäonnistui"
   },
   "share": {
     "title": "Jaa muistiinpano",
@@ -137,7 +170,10 @@
     "new_share_notification": "Uusi muistiinpano jaettu kanssasi",
     "permission_changed": "Oikeuksiasi muutettiin",
     "confirm_dismiss": "Poistetaanko tämä jaettu muistiinpano näkymästäsi? Muistiinpano säilyy omistajalla.",
-    "dismiss_title": "Poista näkymästäni"
+    "dismiss_title": "Poista näkymästäni",
+    "permission_changed_to": "Oikeutesi muutettiin tilaan",
+    "load_error": "Jakamistietojen lataus epäonnistui",
+    "save_errors": "virhettä tallennuksessa"
   },
   "messages": {
     "note_created": "Muistiinpano luotu",
@@ -173,7 +209,26 @@
     "no_notes": "Ei vielä muistiinpanoja",
     "no_shared_notes": "Ei jaettuja muistiinpanoja",
     "no_archived_notes": "Ei arkistoituja muistiinpanoja",
-    "confirm_delete": "Haluatko varmasti poistaa tämän muistiinpanon?"
+    "confirm_delete": "Haluatko varmasti poistaa tämän muistiinpanon?",
+    "cancel": "Peruuta",
+    "saving": "Tallennetaan…",
+    "updating": "Päivitetään…",
+    "note_saved": "Muistiinpano tallennettu",
+    "session_expired": "Istunto vanheni, yritä uudelleen",
+    "load_notes_failed": "Muistiinpanojen lataus epäonnistui",
+    "save_note_failed": "Muistiinpanon tallennus epäonnistui",
+    "update_note_failed": "Muistiinpanon päivitys epäonnistui",
+    "delete_note_failed": "Muistiinpanon poisto epäonnistui",
+    "pin_note_failed": "Muistiinpanon kiinnitys epäonnistui",
+    "archive_note_failed": "Muistiinpanon arkistointi epäonnistui",
+    "duplicate_skipped": "1 kaksoiskappale ohitettiin",
+    "duplicates_skipped": "kaksoiskappaletta ohitettiin",
+    "confirm_export": "Haluatko viedä varmuuskopion kaikista muistiinpanoistasi?",
+    "export_preparing": "Valmistellaan varmuuskopiota…",
+    "export_failed_login": "Varmuuskopion vienti epäonnistui. Varmista, että olet kirjautunut sisään.",
+    "conflict_changed_elsewhere": "Muistiinpanoa on muutettu toisella laitteella sen jälkeen, kun avasit sen.",
+    "overwrite": "Korvaa",
+    "conflict_reopen": "Muistiinpanoa on muutettu toisella laitteella. Sulje ja avaa se uudelleen."
   },
   "attribution": {
     "icon_credit": "Muistikuvakkeet: Freepik - Flaticon"
@@ -181,5 +236,15 @@
   "footer": {
     "version": "Keep Clone",
     "license": "MIT-lisenssi"
+  },
+  "images": {
+    "uploading": "Ladataan kuvaa",
+    "too_many": "Voit lisätä enää näin monta kuvaa",
+    "max_per_note": "enintään muistiinpanoa kohden",
+    "too_large": "Kuva on liian suuri (enintään 10MB)",
+    "upload_failed": "Kuvien lähetys epäonnistui"
+  },
+  "errors": {
+    "network_error": "Verkkovirhe. Yritä uudelleen."
   }
 }
