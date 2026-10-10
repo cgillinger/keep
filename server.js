@@ -89,7 +89,7 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
-        scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc)
+        scriptSrcAttr: ["'none'"], // No inline event handlers: everything is wired via data-action (see app.js)
         styleSrc: ["'self'", "'unsafe-inline'"], // Inline styles needed for dynamic colors
         imgSrc: ["'self'", "data:", "blob:"],
         connectSrc: ["'self'", "ws:", "wss:"],

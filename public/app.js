@@ -113,11 +113,11 @@ function updateUITranslations() {
   document.querySelector('#login-form h2').textContent = t('auth.login_title');
   document.querySelector('#login-username').placeholder = t('auth.username_placeholder');
   document.querySelector('#login-password').placeholder = t('auth.password_placeholder');
-  document.querySelector('#login-form button[onclick="login()"]').textContent = t('auth.login_button');
+  document.querySelector('#login-form button[data-action="login"]').textContent = t('auth.login_button');
   const rememberText = document.getElementById('login-remember-text');
   if (rememberText) rememberText.textContent = t('auth.remember_me');
   document.querySelector('#login-form .auth-switch').innerHTML =
-    `${t('auth.new_user')} <a href="#" onclick="showRegister(); return false;">${t('auth.register_link')}</a>`;
+    `${t('auth.new_user')} <a href="#" data-action="showRegister">${t('auth.register_link')}</a>`;
   document.querySelector('#forgot-password-link a').textContent = t('auth.forgot_password_link');
 
   // Register form
@@ -139,15 +139,15 @@ function updateUITranslations() {
     if (tip) tip.innerHTML = t('auth.password_tip');
   });
 
-  document.querySelector('#register-form button[onclick="register()"]').textContent = t('auth.register_button');
+  document.querySelector('#register-form button[data-action="register"]').textContent = t('auth.register_button');
   document.querySelector('#register-form .auth-switch').innerHTML =
-    `${t('auth.already_have_account')} <a href="#" onclick="showLogin(); return false;">${t('auth.login_link')}</a>`;
+    `${t('auth.already_have_account')} <a href="#" data-action="showLogin">${t('auth.login_link')}</a>`;
 
   // Forgot password form
   document.querySelector('#forgot-password-form h2').textContent = t('auth.forgot_password_title');
   document.querySelector('#forgot-password-form .help-text').textContent = t('auth.forgot_password_help');
   document.querySelector('#forgot-password-input').placeholder = t('auth.username_or_email_placeholder');
-  document.querySelector('#forgot-password-form button[onclick="requestPasswordReset()"]').textContent = t('auth.send_reset_link_button');
+  document.querySelector('#forgot-password-form button[data-action="requestPasswordReset"]').textContent = t('auth.send_reset_link_button');
   document.querySelector('#forgot-password-form .auth-switch a').textContent = t('auth.back_to_login');
 
   // Reset password form
@@ -155,7 +155,7 @@ function updateUITranslations() {
   document.querySelector('#reset-password-form .help-text').textContent = t('auth.reset_password_help');
   document.querySelector('#reset-password-new').placeholder = t('auth.new_password_placeholder');
   document.querySelector('#reset-password-confirm').placeholder = t('auth.confirm_new_password_placeholder');
-  document.querySelector('#reset-password-form button[onclick="resetPassword()"]').textContent = t('auth.reset_password_button');
+  document.querySelector('#reset-password-form button[data-action="resetPassword"]').textContent = t('auth.reset_password_button');
   document.querySelector('#reset-password-form .auth-switch a').textContent = t('auth.back_to_login');
 
   // Header
@@ -163,14 +163,14 @@ function updateUITranslations() {
   document.querySelector('#search-input').placeholder = t('header.search_placeholder');
   document.querySelector('#shared-toggle-text').textContent = showingShared ? t('header.hide_shared') : t('header.show_shared');
   document.querySelector('#archive-toggle-text').textContent = showingArchived ? t('header.hide_archive') : t('header.show_archive');
-  document.querySelector('header button[onclick="logout()"]').textContent = t('header.logout_button');
+  document.querySelector('header button[data-action="logout"]').textContent = t('header.logout_button');
 
   // New note form
   document.querySelector('#new-note-title').placeholder = t('notes.title_placeholder');
   document.querySelector('#new-note-content').placeholder = t('notes.content_placeholder');
   document.querySelector('#checklist-container button').textContent = t('notes.add_checklist_item');
   document.querySelector('#new-note-form button.btn-icon[title]').title = t('notes.add_image_title');
-  document.querySelector('#new-note-form button[onclick="toggleChecklist()"]').title = t('notes.checklist_title');
+  document.querySelector('#new-note-form button[data-action="toggleChecklist"]').title = t('notes.checklist_title');
   document.querySelector('#new-note-form .color-picker button').title = t('notes.color_title');
   document.querySelector('#new-note-form button.btn-primary').textContent = t('notes.save_button');
 
@@ -183,7 +183,7 @@ function updateUITranslations() {
   document.querySelector('#edit-note-content').placeholder = t('notes.content_placeholder');
   document.querySelector('#edit-checklist-container button').textContent = t('notes.add_checklist_item');
   document.querySelector('#edit-modal button.btn-icon[title]').title = t('notes.add_image_title');
-  document.querySelector('#edit-modal button[onclick="toggleEditChecklist()"]').title = t('notes.checklist_title');
+  document.querySelector('#edit-modal button[data-action="toggleEditChecklist"]').title = t('notes.checklist_title');
   document.querySelector('#edit-modal .color-picker button').title = t('notes.color_title');
   document.querySelector('#share-note-btn').title = t('notes.share_title');
   document.querySelector('#pin-note-btn').title = t('notes.pin_title');
@@ -232,7 +232,7 @@ function updateUITranslations() {
   document.querySelector('#current-password').placeholder = t('profile.current_password_placeholder');
   document.querySelector('#new-password').placeholder = t('profile.new_password_placeholder');
   document.querySelector('#confirm-new-password').placeholder = t('profile.confirm_new_password_placeholder');
-  document.querySelector('button[onclick="changePassword()"]').textContent = t('profile.change_password_button');
+  document.querySelector('button[data-action="changePassword"]').textContent = t('profile.change_password_button');
 
   // Data and backup section
   const settingsHeadings = document.querySelectorAll('#profile-modal .settings-heading');
@@ -241,13 +241,13 @@ function updateUITranslations() {
     settingsHeadings[settingsHeadings.length - 1].textContent = t('profile.data_backup_title');
   }
   // Import/Export buttons already have emojis in HTML, just update text
-  const importBtn = document.querySelector('button[onclick="openImportModal()"]');
+  const importBtn = document.querySelector('button[data-action="openImportModal"]');
   if (importBtn) {
-    importBtn.innerHTML = `📥 ${t('profile.import_from_keep')}`;
+    importBtn.textContent = t('profile.import_from_keep');
   }
-  const exportBtn = document.querySelector('button[onclick="exportBackup()"]');
+  const exportBtn = document.querySelector('button[data-action="exportBackup"]');
   if (exportBtn) {
-    exportBtn.innerHTML = `📤 ${t('profile.export_backup')}`;
+    exportBtn.textContent = t('profile.export_backup');
   }
   // Profile modal now only has X button in top-right corner (no footer close button)
 
@@ -353,6 +353,109 @@ function getThemeAwareColor(lightColor) {
 
   return darkModeColors[lightColor] || lightColor;
 }
+
+// ===== EVENT DELEGATION (no inline handlers) =====
+// All clicks/changes are wired through data-action / data-change / data-input
+// attributes and these document-level listeners, so the Content-Security-Policy
+// can forbid inline script entirely (no 'unsafe-inline' for script-src-attr).
+// Walking up from the click target, the first element with data-action wins;
+// an element with data-stop on the way ends the walk (replaces the old
+// `event.stopPropagation()` handlers on modal bodies and image strips).
+const CLICK_ACTIONS = {
+  login: () => login(),
+  register: () => register(),
+  logout: () => logout(),
+  showLogin: () => showLogin(),
+  showRegister: () => showRegister(),
+  showForgotPassword: () => showForgotPassword(),
+  requestPasswordReset: () => requestPasswordReset(),
+  resetPassword: () => resetPassword(),
+  togglePasswordVisibility: (el) => togglePasswordVisibility(el.dataset.arg),
+  toggleMobileMenu: () => toggleMobileMenu(),
+  toggleShared: () => toggleShared(),
+  toggleArchived: () => toggleArchived(),
+  openProfileModal: () => openProfileModal(),
+  closeProfileModal: (el, e) => closeProfileModal(el.classList.contains('modal') ? e : undefined),
+  addChecklistItem: () => addChecklistItem(),
+  addEditChecklistItem: () => addEditChecklistItem(),
+  removeChecklistItem: (el) => removeChecklistItem(el),
+  removeEditChecklistItem: (el) => removeEditChecklistItem(el),
+  clickInput: (el) => document.getElementById(el.dataset.arg).click(),
+  toggleChecklist: () => toggleChecklist(),
+  toggleEditChecklist: () => toggleEditChecklist(),
+  saveNote: () => saveNote(),
+  updateNote: () => updateNote(),
+  deleteNote: () => deleteNote(),
+  dismissShare: () => dismissShare(),
+  togglePinNote: () => togglePinNote(),
+  toggleArchiveNote: () => toggleArchiveNote(),
+  openShareModal: () => openShareModal(),
+  closeShareModal: (el, e) => closeShareModal(e),
+  cancelShareModal: () => cancelShareModal(),
+  saveShares: () => saveShares(),
+  openEditModal: (el) => openEditModal(parseInt(el.dataset.arg, 10)),
+  closeEditModal: (el, e) => closeEditModal(el.classList.contains('modal') ? e : undefined),
+  closeUnsavedChangesDialog: () => closeUnsavedChangesDialog(),
+  discardChangesAndClose: () => discardChangesAndClose(),
+  openImportModal: () => openImportModal(),
+  closeImportModal: (el, e) => closeImportModal(el.classList.contains('modal') ? e : undefined),
+  startImport: () => startImport(),
+  exportBackup: () => exportBackup(),
+  changePassword: () => changePassword(),
+  selectAvatarColor: (el) => selectAvatarColor(el.dataset.arg),
+  selectBackgroundTheme: (el) => selectBackgroundTheme(el.dataset.arg),
+  openImageModal: (el) => {
+    const holder = el.closest('[data-images]');
+    openImageModal(el.dataset.arg, holder ? JSON.parse(holder.dataset.images) : []);
+  },
+  closeImageModal: () => closeImageModal(),
+  navigateImage: (el) => navigateImage(parseInt(el.dataset.arg, 10)),
+  removeImage: (el) => removeImage(el.dataset.container, parseInt(el.dataset.index, 10)),
+  restoreImageRemoval: (el) => restoreImageRemoval(el.dataset.container, parseInt(el.dataset.index, 10))
+};
+
+const CHANGE_ACTIONS = {
+  handleNewNoteImageSelect: () => handleNewNoteImageSelect(),
+  handleEditNoteImageSelect: () => handleEditNoteImageSelect(),
+  handleImportFile: () => handleImportFile(),
+  toggleShowCreatedDate: () => toggleShowCreatedDate(),
+  changeLanguage: (el) => changeLanguage(el.value)
+};
+
+const INPUT_ACTIONS = {
+  searchNotes: () => searchNotes()
+};
+
+document.addEventListener('click', (e) => {
+  let el = e.target;
+  while (el && el !== document) {
+    if (el.dataset) {
+      if (el.dataset.action !== undefined) {
+        const handler = CLICK_ACTIONS[el.dataset.action];
+        if (!handler) { console.warn('Unknown data-action:', el.dataset.action); return; }
+        if (el.tagName === 'A') e.preventDefault();
+        handler(el, e);
+        return;
+      }
+      if (el.dataset.stop !== undefined) return;
+    }
+    el = el.parentElement;
+  }
+});
+
+document.addEventListener('change', (e) => {
+  const el = e.target.closest('[data-change]');
+  if (!el) return;
+  const handler = CHANGE_ACTIONS[el.dataset.change];
+  if (handler) handler(el, e);
+});
+
+document.addEventListener('input', (e) => {
+  const el = e.target.closest('[data-input]');
+  if (!el) return;
+  const handler = INPUT_ACTIONS[el.dataset.input];
+  if (handler) handler(el, e);
+});
 
 // ===== INITIALIZATION =====
 window.addEventListener('DOMContentLoaded', async () => {
@@ -711,7 +814,7 @@ async function requestPasswordReset() {
 
   // Immediate feedback + guard against double-submits (avoids sending
   // several reset mails when the request takes a moment).
-  const btn = document.querySelector('#forgot-password-form button[onclick="requestPasswordReset()"]');
+  const btn = document.querySelector('#forgot-password-form button[data-action="requestPasswordReset"]');
   const originalLabel = btn ? btn.textContent : null;
   if (btn) {
     btn.disabled = true;
@@ -781,7 +884,7 @@ async function resetPassword() {
     return;
   }
 
-  const rpBtn = document.querySelector('#reset-password-form button[onclick="resetPassword()"]');
+  const rpBtn = document.querySelector('#reset-password-form button[data-action="resetPassword"]');
   setBtnBusy(rpBtn, t('auth.resetting'));
 
   try {
@@ -1164,7 +1267,7 @@ async function changePassword() {
     return;
   }
 
-  const cpBtn = document.querySelector('button[onclick="changePassword()"]');
+  const cpBtn = document.querySelector('button[data-action="changePassword"]');
   setBtnBusy(cpBtn);
 
   try {
@@ -1255,6 +1358,11 @@ function updateSingleNote(note) {
     ? document.getElementById('pinned-notes-grid')
     : document.getElementById('notes-grid');
 
+  // renderNotes() puts an empty-state <p> in the regular grid when there is
+  // nothing to show; drop it before inserting the first real card, or it
+  // lingers next to the note (and counts as a child in updateSectionVisibility).
+  document.querySelectorAll('#notes-grid > p, #pinned-notes-grid > p').forEach(p => p.remove());
+
   // Find existing card
   const existingCard = container.querySelector(`[data-note-id="${note.id}"]`);
 
@@ -1291,6 +1399,8 @@ function removeSingleNote(noteId) {
   if (card) {
     card.remove();
     updateSectionVisibility();
+    // Last card gone: show the empty state again instead of a blank page.
+    if (document.querySelectorAll('.note-card').length === 0) renderNotes();
   }
 }
 
@@ -1393,9 +1503,9 @@ function renderNoteHTML(note) {
   if (note.images && Array.isArray(note.images) && note.images.length > 0) {
     const imagesJson = JSON.stringify(note.images).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
     imagesHtml = `
-      <div class="note-images" onclick="event.stopPropagation()">
+      <div class="note-images" data-stop>
         ${note.images.map(img => `
-          <img src="/api/notes/image/${img}" alt="${t('notes.image_alt')}" loading="lazy" onclick="openImageModal('${img}', JSON.parse(this.parentElement.dataset.images))" >
+          <img src="/api/notes/image/${img}" alt="${t('notes.image_alt')}" loading="lazy" data-action="openImageModal" data-arg="${img}">
         `).join('')}
       </div>
     `.replace('<div class="note-images"', `<div class="note-images" data-images="${imagesJson}"`);
@@ -1411,7 +1521,7 @@ function renderNoteHTML(note) {
   const themeColor = getThemeAwareColor(note.color);
 
   return `
-    <div class="note-card" data-note-id="${note.id}" style="background-color: ${escapeHtml(themeColor)}" onclick="openEditModal(${note.id})">
+    <div class="note-card" data-note-id="${note.id}" style="background-color: ${escapeHtml(themeColor)}" data-action="openEditModal" data-arg="${note.id}">
       ${pinIndicator}
       ${ownerIndicator}
       ${note.title ? `<h3>${escapeHtml(note.title)}${dateHtml}</h3>` : dateHtml}
@@ -1888,18 +1998,18 @@ function openEditModal(noteId) {
       if (isHeaderItem(item)) {
         return `
       <div class="checklist-item checklist-header" data-header="true">
-        <input type="text" value="${escapeHtml(item.text)}" ${!canEdit ? 'disabled' : ''} onchange="updateEditChecklistItem(${index})">
-        ${canEdit ? `<button onclick="removeEditChecklistItem(this)">×</button>` : ''}
+        <input type="text" value="${escapeHtml(item.text)}" ${!canEdit ? 'disabled' : ''}>
+        ${canEdit ? `<button data-action="removeEditChecklistItem">×</button>` : ''}
       </div>
     `;
       }
       const confAttr = Number.isInteger(item.confidence) ? ` data-confidence="${item.confidence}"` : '';
       return `
       <div class="checklist-item"${confAttr}>
-        <input type="checkbox" ${item.checked ? 'checked' : ''} ${!canEdit ? 'disabled' : ''} onchange="updateEditChecklistItem(${index})">
-        <input type="text" value="${escapeHtml(item.text)}" ${!canEdit ? 'disabled' : ''} onchange="updateEditChecklistItem(${index})">
+        <input type="checkbox" ${item.checked ? 'checked' : ''} ${!canEdit ? 'disabled' : ''}>
+        <input type="text" value="${escapeHtml(item.text)}" ${!canEdit ? 'disabled' : ''}>
         ${confidenceBadgeHTML(item.confidence)}
-        ${canEdit ? `<button onclick="removeEditChecklistItem(this)">×</button>` : ''}
+        ${canEdit ? `<button data-action="removeEditChecklistItem">×</button>` : ''}
       </div>
     `;
     }).join('');
@@ -2006,12 +2116,12 @@ function showUnsavedChangesDialog() {
   dialog.className = 'modal active';
   dialog.style.cssText = 'z-index: 1001; display: flex; align-items: center; justify-content: center;';
   dialog.innerHTML = `
-    <div class="modal-content modal-content--small unsaved-dialog-content" onclick="event.stopPropagation()">
+    <div class="modal-content modal-content--small unsaved-dialog-content" data-stop>
       <h3 class="unsaved-dialog-title">${t('share.unsaved_changes')}</h3>
       <p class="unsaved-dialog-text">${t('notes.unsaved_text')}</p>
       <div class="unsaved-dialog-buttons">
-        <button class="btn-secondary unsaved-dialog-btn" onclick="closeUnsavedChangesDialog()">${t('messages.cancel')}</button>
-        <button class="btn-danger unsaved-dialog-btn" onclick="discardChangesAndClose()">${t('notes.discard_changes')}</button>
+        <button class="btn-secondary unsaved-dialog-btn" data-action="closeUnsavedChangesDialog">${t('messages.cancel')}</button>
+        <button class="btn-danger unsaved-dialog-btn" data-action="discardChangesAndClose">${t('notes.discard_changes')}</button>
       </div>
     </div>
   `;
@@ -2829,7 +2939,7 @@ function toggleChecklist() {
         item.innerHTML = `
           <input type="checkbox">
           <input type="text" value="${escapeHtml(line.trim())}" placeholder="${t('notes.list_item_placeholder')}">
-          <button onclick="removeChecklistItem(this)">×</button>
+          <button data-action="removeChecklistItem">×</button>
         `;
         itemsContainer.appendChild(item);
       });
@@ -2873,7 +2983,7 @@ function addChecklistItem() {
   item.innerHTML = `
     <input type="checkbox">
     <input type="text" placeholder="${t('notes.list_item_placeholder')}">
-    <button onclick="removeChecklistItem(this)">×</button>
+    <button data-action="removeChecklistItem">×</button>
   `;
 
   container.appendChild(item);
@@ -2954,7 +3064,7 @@ function toggleEditChecklist() {
         item.innerHTML = `
           <input type="checkbox">
           <input type="text" value="${escapeHtml(line.trim())}" placeholder="${t('notes.list_item_placeholder')}">
-          <button onclick="removeEditChecklistItem(this)">×</button>
+          <button data-action="removeEditChecklistItem">×</button>
         `;
         itemsContainer.appendChild(item);
       });
@@ -2998,7 +3108,7 @@ function addEditChecklistItem() {
   item.innerHTML = `
     <input type="checkbox">
     <input type="text" placeholder="${t('notes.list_item_placeholder')}">
-    <button onclick="removeEditChecklistItem(this)">×</button>
+    <button data-action="removeEditChecklistItem">×</button>
   `;
 
   container.appendChild(item);
@@ -3012,9 +3122,6 @@ function removeEditChecklistItem(button) {
   if (row) row.remove();
 }
 
-function updateEditChecklistItem(index) {
-  // Just triggers re-render on change
-}
 
 // ===== COLOR PICKER =====
 function setupColorPickers() {
@@ -3229,7 +3336,7 @@ async function exportBackup() {
     return;
   }
 
-  const exportBtn = document.querySelector('button[onclick="exportBackup()"]');
+  const exportBtn = document.querySelector('button[data-action="exportBackup"]');
   setBtnBusy(exportBtn);
   showToast(t('messages.export_preparing'), 'info');
 
@@ -3474,8 +3581,8 @@ function renderImagePreview(containerId, images, canRemove) {
   // Active images: clickable, with a ✕ to mark for removal.
   const activeHtml = images.map((img, index) => `
     <div class="image-preview-item">
-      <img src="/api/notes/image/${img}" alt="${t('notes.image_preview_alt')}" loading="lazy" onclick="openImageModal('${img}', JSON.parse(this.closest('[data-images]').dataset.images))">
-      ${canRemove ? `<button class="remove-image" onclick="event.stopPropagation(); removeImage('${containerId}', ${index})" aria-label="${t('messages.remove_image')}">✕</button>` : ''}
+      <img src="/api/notes/image/${img}" alt="${t('notes.image_preview_alt')}" loading="lazy" data-action="openImageModal" data-arg="${img}">
+      ${canRemove ? `<button class="remove-image" data-action="removeImage" data-container="${containerId}" data-index="${index}" aria-label="${t('messages.remove_image')}">✕</button>` : ''}
     </div>
   `).join('');
 
@@ -3483,7 +3590,7 @@ function renderImagePreview(containerId, images, canRemove) {
   const removedHtml = (canRemove ? removed : []).map((img, index) => `
     <div class="image-preview-item image-preview-item--removed">
       <img src="/api/notes/image/${img}" alt="${t('notes.image_preview_alt')}" loading="lazy">
-      <button class="restore-image" onclick="event.stopPropagation(); restoreImageRemoval('${containerId}', ${index})">↺ ${t('messages.undo')}</button>
+      <button class="restore-image" data-action="restoreImageRemoval" data-container="${containerId}" data-index="${index}">↺ ${t('messages.undo')}</button>
     </div>
   `).join('');
 
