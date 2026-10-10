@@ -42,7 +42,9 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3000;
 
 // AI command configuration (//list, //ocr) — graceful degradation if not set.
-const NOTE_IMAGES_DIR = path.join(__dirname, 'data', 'note-images');
+// All persistent state lives under DATA_DIR (default ./data; see database.js).
+const DATA_DIR = db.dataDir;
+const NOTE_IMAGES_DIR = path.join(DATA_DIR, 'note-images');
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const AI_RATE_LIMIT_HOURLY = parseInt(process.env.AI_RATE_LIMIT_HOURLY || '10', 10);
 const AI_RATE_LIMIT_DAILY = parseInt(process.env.AI_RATE_LIMIT_DAILY || '50', 10);
@@ -220,7 +222,7 @@ function resolveSessionSecret() {
 // Session configuration (SECURE) with persistent SQLite store
 const sessionStore = new SQLiteStore({
   db: 'sessions.db',
-  dir: './data',
+  dir: db.dataDir,
   table: 'sessions',
   concurrentDB: true, // Enable WAL mode for better concurrency
   touch: 3600 // Throttle session-table writes (only re-touch every hour)
@@ -707,13 +709,13 @@ function userCanAccessImage(filename, userId, callback) {
 // destroyed. `.trash` lives inside note-images but is ignored by the orphan sweep
 // (its name doesn't match a valid image scheme).
 const TRASH_GRACE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-const NOTE_IMAGES_TRASH_DIR = path.join(__dirname, 'data', 'note-images', '.trash');
+const NOTE_IMAGES_TRASH_DIR = path.join(NOTE_IMAGES_DIR, '.trash');
 
 // Move note image files to the trash folder (was: unlink).
 async function deleteNoteImageFiles(imageFilenames) {
   if (!imageFilenames || !Array.isArray(imageFilenames)) return;
 
-  const imageDir = path.join(__dirname, 'data', 'note-images');
+  const imageDir = NOTE_IMAGES_DIR;
 
   const valid = imageFilenames.filter(filename => {
     // Validate filename format to prevent path traversal
@@ -805,7 +807,7 @@ async function purgeDeletedNotes() {
 // an image uploaded but not yet saved onto a note isn't deleted mid-edit.
 const ORPHAN_GRACE_MS = 60 * 60 * 1000; // 1 hour
 async function cleanupOrphanImages() {
-  const imageDir = path.join(__dirname, 'data', 'note-images');
+  const imageDir = NOTE_IMAGES_DIR;
   let files;
   try {
     files = await fsp.readdir(imageDir);
@@ -848,7 +850,7 @@ async function cleanupOrphanImages() {
 }
 
 async function dedupImagesByHash(imageFilenames) {
-  const noteImagesDir = path.join(__dirname, 'data', 'note-images');
+  const noteImagesDir = NOTE_IMAGES_DIR;
   const seen = new Map();
   const kept = [];
   const duplicates = [];
@@ -1288,7 +1290,7 @@ app.post('/api/profile/change-password', requireAuth, apiLimiter, csrfProtection
 // ===== NOTE IMAGE ROUTES =====
 
 const noteImageUpload = multer({
-  dest: path.join(__dirname, 'data', 'uploads', 'temp'),
+  dest: path.join(DATA_DIR, 'uploads', 'temp'),
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB max
   },
@@ -1308,7 +1310,7 @@ app.post('/api/notes/image', requireAuth, csrfProtection, apiLimiter, noteImageU
   }
 
   try {
-    const noteImagesDir = path.join(__dirname, 'data', 'note-images');
+    const noteImagesDir = NOTE_IMAGES_DIR;
     if (!fs.existsSync(noteImagesDir)) {
       fs.mkdirSync(noteImagesDir, { recursive: true });
     }
@@ -1378,7 +1380,7 @@ app.get('/api/notes/image/:filename', requireAuth, imageLimiter, (req, res) => {
       return res.status(404).send('Bild hittades inte');
     }
 
-    const filepath = path.join(__dirname, 'data', 'note-images', filename);
+    const filepath = path.join(NOTE_IMAGES_DIR, filename);
     // Images are immutable (filename encodes a unique timestamp). Private, since
     // access is per-user — never let a shared proxy cache them across users.
     res.set({
@@ -1750,7 +1752,11 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
       if (images && Array.isArray(images)) {
         const rawImages = filterAttachableImages(images, req.session.userId, currentImages);
 
-        if (rawImages.length > 0) {
+        // Only hash when the save actually adds an image. The images already on
+        // the note were deduped when they were attached, so a plain text edit
+        // (the common case) must not re-read and re-hash up to 30 files.
+        const addsImages = rawImages.some(img => !currentImages.includes(img));
+        if (rawImages.length > 0 && addsImages) {
           const { kept, duplicates } = await dedupImagesByHash(rawImages);
           if (duplicates.length > 0) {
             deleteNoteImageFiles(duplicates);
@@ -1758,6 +1764,8 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
             logger.info(`Dedup: removed ${duplicates.length} duplicate image(s) on note update (user=${req.session.userId} note=${id})`);
           }
           newImages = kept;
+        } else {
+          newImages = rawImages;
         }
       }
 
@@ -2196,7 +2204,7 @@ app.get('/api/notes/:id/shares', requireAuth, apiLimiter, (req, res) => {
 // ===== IMPORT ROUTES =====
 
 const upload = multer({
-  dest: path.join(__dirname, 'data', 'uploads'),
+  dest: path.join(DATA_DIR, 'uploads'),
   limits: {
     fileSize: 500 * 1024 * 1024 // 500MB max
   },
@@ -2210,9 +2218,9 @@ const upload = multer({
   }
 });
 
-const dataDir = path.join(__dirname, 'data');
+const dataDir = DATA_DIR;
 const uploadsDir = path.join(dataDir, 'uploads');
-const mediaDir = path.join(dataDir, 'note-images'); // Use same directory as regular note images
+const mediaDir = NOTE_IMAGES_DIR; // Use same directory as regular note images
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -2244,7 +2252,11 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
       return res.status(400).json({ error: 'Arkivet är för stort när det packas upp.' });
     }
 
-    zip.extractAllTo(extractPath, true);
+    // Async extraction so a large Takeout archive doesn't block the event loop
+    // (and every other user's requests) for the duration of the unzip.
+    await new Promise((resolve, reject) => {
+      zip.extractAllToAsync(extractPath, true, false, (err) => err ? reject(err) : resolve());
+    });
 
     logger.info('Parsing Google Keep data...');
     const parser = new KeepImportParser(extractPath, req.session.userId, mediaDir);
@@ -2254,18 +2266,29 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
     let imported = 0;
     let failed = 0;
 
-    for (const note of notes) {
-      try {
-        await importNote(note);
-        imported++;
-      } catch (error) {
-        failed++;
-        logger.error('Import note error:', error);
-        stats.errors.push({
-          note: note.title || note.source_file,
-          error: error.message
-        });
+    // One transaction for the whole batch: without it every INSERT is its own
+    // fsync'd commit, which makes a few thousand notes take minutes instead
+    // of seconds. A failing note is skipped, not rolled back, so a partially
+    // valid export still imports what it can.
+    await dbRun('BEGIN');
+    try {
+      for (const note of notes) {
+        try {
+          await importNote(note);
+          imported++;
+        } catch (error) {
+          failed++;
+          logger.error('Import note error:', error);
+          stats.errors.push({
+            note: note.title || note.source_file,
+            error: error.message
+          });
+        }
       }
+      await dbRun('COMMIT');
+    } catch (error) {
+      await dbRun('ROLLBACK').catch(() => {});
+      throw error;
     }
 
     // Clean up
@@ -2296,6 +2319,12 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
     });
   }
 });
+
+function dbRun(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) { err ? reject(err) : resolve(this); });
+  });
+}
 
 function importNote(note) {
   return new Promise((resolve, reject) => {
@@ -2413,8 +2442,52 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: message });
 });
 
-// Start server
-server.listen(PORT, () => {
+// ===== STARTUP & SHUTDOWN =====
+
+// Graceful shutdown on SIGTERM/SIGINT (docker stop, systemctl stop, Ctrl-C):
+// stop accepting connections, close WebSockets, finish the SQLite handles and
+// exit. Without this, node as PID 1 in a container ignores SIGTERM and docker
+// kills it after 10 s, mid-write if unlucky.
+let shuttingDown = false;
+function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.info(`${signal} received, shutting down...`);
+
+  // Hard deadline in case a request/handle refuses to close.
+  const deadline = setTimeout(() => {
+    logger.warn('Shutdown timed out, exiting');
+    process.exit(1);
+  }, 8000);
+  deadline.unref();
+
+  clearInterval(heartbeatInterval);
+  if (maintenanceInterval) clearInterval(maintenanceInterval);
+  wss.clients.forEach((ws) => { try { ws.close(1001, 'Server shutting down'); } catch (e) { /* ignore */ } });
+
+  server.close(() => {
+    const closeSessions = sessionStore.db
+      ? new Promise((resolve) => sessionStore.db.close(() => resolve()))
+      : Promise.resolve();
+    closeSessions.then(() => {
+      db.close((err) => {
+        if (err) logger.error('Error closing database:', err);
+        logger.info('Shutdown complete');
+        process.exit(0);
+      });
+    });
+  });
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+let maintenanceInterval = null;
+
+// Start serving only once the schema is in place (see database.js).
+db.ready.catch((err) => {
+  logger.error('Database initialization failed:', err);
+  process.exit(1);
+}).then(() => server.listen(PORT, () => {
   logger.info(`Keep Clone running on http://localhost:${PORT}`);
   logger.info(`HTTPS mode: ${isHttps ? 'ENABLED (HSTS active)' : 'DISABLED (HTTP mode)'}`);
   logger.info('Security features enabled:');
@@ -2437,5 +2510,5 @@ server.listen(PORT, () => {
     purgeDeletedNotes().catch(e => logger.error('Note purge failed:', e));
   };
   runMaintenance();
-  setInterval(runMaintenance, ORPHAN_GRACE_MS);
-});
+  maintenanceInterval = setInterval(runMaintenance, ORPHAN_GRACE_MS);
+}));
