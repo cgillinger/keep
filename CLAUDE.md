@@ -4,7 +4,10 @@ Guidance for Claude Code when working in this repo (kreep — a self-hosted Goog
 Keep clone: Express + WebSocket + SQLite backend, vanilla-JS frontend).
 
 ## Build & test
-- `npm test` runs the unit tests (`node --test`). Keep them green.
+- `npm test` runs the unit tests and the API integration tests (`node --test`).
+  The integration tests in `test/` boot a real `server.js` on a random port with
+  a temporary `DATA_DIR`, so they need no setup and leave nothing behind. Keep
+  them green, and add a case there for every behaviour change in a route.
 - `npm run build` fingerprints `public/app.js`/CSS into `public/dist/` (git-ignored)
   and rewrites `index.html` to point at the hashed bundles. The server prefers
   `public/dist/` when present, so **rebuild after frontend changes** — Docker and
