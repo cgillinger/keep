@@ -22,6 +22,7 @@ const sharp = require('sharp');
 
 const db = require('./database');
 const KeepImportParser = require('./import-parser');
+const BackupParser = require('./backup-parser');
 const BackupGenerator = require('./export-generator');
 const mailer = require('./mailer');
 const crypto = require('crypto');
@@ -2305,13 +2306,14 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
       zip.extractAllToAsync(extractPath, true, false, (err) => err ? reject(err) : resolve());
     });
 
-    logger.info('Parsing Google Keep data...');
-    const parser = new KeepImportParser(extractPath, req.session.userId, mediaDir);
-    const { notes, stats } = await parser.parse();
-
-    logger.info(`Importing ${notes.length} notes...`);
+    // The same upload endpoint accepts two archive kinds: a Google Takeout
+    // export (Takeout/Keep/*.json) and a kreep backup made by /api/backup/export
+    // (manifest.json at the root, or one folder down if the user zipped the
+    // extracted folder). Detect which one it is.
+    const backupRoot = findBackupRoot(extractPath);
     let imported = 0;
     let failed = 0;
+    let stats;
 
     // One transaction for the whole batch: without it every INSERT is its own
     // fsync'd commit, which makes a few thousand notes take minutes instead
@@ -2319,17 +2321,43 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
     // valid export still imports what it can.
     await dbRun('BEGIN');
     try {
-      for (const note of notes) {
-        try {
-          await importNote(note);
-          imported++;
-        } catch (error) {
-          failed++;
-          logger.error('Import note error:', error);
-          stats.errors.push({
-            note: note.title || note.source_file,
-            error: error.message
-          });
+      if (backupRoot) {
+        logger.info('Restoring kreep backup...');
+        const restorer = new BackupParser(backupRoot, req.session.userId, db, DATA_DIR);
+        const result = await restorer.parse();
+        imported = result.stats.importedNotes;
+        failed = result.stats.skippedNotes;
+        // Same shape as the Keep import so the UI can show it unchanged.
+        stats = {
+          source: 'kreep-backup',
+          totalNotes: result.stats.totalNotes,
+          importedNotes: result.stats.importedNotes,
+          skippedNotes: result.stats.skippedNotes,
+          checklistNotes: 0,
+          attachments: result.stats.importedImages,
+          missingAttachments: Math.max(0, result.stats.totalImages - result.stats.importedImages),
+          shares: result.stats.importedShares,
+          errors: result.stats.errors
+        };
+      } else {
+        logger.info('Parsing Google Keep data...');
+        const parser = new KeepImportParser(extractPath, req.session.userId, mediaDir);
+        const parsed = await parser.parse();
+        stats = parsed.stats;
+        stats.source = 'google-keep';
+        logger.info(`Importing ${parsed.notes.length} notes...`);
+        for (const note of parsed.notes) {
+          try {
+            await importNote(note);
+            imported++;
+          } catch (error) {
+            failed++;
+            logger.error('Import note error:', error);
+            stats.errors.push({
+              note: note.title || note.source_file,
+              error: error.message
+            });
+          }
         }
       }
       await dbRun('COMMIT');
@@ -2366,6 +2394,21 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
     });
   }
 });
+
+// Locate a kreep backup inside an extracted archive: manifest.json either at the
+// root or in exactly one subfolder. Returns the folder path, or null if the
+// archive isn't a kreep backup.
+function findBackupRoot(extractPath) {
+  if (fs.existsSync(path.join(extractPath, 'manifest.json'))) return extractPath;
+  let entries = [];
+  try { entries = fs.readdirSync(extractPath, { withFileTypes: true }); } catch (e) { return null; }
+  for (const entry of entries) {
+    if (entry.isDirectory() && fs.existsSync(path.join(extractPath, entry.name, 'manifest.json'))) {
+      return path.join(extractPath, entry.name);
+    }
+  }
+  return null;
+}
 
 function dbRun(sql, params = []) {
   return new Promise((resolve, reject) => {
