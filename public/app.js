@@ -826,12 +826,21 @@ async function resetPassword() {
 }
 
 // ===== WEBSOCKET =====
+let wsReconnectDelay = 2000; // grows up to 30 s between attempts
+let wsHasConnectedBefore = false;
 function connectWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${protocol}//${window.location.host}`);
 
   ws.onopen = () => {
     console.log('WebSocket connected');
+    wsReconnectDelay = 2000;
+    if (wsHasConnectedBefore) {
+      // We may have missed broadcasts while disconnected: refetch quietly.
+      invalidateNotesCache();
+      loadNotes({ forceRefresh: true, showLoading: false });
+    }
+    wsHasConnectedBefore = true;
   };
 
   ws.onmessage = (event) => {
@@ -868,6 +877,17 @@ function connectWebSocket() {
         }
         // Use incremental update for better performance
         updateSingleNote(merged);
+      } else if (data.type === 'note_pinned') {
+        // Our own pin toggled from another tab/device (pins are per-user).
+        const idx = notes.findIndex(n => n.id === data.noteId);
+        if (idx >= 0) {
+          applyLocalNoteChange({ ...notes[idx], is_pinned: data.is_pinned });
+          if (currentEditingNote && currentEditingNote.id === data.noteId) {
+            currentEditingNote.is_pinned = data.is_pinned;
+            const pinBtn = document.getElementById('pin-note-btn');
+            if (pinBtn) pinBtn.textContent = data.is_pinned ? '📍' : '📌';
+          }
+        }
       } else if (data.type === 'note_deleted' || data.type === 'note_unshared') {
         notes = notes.filter(n => n.id !== data.noteId);
         removeSingleNote(data.noteId);
@@ -911,10 +931,12 @@ function connectWebSocket() {
       showAuthScreen();
       return;
     }
-    // Only reconnect if user is still logged in
+    // Only reconnect if user is still logged in; back off so a server that is
+    // down doesn't get hammered every few seconds by every open tab.
     if (currentUser) {
-      console.log('Reconnecting in 5 seconds...');
-      setTimeout(connectWebSocket, 5000);
+      console.log(`Reconnecting in ${wsReconnectDelay / 1000} seconds...`);
+      setTimeout(connectWebSocket, wsReconnectDelay);
+      wsReconnectDelay = Math.min(wsReconnectDelay * 2, 30000);
     } else {
       console.log('Not reconnecting - user not logged in');
     }
@@ -1424,11 +1446,18 @@ async function loadNotes(options = {}) {
   if (showCreatedDate) {
     url += '&sortBy=created_at';
   }
+  // Server-side search: the client only ever holds the pages it has scrolled
+  // through, so filtering locally would miss every older note. A search
+  // bypasses the cache both ways (never served from it, never stored in it).
+  const searchQuery = currentSearchQuery();
+  if (searchQuery) {
+    url += `&q=${encodeURIComponent(searchQuery)}`;
+  }
 
   // Check cache first (if not forcing refresh and not appending)
   const cachedData = notesCache[cacheKey];
   const cacheTime = notesCache.timestamp[cacheKey] || 0;
-  const cacheValid = cachedData.notes.length > 0 && (Date.now() - cacheTime < CACHE_TTL) && !forceRefresh && !append;
+  const cacheValid = !searchQuery && cachedData.notes.length > 0 && (Date.now() - cacheTime < CACHE_TTL) && !forceRefresh && !append;
 
   if (cacheValid) {
     // Use cached data immediately
@@ -1466,9 +1495,11 @@ async function loadNotes(options = {}) {
       hasMoreNotes = data.hasMore;
       currentOffset += data.notes.length;
 
-      // Update cache
-      notesCache[cacheKey] = { notes, hasMore: hasMoreNotes, total: data.total };
-      notesCache.timestamp[cacheKey] = Date.now();
+      // Update cache (search results are not cached)
+      if (!searchQuery) {
+        notesCache[cacheKey] = { notes, hasMore: hasMoreNotes, total: data.total };
+        notesCache.timestamp[cacheKey] = Date.now();
+      }
 
       renderNotes({ append });
       setupScrollObserver();
@@ -1554,6 +1585,49 @@ function setupScrollObserver() {
   });
 
   scrollObserver.observe(sentinel);
+}
+
+// Apply a note change we made ourselves (the HTTP response) to the current
+// view without re-fetching page one — which reset the scroll position and
+// re-rendered everything on every save. The WebSocket echo of the same change
+// arrives afterwards and is idempotent. Other views' caches are dropped so
+// they refetch on next switch; the current view's cache is kept in sync.
+function applyLocalNoteChange(note) {
+  const archived = !!note.is_archived;
+  const inView = showingArchived ? archived : !archived;
+  const idx = notes.findIndex(n => n.id === note.id);
+  if (!inView) {
+    if (idx >= 0) notes.splice(idx, 1);
+    removeSingleNote(note.id);
+  } else {
+    // Keep derived relationship fields (isShared, permission, owner_*,
+    // share_count) that the raw row from the server doesn't carry.
+    const merged = idx >= 0 ? { ...notes[idx], ...note } : note;
+    if (idx >= 0) notes[idx] = merged; else notes.unshift(merged);
+    // The card may have to move between the pinned and regular grids.
+    removeSingleNote(merged.id);
+    updateSingleNote(merged);
+  }
+  syncCurrentViewCache();
+}
+
+function applyLocalNoteRemoval(noteId) {
+  notes = notes.filter(n => n.id !== noteId);
+  removeSingleNote(noteId);
+  syncCurrentViewCache();
+}
+
+// Drop the other views' caches and store the current `notes` array as the
+// current view's cache (loadNotes() may have replaced the array object).
+function syncCurrentViewCache() {
+  const current = showingArchived ? 'archived' : showingShared ? 'shared' : 'all';
+  for (const key of ['all', 'archived', 'shared']) {
+    if (key !== current) invalidateNotesCache(key);
+  }
+  if (!currentSearchQuery()) {
+    notesCache[current] = { notes, hasMore: hasMoreNotes, total: notesCache[current].total };
+    notesCache.timestamp[current] = Date.now();
+  }
 }
 
 // Invalidate cache for a specific key or all
@@ -1747,8 +1821,7 @@ async function saveNote() {
       document.getElementById('images-preview').innerHTML = '';
       document.getElementById('new-note-form').style.backgroundColor = getThemeAwareColor('#ffffff');
       document.getElementById('checklist-items').innerHTML = '';
-      invalidateNotesCache();
-      loadNotes({ forceRefresh: true });
+      applyLocalNoteChange(result);
       showToast('Anteckning sparad', 'success');
     } else if (response.status === 403) {
       // CSRF token expired
@@ -1816,7 +1889,7 @@ function openEditModal(noteId) {
         return `
       <div class="checklist-item checklist-header" data-header="true">
         <input type="text" value="${escapeHtml(item.text)}" ${!canEdit ? 'disabled' : ''} onchange="updateEditChecklistItem(${index})">
-        ${canEdit ? `<button onclick="removeEditChecklistItem(${index})">×</button>` : ''}
+        ${canEdit ? `<button onclick="removeEditChecklistItem(this)">×</button>` : ''}
       </div>
     `;
       }
@@ -1826,7 +1899,7 @@ function openEditModal(noteId) {
         <input type="checkbox" ${item.checked ? 'checked' : ''} ${!canEdit ? 'disabled' : ''} onchange="updateEditChecklistItem(${index})">
         <input type="text" value="${escapeHtml(item.text)}" ${!canEdit ? 'disabled' : ''} onchange="updateEditChecklistItem(${index})">
         ${confidenceBadgeHTML(item.confidence)}
-        ${canEdit ? `<button onclick="removeEditChecklistItem(${index})">×</button>` : ''}
+        ${canEdit ? `<button onclick="removeEditChecklistItem(this)">×</button>` : ''}
       </div>
     `;
     }).join('');
@@ -1965,8 +2038,9 @@ async function saveChangesAndClose() {
   // updateNote will close the modal on success
 }
 
-async function updateNote() {
+async function updateNote(options = {}) {
   if (!currentEditingNote) return;
+  const { force = false } = options;
 
   const title = document.getElementById('edit-note-title').value.trim();
   const content = document.getElementById('edit-note-content').value.trim();
@@ -1997,7 +2071,10 @@ async function updateNote() {
         is_checklist: isChecklist,
         checklist_items: checklistItems,
         is_archived: currentEditingNote.is_archived,
-        images: editNoteImages
+        images: editNoteImages,
+        // Optimistic concurrency: the server rejects (409) if the note changed
+        // since we loaded it, unless we explicitly overwrite.
+        expected_updated_at: force ? undefined : currentEditingNote.updated_at
       })
     });
 
@@ -2012,9 +2089,16 @@ async function updateNote() {
         );
       }
       forceCloseEditModal();
-      invalidateNotesCache();
-      loadNotes({ forceRefresh: true });
+      applyLocalNoteChange(result);
       showToast('Anteckning uppdaterad', 'success');
+    } else if (response.status === 409) {
+      // Someone else (or another of our devices) saved this note after we
+      // opened it. Keep the editor open with our text and let the user decide.
+      showToast('Anteckningen har ändrats på en annan enhet sedan du öppnade den.', 'error', {
+        label: 'Skriv över',
+        duration: 10000,
+        onClick: () => updateNote({ force: true })
+      });
     } else if (response.status === 403) {
       await fetchCSRFToken();
       showToast('Sessionen gick ut, försök igen', 'error');
@@ -2055,8 +2139,7 @@ async function deleteNote() {
 
     if (response.ok) {
       forceCloseEditModal();
-      invalidateNotesCache();
-      loadNotes({ forceRefresh: true });
+      applyLocalNoteRemoval(deletedId);
       // Soft-deleted on the server (recoverable). Offer an immediate Undo.
       showToast(t('messages.note_deleted'), 'success', {
         label: t('messages.undo'),
@@ -2087,8 +2170,9 @@ async function restoreNote(noteId) {
       headers: getCSRFHeaders()
     });
     if (response.ok) {
-      invalidateNotesCache();
-      loadNotes({ forceRefresh: true });
+      const data = await response.json();
+      if (data.note) applyLocalNoteChange(data.note);
+      else { invalidateNotesCache(); loadNotes({ forceRefresh: true }); }
       showToast(t('messages.note_restored'), 'success');
     } else if (response.status === 403) {
       await fetchCSRFToken();
@@ -2117,9 +2201,9 @@ async function dismissShare() {
     });
 
     if (response.ok) {
+      const dismissedId = currentEditingNote.id;
       forceCloseEditModal();
-      invalidateNotesCache();
-      loadNotes({ forceRefresh: true });
+      applyLocalNoteRemoval(dismissedId);
     } else if (response.status === 403) {
       await fetchCSRFToken();
       showToast('Session expired, please try again', 'error');
@@ -2154,7 +2238,7 @@ async function togglePinNote() {
         pinBtn.title = data.is_pinned ? 'Avfästa' : 'Fäst';
       }
 
-      loadNotes();
+      applyLocalNoteChange({ ...currentEditingNote, is_pinned: data.is_pinned });
       showToast(data.is_pinned ? 'Anteckning fäst' : 'Anteckning avfäst', 'success');
     } else if (response.status === 403) {
       await fetchCSRFToken();
@@ -2191,16 +2275,25 @@ async function toggleArchiveNote() {
         ...getCSRFHeaders()
       },
       body: JSON.stringify({
-        ...currentEditingNote,
-        is_checklist: currentEditingNote.is_checklist ? 1 : 0
+        title: currentEditingNote.title,
+        content: currentEditingNote.content,
+        color: currentEditingNote.color,
+        is_checklist: currentEditingNote.is_checklist ? 1 : 0,
+        checklist_items: currentEditingNote.checklist_items,
+        is_archived: willArchive,
+        images: currentEditingNote.images || [],
+        expected_updated_at: currentEditingNote.updated_at
       })
     });
 
     if (response.ok) {
+      const result = await response.json();
       forceCloseEditModal();
-      invalidateNotesCache(); // Both active and archived views need refresh
-      loadNotes({ forceRefresh: true });
+      applyLocalNoteChange(result);
       showToast(willArchive ? 'Anteckning arkiverad' : 'Anteckning återställd', 'success');
+    } else if (response.status === 409) {
+      currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
+      showToast('Anteckningen har ändrats på en annan enhet. Stäng och öppna den igen.', 'error');
     } else if (response.status === 403) {
       currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
       await fetchCSRFToken();
@@ -2257,13 +2350,21 @@ function closeMobileMenu() {
   }
 }
 
-// Debounced search to avoid rendering on every keystroke
+// Debounced search: ask the server (see loadNotes) once typing pauses.
 let searchTimeout = null;
+let lastSearchQuery = '';
+function currentSearchQuery() {
+  const input = document.getElementById('search-input');
+  return input ? input.value.trim() : '';
+}
 function searchNotes() {
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(() => {
-    renderNotes();
-  }, 150); // Wait 150ms after last keystroke
+    const q = currentSearchQuery();
+    if (q === lastSearchQuery) return;
+    lastSearchQuery = q;
+    loadNotes({ forceRefresh: true, showLoading: false });
+  }, 250); // Wait 250ms after last keystroke
 }
 
 // ===== SHARING FUNCTIONS =====
@@ -2853,7 +2954,7 @@ function toggleEditChecklist() {
         item.innerHTML = `
           <input type="checkbox">
           <input type="text" value="${escapeHtml(line.trim())}" placeholder="Listpunkt">
-          <button onclick="removeEditChecklistItem(${itemsContainer.children.length})">×</button>
+          <button onclick="removeEditChecklistItem(this)">×</button>
         `;
         itemsContainer.appendChild(item);
       });
@@ -2897,19 +2998,18 @@ function addEditChecklistItem() {
   item.innerHTML = `
     <input type="checkbox">
     <input type="text" placeholder="Listpunkt">
-    <button onclick="removeEditChecklistItem(${container.children.length})">×</button>
+    <button onclick="removeEditChecklistItem(this)">×</button>
   `;
 
   container.appendChild(item);
   item.querySelector('input[type="text"]').focus();
 }
 
-function removeEditChecklistItem(index) {
-  const container = document.getElementById('edit-checklist-items');
-  const items = container.querySelectorAll('.checklist-item');
-  if (items[index]) {
-    items[index].remove();
-  }
+// Takes the clicked button, not an index: indexes baked into onclick at render
+// time go stale as soon as one row is removed, so the wrong row got deleted.
+function removeEditChecklistItem(button) {
+  const row = button.closest('.checklist-item');
+  if (row) row.remove();
 }
 
 function updateEditChecklistItem(index) {

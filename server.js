@@ -1431,6 +1431,17 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
   const offset = parseInt(req.query.offset) || 0;
   const sortBy = req.query.sortBy === 'created_at' ? 'created_at' : 'updated_at';
 
+  // Optional full-text-ish search over title, body and checklist items.
+  // LIKE wildcards in the user's query are escaped so they match literally.
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().substring(0, 200) : '';
+  let searchSql = '';
+  let searchParams = [];
+  if (q) {
+    const pattern = '%' + q.replace(/[\\%_]/g, '\\$&') + '%';
+    searchSql = ` AND (notes.title LIKE ? ESCAPE '\\' OR notes.content LIKE ? ESCAPE '\\' OR notes.checklist_items LIKE ? ESCAPE '\\')`;
+    searchParams = [pattern, pattern, pattern];
+  }
+
   // Helper to parse JSON fields and prepare notes
   const prepareNotes = (notes, isSharedView = false) => {
     notes.forEach(note => {
@@ -1463,8 +1474,8 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
     db.get(
       `SELECT COUNT(*) as total FROM notes
        JOIN shares ON notes.id = shares.note_id
-       WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0 AND notes.deleted_at IS NULL`,
-      [req.session.userId],
+       WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0 AND notes.deleted_at IS NULL${searchSql}`,
+      [req.session.userId, ...searchParams],
       (err, countResult) => {
         if (err) {
           logger.error('Count shared notes error:', err);
@@ -1485,10 +1496,10 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
            JOIN users ON notes.user_id = users.id
            WHERE shares.shared_with_user_id = ?
              AND notes.is_archived = 0
-             AND notes.deleted_at IS NULL
+             AND notes.deleted_at IS NULL${searchSql}
            ORDER BY shares.is_pinned DESC, notes.${sortBy} DESC
            LIMIT ? OFFSET ?`,
-          [req.session.userId, limit, offset],
+          [req.session.userId, ...searchParams, limit, offset],
           (err, notes) => {
             if (err) {
               logger.error('Get shared notes error:', err);
@@ -1508,8 +1519,8 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
   } else if (showArchived) {
     // Get user's own archived notes only
     db.get(
-      `SELECT COUNT(*) as total FROM notes WHERE user_id = ? AND is_archived = 1 AND deleted_at IS NULL`,
-      [req.session.userId],
+      `SELECT COUNT(*) as total FROM notes WHERE user_id = ? AND is_archived = 1 AND deleted_at IS NULL${searchSql}`,
+      [req.session.userId, ...searchParams],
       (err, countResult) => {
         if (err) {
           logger.error('Count archived notes error:', err);
@@ -1522,10 +1533,10 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
           `SELECT notes.*,
             (SELECT COUNT(*) FROM shares WHERE shares.note_id = notes.id) as share_count
            FROM notes
-           WHERE user_id = ? AND is_archived = 1 AND deleted_at IS NULL
+           WHERE user_id = ? AND is_archived = 1 AND deleted_at IS NULL${searchSql}
            ORDER BY is_pinned DESC, ${sortBy} DESC
            LIMIT ? OFFSET ?`,
-          [req.session.userId, limit, offset],
+          [req.session.userId, ...searchParams, limit, offset],
           (err, notes) => {
             if (err) {
               logger.error('Get archived notes error:', err);
@@ -1547,11 +1558,11 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
     // First get total count from both sources
     db.get(
       `SELECT
-        (SELECT COUNT(*) FROM notes WHERE user_id = ? AND is_archived = 0 AND deleted_at IS NULL) +
+        (SELECT COUNT(*) FROM notes WHERE user_id = ? AND is_archived = 0 AND deleted_at IS NULL${searchSql}) +
         (SELECT COUNT(*) FROM notes
          JOIN shares ON notes.id = shares.note_id
-         WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0 AND notes.deleted_at IS NULL) as total`,
-      [req.session.userId, req.session.userId],
+         WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0 AND notes.deleted_at IS NULL${searchSql}) as total`,
+      [req.session.userId, ...searchParams, req.session.userId, ...searchParams],
       (err, countResult) => {
         if (err) {
           logger.error('Count all notes error:', err);
@@ -1573,7 +1584,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
               NULL as permission,
               0 as isShared
             FROM notes
-            WHERE user_id = ? AND is_archived = 0 AND deleted_at IS NULL
+            WHERE user_id = ? AND is_archived = 0 AND deleted_at IS NULL${searchSql}
 
             UNION ALL
 
@@ -1589,11 +1600,11 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
             FROM notes
             JOIN shares ON notes.id = shares.note_id
             JOIN users ON notes.user_id = users.id
-            WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0 AND notes.deleted_at IS NULL
+            WHERE shares.shared_with_user_id = ? AND notes.is_archived = 0 AND notes.deleted_at IS NULL${searchSql}
           )
           ORDER BY is_pinned DESC, ${sortBy} DESC
           LIMIT ? OFFSET ?`,
-          [req.session.userId, req.session.userId, limit, offset],
+          [req.session.userId, ...searchParams, req.session.userId, ...searchParams, limit, offset],
           (err, notes) => {
             if (err) {
               logger.error('Get all notes error:', err);
@@ -1700,7 +1711,7 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, async (req, res)
 
 app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) => {
   const { id } = req.params;
-  const { title, content, color, is_checklist, checklist_items, is_archived, images } = req.body;
+  const { title, content, color, is_checklist, checklist_items, is_archived, images, expected_updated_at } = req.body;
 
   // Check permission (owner or shared with edit permission)
   db.get(
@@ -1717,6 +1728,18 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
 
       if (!note) {
         return res.status(404).json({ error: 'Anteckning hittades inte eller du saknar rättigheter' });
+      }
+
+      // Optimistic concurrency: a client that sends the updated_at it loaded
+      // only gets to write if nobody saved in between. Otherwise the second
+      // editor silently overwrote the first (last write wins). Clients that
+      // omit the field (or deliberately force) keep the old behaviour.
+      if (typeof expected_updated_at === 'string' && expected_updated_at && expected_updated_at !== note.updated_at) {
+        return res.status(409).json({
+          error: 'Anteckningen har ändrats sedan du öppnade den',
+          conflict: true,
+          updated_at: note.updated_at
+        });
       }
 
       // Sanitize and validate
@@ -1951,7 +1974,7 @@ app.post('/api/notes/:id/pin', requireAuth, apiLimiter, csrfProtection, (req, re
 
   // Pin is per-user: the owner toggles notes.is_pinned, while a recipient
   // toggles their own shares.is_pinned so they can (un)pin independently.
-  db.get('SELECT id, user_id, is_pinned FROM notes WHERE id = ?', [id], (err, note) => {
+  db.get('SELECT id, user_id, is_pinned FROM notes WHERE id = ? AND deleted_at IS NULL', [id], (err, note) => {
     if (err) {
       logger.error('Check note owner error:', err);
       return res.status(500).json({ error: 'Kunde inte fästa anteckning' });
@@ -1969,6 +1992,7 @@ app.post('/api/notes/:id/pin', requireAuth, apiLimiter, csrfProtection, (req, re
           logger.error('Pin note error:', err);
           return res.status(500).json({ error: 'Kunde inte fästa anteckning' });
         }
+        broadcastToUser(req.session.userId, { type: 'note_pinned', noteId: parseInt(id), is_pinned: newPinnedState });
         res.json({ is_pinned: newPinnedState });
       });
     }
@@ -1996,6 +2020,7 @@ app.post('/api/notes/:id/pin', requireAuth, apiLimiter, csrfProtection, (req, re
               logger.error('Pin shared note error:', err);
               return res.status(500).json({ error: 'Kunde inte fästa anteckning' });
             }
+            broadcastToUser(req.session.userId, { type: 'note_pinned', noteId: parseInt(id), is_pinned: newPinnedState });
             res.json({ is_pinned: newPinnedState });
           }
         );
@@ -2014,8 +2039,8 @@ app.post('/api/notes/:id/share', requireAuth, apiLimiter, csrfProtection, (req, 
   const validPermissions = ['view', 'edit'];
   const validatedPermission = validPermissions.includes(permission) ? permission : 'view';
 
-  // Check that user owns the note
-  db.get('SELECT * FROM notes WHERE id = ? AND user_id = ?', [id, req.session.userId], (err, note) => {
+  // Check that user owns the note (and it isn't in the trash)
+  db.get('SELECT * FROM notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL', [id, req.session.userId], (err, note) => {
     if (err || !note) {
       return res.status(404).json({ error: 'Anteckning hittades inte' });
     }
@@ -2044,10 +2069,12 @@ app.post('/api/notes/:id/share', requireAuth, apiLimiter, csrfProtection, (req, 
           const isNewShare = !existingShare;
           const isPermissionChange = existingShare && existingShare.permission !== validatedPermission;
 
-          // Create or update share
+          // Create or update share. An upsert (not INSERT OR REPLACE) so a
+          // permission change keeps the recipient's own is_pinned on the row.
           db.run(
-            `INSERT OR REPLACE INTO shares (note_id, shared_by_user_id, shared_with_user_id, permission)
-             VALUES (?, ?, ?, ?)`,
+            `INSERT INTO shares (note_id, shared_by_user_id, shared_with_user_id, permission)
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(note_id, shared_with_user_id) DO UPDATE SET permission = excluded.permission`,
             [id, req.session.userId, userId, validatedPermission],
             function(err) {
               if (err) {
