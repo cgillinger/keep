@@ -3073,6 +3073,7 @@ async function startImport() {
 
     xhr.withCredentials = true; // Include session cookies
     xhr.open('POST', '/api/import/keep');
+    if (csrfToken) xhr.setRequestHeader('CSRF-Token', csrfToken);
     xhr.send(formData);
 
   } catch (error) {

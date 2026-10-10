@@ -93,40 +93,51 @@ async function callGemini(parts, responseSchema, apiKey) {
       : {},
   };
 
+  // Only transient failures are retried: network errors/timeouts and the
+  // RETRYABLE_STATUSES above. A definitive answer from the API (4xx other than
+  // 429, or a malformed body) is thrown straight away instead of being replayed
+  // three times against the same bad request.
+  const MAX_ATTEMPTS = 3;
   let lastErr;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    let r;
     try {
-      const r = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(apiKey)}`, {
+      // The key goes in a header, not the query string, so it never lands in
+      // proxy/access logs or error messages that include the URL.
+      r = await fetch(GEMINI_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify(body),
         signal: controller.signal,
       });
-      clearTimeout(timeout);
-      if (RETRYABLE_STATUSES.has(r.status)) {
-        if (attempt === 2) {
-          throw new Error(`Gemini HTTP ${r.status} (failed after 3 attempts)`);
-        }
-        const delay = Math.pow(2, attempt + 1) * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
-      if (!r.ok) {
-        throw new Error(`Gemini HTTP ${r.status}`);
-      }
-      const data = await r.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) throw new Error('Gemini returned no text');
-      return text;
     } catch (err) {
       clearTimeout(timeout);
-      lastErr = err;
-      if (attempt === 2) throw err;
+      lastErr = err.name === 'AbortError' ? new Error('Gemini request timed out') : err;
+      if (attempt === MAX_ATTEMPTS - 1) throw lastErr;
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt + 1) * 1000));
+      continue;
     }
+    clearTimeout(timeout);
+
+    if (RETRYABLE_STATUSES.has(r.status)) {
+      lastErr = new Error(`Gemini HTTP ${r.status}`);
+      if (attempt === MAX_ATTEMPTS - 1) {
+        throw new Error(`Gemini HTTP ${r.status} (failed after ${MAX_ATTEMPTS} attempts)`);
+      }
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt + 1) * 1000));
+      continue;
+    }
+    if (!r.ok) {
+      throw new Error(`Gemini HTTP ${r.status}`);
+    }
+    const data = await r.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('Gemini returned no text');
+    return text;
   }
-  throw lastErr || new Error('Gemini call failed after 3 retries');
+  throw lastErr || new Error('Gemini call failed');
 }
 
 async function loadImageParts(imageFilenames, imagesDir) {
