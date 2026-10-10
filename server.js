@@ -60,6 +60,20 @@ if (aiCommandsActive && !GEMINI_API_KEY) {
 // Check if running behind HTTPS (e.g., reverse proxy with TLS termination)
 const isHttps = process.env.FORCE_HTTPS === 'true';
 
+// Public base URL used in outgoing links (password reset mails). When unset we
+// fall back to the request's Host header, which is spoofable — see the warning
+// logged at startup and the comment in the password-reset route.
+const BASE_URL = (process.env.BASE_URL || '').trim().replace(/\/+$/, '');
+if (BASE_URL && !/^https?:\/\/[^/\s]+$/.test(BASE_URL)) {
+  logger.error(`BASE_URL must look like http(s)://host[:port] (got "${BASE_URL}")`);
+  process.exit(1);
+}
+function publicBaseUrl(req) {
+  if (BASE_URL) return BASE_URL;
+  const protocol = req.secure ? 'https' : 'http';
+  return `${protocol}://${req.get('host')}`;
+}
+
 // Trust the reverse proxy so req.ip / req.secure reflect the real client, not the
 // proxy. Without this, every request shares the proxy's IP and the rate limiters
 // collapse into a single shared bucket (one attacker locks out everyone). Set
@@ -181,21 +195,40 @@ app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
+// The session secret signs every session cookie. With a known/default value
+// anyone can forge a cookie for any user id, so in production the server
+// refuses to start without a real one. In development we fall back to a
+// random per-process secret (sessions won't survive a restart, which is fine).
+const PLACEHOLDER_SECRETS = new Set([
+  'change-this-to-a-random-string-in-production',
+  'kreep-secret-change-in-production'
+]);
+function resolveSessionSecret() {
+  const configured = (process.env.SESSION_SECRET || '').trim();
+  if (configured && !PLACEHOLDER_SECRETS.has(configured) && configured.length >= 16) {
+    return configured;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    logger.error('SESSION_SECRET is missing, too short (<16 chars) or still the placeholder. ' +
+      'Set a random value in .env, e.g.: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+    process.exit(1);
+  }
+  logger.logSecurity('No usable SESSION_SECRET; using a random per-process secret (development only)');
+  return crypto.randomBytes(32).toString('hex');
+}
+
 // Session configuration (SECURE) with persistent SQLite store
+const sessionStore = new SQLiteStore({
+  db: 'sessions.db',
+  dir: './data',
+  table: 'sessions',
+  concurrentDB: true, // Enable WAL mode for better concurrency
+  touch: 3600 // Throttle session-table writes (only re-touch every hour)
+});
+
 const sessionConfig = {
-  store: new SQLiteStore({
-    db: 'sessions.db',
-    dir: './data',
-    table: 'sessions',
-    concurrentDB: true, // Enable WAL mode for better concurrency
-    touch: 3600 // Throttle session-table writes (only re-touch every hour)
-  }),
-  secret: process.env.SESSION_SECRET || (() => {
-    logger.logSecurity('Using default session secret', {
-      message: 'Set SESSION_SECRET environment variable in production'
-    });
-    return 'kreep-secret-change-in-production';
-  })(),
+  store: sessionStore,
+  secret: resolveSessionSecret(),
   resave: false, // SQLite store handles persistence - don't save on every request
   saveUninitialized: false,
   cookie: {
@@ -250,6 +283,41 @@ app.use(express.static(path.join(__dirname, 'public'), {
   }
 }));
 
+// Log a user in on a *fresh* session id. Regenerating on login/register is the
+// standard defence against session fixation: a session id an attacker managed
+// to plant in the victim's browser before login never becomes authenticated.
+// `data` is copied onto the new session; `cookieMaxAge` (ms) optionally
+// overrides the default cookie lifetime (used for "remember me").
+function establishSession(req, data, cb, cookieMaxAge) {
+  req.session.regenerate((err) => {
+    if (err) return cb(err);
+    Object.assign(req.session, data);
+    if (cookieMaxAge) req.session.cookie.maxAge = cookieMaxAge;
+    req.session.save(cb);
+  });
+}
+
+// Invalidate every other session belonging to a user (after a password change
+// or reset), so a stolen or forgotten login elsewhere stops working. `keepSid`
+// is the current session, which stays valid. Best effort: failures are logged,
+// never surfaced, since the password change itself already succeeded.
+function revokeOtherSessions(userId, keepSid) {
+  if (!sessionStore.db) return;
+  sessionStore.db.run(
+    `DELETE FROM sessions WHERE json_extract(sess, '$.userId') = ? AND sid != ?`,
+    [userId, keepSid || ''],
+    (err) => {
+      if (err) logger.error('Failed to revoke other sessions:', err);
+    }
+  );
+}
+
+// Reset tokens are stored hashed: a read of the users table (backup, SQL
+// injection elsewhere, a stray log line) must not yield usable reset links.
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
 // Auth middleware
 const requireAuth = (req, res, next) => {
   if (req.session.userId) {
@@ -289,7 +357,29 @@ const sessionParser = session(sessionConfig);
 
 const clients = new Map(); // userId -> Set<WebSocket> (a user may be connected from several tabs/devices)
 
+// Cross-site WebSocket hijacking guard: browsers always send Origin on WebSocket
+// handshakes, so a handshake whose Origin host doesn't match the Host header
+// comes from another site and is refused before the session is even looked at.
+// (SameSite=Lax on the cookie already blocks this; this is the second layer.)
+// Non-browser clients that send no Origin are allowed through to the auth check.
+function isAllowedWsOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  try {
+    const originHost = new URL(origin).host;
+    return originHost === req.headers.host;
+  } catch (e) {
+    return false;
+  }
+}
+
 wss.on('connection', (ws, req) => {
+  if (!isAllowedWsOrigin(req)) {
+    logger.logSecurity('WebSocket origin mismatch', { origin: req.headers.origin, host: req.headers.host });
+    ws.close(1008, 'Origin not allowed');
+    return;
+  }
+
   // Create a mock response object for session parsing
   const mockRes = {
     setHeader: () => {},
@@ -828,18 +918,15 @@ app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
       function(err) {
         if (err) {
           if (err.message.includes('UNIQUE constraint failed')) {
-            return res.status(400).json({ error: 'Användarnamnet är upptaget' });
+            const field = err.message.includes('users.email') ? 'E-postadressen används redan' : 'Användarnamnet är upptaget';
+            return res.status(400).json({ error: field });
           }
           logger.error('Registration error:', err);
           return res.status(500).json({ error: 'Registrering misslyckades' });
         }
 
-        // Set session data directly (no regeneration to avoid timing issues)
-        req.session.userId = this.lastID;
-        req.session.username = sanitizedUsername;
-
-        // Save session before sending response
-        req.session.save((err) => {
+        const newUserId = this.lastID;
+        establishSession(req, { userId: newUserId, username: sanitizedUsername }, (err) => {
           if (err) {
             logger.error('Session save error:', err);
             return res.status(500).json({ error: 'Registrering misslyckades' });
@@ -848,7 +935,7 @@ app.post('/api/register', registerLimiter, csrfProtection, async (req, res) => {
           logger.logAuth('User registered', sanitizedUsername, { sessionId: req.sessionID });
 
           res.json({
-            id: this.lastID,
+            id: newUserId,
             username: sanitizedUsername,
             email: sanitizedEmail,
             maxImages: MAX_IMAGES_PER_NOTE,
@@ -889,18 +976,11 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
         return res.status(401).json({ error: 'Ogiltiga inloggningsuppgifter' });
       }
 
-      // Set session data directly (no regeneration to avoid timing issues)
-      req.session.userId = user.id;
-      req.session.username = user.username;
-
       // "Fortsätt vara inloggad": extend session to 90 days when requested,
       // otherwise keep the default 7-day cookie lifetime.
-      if (rememberMe) {
-        req.session.cookie.maxAge = 90 * 24 * 60 * 60 * 1000; // 90 days
-      }
+      const cookieMaxAge = rememberMe ? 90 * 24 * 60 * 60 * 1000 : undefined;
 
-      // Save session before sending response
-      req.session.save((err) => {
+      establishSession(req, { userId: user.id, username: user.username }, (err) => {
         if (err) {
           logger.error('Session save error:', err);
           return res.status(500).json({ error: 'Inloggning misslyckades' });
@@ -920,7 +1000,7 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
           maxImages: MAX_IMAGES_PER_NOTE,
           message: 'Inloggning lyckades'
         });
-      });
+      }, cookieMaxAge);
     } catch (error) {
       logger.error('Password comparison error:', error);
       res.status(500).json({ error: 'Serverfel' });
@@ -1000,24 +1080,25 @@ app.post('/api/password-reset/request', passwordResetLimiter, csrfProtection, as
         return res.json({ message: 'Om kontot finns kommer ett återställningsmail att skickas.' });
       }
 
-      // Generate secure reset token
+      // Generate secure reset token. Only its hash is stored.
       const resetToken = crypto.randomBytes(32).toString('hex');
       const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
 
       // Save token to database
       db.run(
         'UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?',
-        [resetToken, resetTokenExpires.toISOString(), user.id],
+        [hashResetToken(resetToken), resetTokenExpires.toISOString(), user.id],
         async (err) => {
           if (err) {
             logger.error('Error saving reset token:', err);
             return res.json({ message: 'Om kontot finns kommer ett återställningsmail att skickas.' });
           }
 
-          // Build reset URL
-          const protocol = req.secure ? 'https' : 'http';
-          const host = req.get('host');
-          const resetUrl = `${protocol}://${host}/?reset_token=${resetToken}`;
+          // Build reset URL. Prefer the configured BASE_URL: deriving it from
+          // the request's Host header lets anyone who can reach the server
+          // request a reset for another account with a spoofed Host, so the
+          // victim's mail links to the attacker's domain and leaks the token.
+          const resetUrl = `${publicBaseUrl(req)}/?reset_token=${resetToken}`;
 
           // Respond immediately so the user gets instant feedback; the SMTP
           // send (a slow network round-trip to Gmail) runs in the background.
@@ -1055,10 +1136,10 @@ app.post('/api/password-reset/verify', passwordResetLimiter, csrfProtection, asy
     return res.status(400).json({ error: passwordError });
   }
 
-  // Find user with valid token
+  // Find user with valid token (compared by hash)
   db.get(
     'SELECT id, username, reset_token_expires FROM users WHERE reset_token = ?',
-    [token],
+    [hashResetToken(token)],
     async (err, user) => {
       if (err) {
         logger.error('Password reset verify error:', err);
@@ -1092,7 +1173,9 @@ app.post('/api/password-reset/verify', passwordResetLimiter, csrfProtection, asy
               return res.status(500).json({ error: 'Kunde inte uppdatera lösenordet' });
             }
 
-            logger.info(`Password successfully reset for user: ${user.username}`);
+            logger.info(`Password successfully reset (userId=${user.id})`);
+            // Whoever had the old password may still hold a live session.
+            revokeOtherSessions(user.id, null);
             res.json({ message: 'Lösenordet har återställts. Du kan nu logga in.' });
           }
         );
@@ -1191,6 +1274,8 @@ app.post('/api/profile/change-password', requireAuth, apiLimiter, csrfProtection
           return res.status(500).json({ error: 'Kunde inte uppdatera lösenord' });
         }
 
+        // Log out every other device/browser; this session stays.
+        revokeOtherSessions(req.session.userId, req.sessionID);
         res.json({ message: 'Lösenord uppdaterat' });
       });
     });
@@ -2135,7 +2220,9 @@ if (!fs.existsSync(mediaDir)) {
   fs.mkdirSync(mediaDir, { recursive: true });
 }
 
-app.post('/api/import/keep', requireAuth, importLimiter, upload.single('zipfile'), async (req, res) => {
+// csrfProtection runs before multer: the token travels in the CSRF-Token header,
+// so it is verified before the (potentially huge) multipart body is consumed.
+app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.single('zipfile'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Ingen fil uppladdad' });
   }
@@ -2337,8 +2424,9 @@ server.listen(PORT, () => {
   logger.info('  - Secure WebSocket authentication');
   logger.info('  - Input sanitization');
   logger.info('  - Path traversal protection');
-  if (!process.env.SESSION_SECRET) {
-    logger.warn('⚠️  Using default session secret - Set SESSION_SECRET environment variable for production!');
+  if (!BASE_URL) {
+    logger.warn('BASE_URL is not set: password-reset links will be built from the request Host header. ' +
+      'Set BASE_URL (e.g. http://192.168.1.10:3000) in .env if password reset by e-mail is enabled.');
   }
 
   // Maintenance sweeps: reclaim orphaned images, purge trashed images and
