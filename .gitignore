@@ -7,3 +7,4 @@ logs/
 sessions/
 data/
 public/dist/
+.claude/
