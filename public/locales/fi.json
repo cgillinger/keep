@@ -124,7 +124,8 @@
     "unknown": "Tuntematon",
     "and": "ja",
     "more": "lisää",
-    "confidence": "Varmuustaso"
+    "confidence": "Varmuustaso",
+    "backup_hint": "Voit myös ladata tähän \"Vie varmuuskopio\" -toiminnolla luodun zip-varmuuskopion, jolloin sen muistiinpanot ja kuvat palautetaan."
   },
   "profile": {
     "title": "Profiilisi",

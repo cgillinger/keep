@@ -5,12 +5,19 @@ const fs = require('fs');
 const os = require('os');
 const { startServer, Client, expectStatus, repoRoot } = require('./helpers');
 
-test('production refuses to start without a usable SESSION_SECRET', async () => {
+test('a missing or placeholder SESSION_SECRET is replaced by a persisted generated one', async () => {
   for (const secret of ['', 'short', 'change-this-to-a-random-string-in-production']) {
     const srv = await startServer({ NODE_ENV: 'production', SESSION_SECRET: secret });
     try {
-      assert.equal(srv.exited, true, `should have exited for secret "${secret}"`);
-      assert.match(srv.output, /SESSION_SECRET/);
+      assert.equal(srv.exited, false, `server must keep running for secret "${secret}"`);
+      const file = path.join(srv.dataDir, '.session-secret');
+      assert.ok(fs.existsSync(file), 'generated secret is persisted');
+      assert.ok(fs.readFileSync(file, 'utf8').trim().length >= 64);
+      assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+      // The app works with the generated secret (login + authenticated call).
+      const c = new Client(srv.base);
+      await c.register('gen' + Date.now(), 'hemligt1');
+      await expectStatus(await c.req('/api/me'), 200, 'me');
     } finally {
       await srv.stop();
     }
