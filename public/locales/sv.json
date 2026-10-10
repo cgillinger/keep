@@ -46,7 +46,15 @@
     "reset_password_help": "Ange ditt nya lösenord nedan.",
     "new_password_placeholder": "Nytt lösenord",
     "confirm_new_password_placeholder": "Bekräfta nytt lösenord",
-    "reset_password_button": "Återställ lösenord"
+    "reset_password_button": "Återställ lösenord",
+    "fill_credentials": "Fyll i användarnamn och lösenord",
+    "passwords_mismatch": "Lösenorden matchar inte",
+    "enter_username_or_email": "Ange ditt användarnamn eller e-post",
+    "email_not_configured": "E-post är inte konfigurerat. Kontakta din familjeadministratör för att aktivera lösenordsåterställning.",
+    "network_error_check": "Nätverksfel. Kontrollera din anslutning.",
+    "invalid_reset_link": "Ogiltig återställningslänk. Begär en ny.",
+    "fill_both_fields": "Fyll i båda fälten",
+    "resetting": "Återställer…"
   },
   "header": {
     "search_placeholder": "Sök anteckningar...",
@@ -54,7 +62,9 @@
     "show_all": "Visa alla",
     "show_archive": "Visa arkiv",
     "show_active": "Visa aktiva",
-    "logout_button": "Logga ut"
+    "logout_button": "Logga ut",
+    "hide_shared": "Dölj delade",
+    "hide_archive": "Dölj arkiv"
   },
   "notes": {
     "title_placeholder": "Titel",
@@ -79,7 +89,13 @@
     "other_label": "ANDRA",
     "created": "Skapad",
     "can_view": "kan visa",
-    "can_edit": "kan redigera"
+    "can_edit": "kan redigera",
+    "image_alt": "Anteckningsbild",
+    "image_preview_alt": "Förhandsvisning",
+    "unsaved_text": "Du har ändringar som inte sparats. Vill du slänga dem?",
+    "discard_changes": "Släng ändringar",
+    "confirm_convert_checklist": "Detta omvandlar befintlig text till checklista. Vill du fortsätta?",
+    "list_item_placeholder": "Listpunkt"
   },
   "import": {
     "title": "Importera från Google Keep",
@@ -93,7 +109,22 @@
     "import_button": "Importera",
     "close_button": "Stäng",
     "import_complete": "Import klar!",
-    "importing": "Importerar..."
+    "importing": "Importerar...",
+    "select_zip": "Vänligen välj en .zip fil",
+    "selected_file": "Vald fil",
+    "network_error": "Nätverksfel vid import. Försök igen.",
+    "error": "Ett fel uppstod vid import.",
+    "imported_notes": "Importerade anteckningar",
+    "total_from_keep": "Totalt från Google Keep",
+    "checklists": "Checklistor",
+    "attachments": "Bilagor",
+    "missing_attachments": "Saknade bilagor",
+    "failed": "Misslyckades",
+    "warnings_errors": "Varningar/Fel",
+    "unknown": "Okänd",
+    "and": "och",
+    "more": "fler",
+    "confidence": "Säkerhetsfaktor"
   },
   "profile": {
     "title": "Din profil",
@@ -119,7 +150,9 @@
     "import_from_keep": "📥 Importera från Google Keep",
     "export_backup": "📤 Exportera backup",
     "close_button": "Stäng",
-    "select_language": "Välj språk"
+    "select_language": "Välj språk",
+    "avatar_update_failed": "Kunde inte uppdatera avatarfärg",
+    "theme_update_failed": "Kunde inte uppdatera bakgrundstema"
   },
   "share": {
     "title": "Dela anteckning",
@@ -137,7 +170,10 @@
     "new_share_notification": "Ny anteckning delad med dig",
     "permission_changed": "Din behörighet ändrades",
     "confirm_dismiss": "Vill du ta bort denna delade anteckning från din vy? Anteckningen finns kvar hos ägaren.",
-    "dismiss_title": "Ta bort från min vy"
+    "dismiss_title": "Ta bort från min vy",
+    "permission_changed_to": "Din behörighet ändrades till",
+    "load_error": "Kunde inte ladda delningsinformation",
+    "save_errors": "fel uppstod vid sparning"
   },
   "messages": {
     "note_created": "Anteckning skapad",
@@ -173,7 +209,26 @@
     "no_notes": "Inga anteckningar än",
     "no_shared_notes": "Inga delade anteckningar",
     "no_archived_notes": "Inga arkiverade anteckningar",
-    "confirm_delete": "Är du säker på att du vill ta bort denna anteckning?"
+    "confirm_delete": "Är du säker på att du vill ta bort denna anteckning?",
+    "cancel": "Avbryt",
+    "saving": "Sparar…",
+    "updating": "Uppdaterar…",
+    "note_saved": "Anteckning sparad",
+    "session_expired": "Sessionen gick ut, försök igen",
+    "load_notes_failed": "Kunde inte ladda anteckningar",
+    "save_note_failed": "Kunde inte spara anteckningen",
+    "update_note_failed": "Kunde inte uppdatera anteckningen",
+    "delete_note_failed": "Kunde inte ta bort anteckningen",
+    "pin_note_failed": "Kunde inte fästa anteckningen",
+    "archive_note_failed": "Kunde inte arkivera anteckningen",
+    "duplicate_skipped": "1 dubblett ignorerades",
+    "duplicates_skipped": "dubbletter ignorerades",
+    "confirm_export": "Vill du exportera en backup av alla dina anteckningar?",
+    "export_preparing": "Förbereder backup…",
+    "export_failed_login": "Kunde inte exportera backup. Kontrollera att du är inloggad.",
+    "conflict_changed_elsewhere": "Anteckningen har ändrats på en annan enhet sedan du öppnade den.",
+    "overwrite": "Skriv över",
+    "conflict_reopen": "Anteckningen har ändrats på en annan enhet. Stäng och öppna den igen."
   },
   "attribution": {
     "icon_credit": "Anteckningsbok-ikoner skapade av Freepik - Flaticon"
@@ -181,5 +236,15 @@
   "footer": {
     "version": "Keep Clone",
     "license": "MIT License"
+  },
+  "images": {
+    "uploading": "Laddar upp bild",
+    "too_many": "Du kan bara lägga till så här många fler bilder",
+    "max_per_note": "max per anteckning",
+    "too_large": "Bilden är för stor (max 10MB)",
+    "upload_failed": "Kunde inte ladda upp bilder"
+  },
+  "errors": {
+    "network_error": "Nätverksfel. Försök igen."
   }
 }

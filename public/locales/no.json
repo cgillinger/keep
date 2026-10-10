@@ -46,7 +46,15 @@
     "reset_password_help": "Skriv inn ditt nye passord nedenfor.",
     "new_password_placeholder": "Nytt passord",
     "confirm_new_password_placeholder": "Bekreft nytt passord",
-    "reset_password_button": "Tilbakestill passord"
+    "reset_password_button": "Tilbakestill passord",
+    "fill_credentials": "Fyll inn brukernavn og passord",
+    "passwords_mismatch": "Passordene stemmer ikke overens",
+    "enter_username_or_email": "Oppgi brukernavn eller e-post",
+    "email_not_configured": "E-post er ikke konfigurert. Kontakt familieadministratoren din for å aktivere tilbakestilling av passord.",
+    "network_error_check": "Nettverksfeil. Sjekk tilkoblingen din.",
+    "invalid_reset_link": "Ugyldig tilbakestillingslenke. Be om en ny.",
+    "fill_both_fields": "Fyll ut begge feltene",
+    "resetting": "Tilbakestiller…"
   },
   "header": {
     "search_placeholder": "Søk i notater...",
@@ -54,7 +62,9 @@
     "show_all": "Vis alle",
     "show_archive": "Vis arkiv",
     "show_active": "Vis aktive",
-    "logout_button": "Logg ut"
+    "logout_button": "Logg ut",
+    "hide_shared": "Skjul delte",
+    "hide_archive": "Skjul arkiv"
   },
   "notes": {
     "title_placeholder": "Tittel",
@@ -79,7 +89,13 @@
     "other_label": "ANDRE",
     "created": "Opprettet",
     "can_view": "kan se",
-    "can_edit": "kan redigere"
+    "can_edit": "kan redigere",
+    "image_alt": "Notatbilde",
+    "image_preview_alt": "Forhåndsvisning",
+    "unsaved_text": "Du har endringer som ikke er lagret. Vil du forkaste dem?",
+    "discard_changes": "Forkast endringer",
+    "confirm_convert_checklist": "Dette gjør om eksisterende tekst til en sjekkliste. Vil du fortsette?",
+    "list_item_placeholder": "Listepunkt"
   },
   "import": {
     "title": "Importer fra Google Keep",
@@ -93,7 +109,22 @@
     "import_button": "Importer",
     "close_button": "Lukk",
     "import_complete": "Import fullført!",
-    "importing": "Importerer..."
+    "importing": "Importerer...",
+    "select_zip": "Velg en .zip-fil",
+    "selected_file": "Valgt fil",
+    "network_error": "Nettverksfeil under import. Prøv igjen.",
+    "error": "Det oppstod en feil under importen.",
+    "imported_notes": "Importerte notater",
+    "total_from_keep": "Totalt fra Google Keep",
+    "checklists": "Sjekklister",
+    "attachments": "Vedlegg",
+    "missing_attachments": "Manglende vedlegg",
+    "failed": "Mislyktes",
+    "warnings_errors": "Advarsler/Feil",
+    "unknown": "Ukjent",
+    "and": "og",
+    "more": "flere",
+    "confidence": "Sikkerhetsfaktor"
   },
   "profile": {
     "title": "Din profil",
@@ -119,7 +150,9 @@
     "import_from_keep": "📥 Importer fra Google Keep",
     "export_backup": "📤 Eksporter sikkerhetskopi",
     "close_button": "Lukk",
-    "select_language": "Velg språk"
+    "select_language": "Velg språk",
+    "avatar_update_failed": "Kunne ikke oppdatere avatarfarge",
+    "theme_update_failed": "Kunne ikke oppdatere bakgrunnstema"
   },
   "share": {
     "title": "Del notat",
@@ -137,7 +170,10 @@
     "new_share_notification": "Nytt notat delt med deg",
     "permission_changed": "Tillatelsen din ble endret",
     "confirm_dismiss": "Fjerne dette delte notatet fra visningen din? Notatet forblir hos eieren.",
-    "dismiss_title": "Fjern fra min visning"
+    "dismiss_title": "Fjern fra min visning",
+    "permission_changed_to": "Tillatelsen din ble endret til",
+    "load_error": "Kunne ikke laste delingsinformasjon",
+    "save_errors": "feil oppstod under lagring"
   },
   "messages": {
     "note_created": "Notat opprettet",
@@ -173,7 +209,26 @@
     "no_notes": "Ingen notater ennå",
     "no_shared_notes": "Ingen delte notater",
     "no_archived_notes": "Ingen arkiverte notater",
-    "confirm_delete": "Er du sikker på at du vil slette dette notatet?"
+    "confirm_delete": "Er du sikker på at du vil slette dette notatet?",
+    "cancel": "Avbryt",
+    "saving": "Lagrer…",
+    "updating": "Oppdaterer…",
+    "note_saved": "Notat lagret",
+    "session_expired": "Økten utløp, prøv igjen",
+    "load_notes_failed": "Kunne ikke laste notater",
+    "save_note_failed": "Kunne ikke lagre notatet",
+    "update_note_failed": "Kunne ikke oppdatere notatet",
+    "delete_note_failed": "Kunne ikke slette notatet",
+    "pin_note_failed": "Kunne ikke feste notatet",
+    "archive_note_failed": "Kunne ikke arkivere notatet",
+    "duplicate_skipped": "1 duplikat ble ignorert",
+    "duplicates_skipped": "duplikater ble ignorert",
+    "confirm_export": "Vil du eksportere en sikkerhetskopi av alle notatene dine?",
+    "export_preparing": "Forbereder sikkerhetskopi…",
+    "export_failed_login": "Kunne ikke eksportere sikkerhetskopi. Sjekk at du er logget inn.",
+    "conflict_changed_elsewhere": "Notatet er endret på en annen enhet siden du åpnet det.",
+    "overwrite": "Overskriv",
+    "conflict_reopen": "Notatet er endret på en annen enhet. Lukk og åpne det på nytt."
   },
   "attribution": {
     "icon_credit": "Notatikoner laget av Freepik - Flaticon"
@@ -181,5 +236,15 @@
   "footer": {
     "version": "Keep Clone",
     "license": "MIT-lisens"
+  },
+  "images": {
+    "uploading": "Laster opp bilde",
+    "too_many": "Du kan bare legge til så mange flere bilder",
+    "max_per_note": "maks per notat",
+    "too_large": "Bildet er for stort (maks 10MB)",
+    "upload_failed": "Kunne ikke laste opp bilder"
+  },
+  "errors": {
+    "network_error": "Nettverksfeil. Prøv igjen."
   }
 }

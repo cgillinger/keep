@@ -36,7 +36,7 @@
 - 🎨 12 color options
 - 📌 Pin important notes
 - 📦 Archive notes
-- 🔍 Fast search
+- 🔍 Fast server-side search across all your notes
 - 🤖 AI commands `//list` and `//ocr` (opt-in, see [AI Commands](#-ai-commands-optional))
 
 </td>
@@ -608,33 +608,42 @@ shares
 ## 🛠️ API Endpoints
 
 ### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Log in
-- `POST /api/auth/logout` - Log out
-- `GET /api/me` - Check session
+All state-changing requests (POST/PUT/DELETE) require a CSRF token in the `CSRF-Token` header (fetch it from `GET /api/csrf-token`), except `POST /api/logout`.
+
 - `GET /api/csrf-token` - Get CSRF token
-- `POST /api/auth/request-reset` - Request password reset
-- `POST /api/auth/reset-password` - Reset password
+- `POST /api/register` - Register new user (CSRF)
+- `POST /api/login` - Log in (CSRF)
+- `POST /api/logout` - Log out (no CSRF)
+- `GET /api/me` - Check session
+- `GET /api/password-reset/check-config` - Is e-mail (password reset) configured?
+- `POST /api/password-reset/request` - Request password reset (CSRF)
+- `POST /api/password-reset/verify` - Set a new password with a reset token (CSRF)
 
 ### Notes
-- `GET /api/notes?archived=true&shared=true` - Get notes
+- `GET /api/notes?archived=true&shared=true&q=text&limit=&offset=&sortBy=` - List notes; `q` is a server-side search across all of the user's notes (not just the loaded page)
 - `POST /api/notes` - Create note (CSRF)
 - `PUT /api/notes/:id` - Update note (CSRF)
-- `DELETE /api/notes/:id` - Delete note (CSRF)
-- `PUT /api/notes/:id/pin` - Pin/unpin note (CSRF)
-- `PUT /api/notes/:id/archive` - Archive/restore note (CSRF)
+- `DELETE /api/notes/:id` - Delete note (soft delete, can be restored for a grace period) (CSRF)
+- `POST /api/notes/:id/restore` - Restore a deleted note within the grace period (CSRF)
+- `POST /api/notes/:id/pin` - Pin/unpin note (CSRF)
+- `POST /api/notes/image` - Upload a note image (CSRF)
+- `GET /api/notes/image/:filename` - Fetch a note image
+
+Archiving is done through `PUT /api/notes/:id` (the `is_archived` field); there is no separate archive endpoint.
 
 ### Sharing
 - `POST /api/notes/:id/share` - Share note (CSRF)
 - `DELETE /api/notes/:noteId/share/:userId` - Unshare (CSRF)
+- `DELETE /api/notes/:noteId/dismiss-share` - Remove a note shared with you from your own view (CSRF)
 - `GET /api/notes/:id/shares` - Get shares
 - `GET /api/users` - List users (for sharing)
 
 ### Profile & Data
 - `POST /api/profile/avatar-color` - Change avatar color (CSRF)
 - `POST /api/profile/background-theme` - Change background theme (CSRF)
-- `POST /api/import` - Import Google Keep (CSRF)
-- `GET /api/export` - Export backup (ZIP)
+- `POST /api/profile/change-password` - Change password (CSRF)
+- `POST /api/import/keep` - Import Google Keep export (CSRF)
+- `GET /api/backup/export` - Export backup (ZIP)
 
 ## 🔧 Configuration
 
@@ -649,6 +658,8 @@ SESSION_SECRET=your_secure_secret_here
 # Optional
 PORT=3000
 NODE_ENV=production
+# BASE_URL=https://keep.example.com   # used in password-reset links
+# DATA_DIR=./data
 
 # HTTPS Configuration (optional)
 # Set to 'true' if running behind a reverse proxy with TLS termination
@@ -670,6 +681,12 @@ GEMINI_API_KEY=
 AI_RATE_LIMIT_HOURLY=10
 AI_RATE_LIMIT_DAILY=50
 ```
+
+#### Required / deployment variables
+
+- `SESSION_SECRET` - **Required in production.** The server refuses to start (`NODE_ENV=production`) if it is missing, shorter than 16 characters, or still the placeholder from `.env.example`. Generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+- `BASE_URL` - Public URL of the app (e.g. `https://keep.example.com`, no trailing slash), used to build the links in password-reset e-mails. Strongly recommended when e-mail is enabled; if unset, the request's `Host` header is used.
+- `DATA_DIR` - Directory for all persistent data (database, sessions, note images). Default: `./data`.
 
 #### FORCE_HTTPS (Advanced Configuration)
 
@@ -767,10 +784,10 @@ services:
 
 ### Data Location
 
-Data is stored in `./data/`:
+Data is stored in `./data/` (override with `DATA_DIR`):
 - `keep.db` - SQLite database
-- `sessions/` - Session database
-- `media/` - Imported attachments from Google Keep
+- `sessions.db` - Session database
+- `note-images/` - Uploaded images and attachments imported from Google Keep
 
 ### Rate Limiting
 
@@ -1196,11 +1213,11 @@ rm data/keep.db
 
 ```
 keep/
-├── server.js              # Main server (1,391 lines)
+├── server.js              # Main server
 ├── database.js            # Database initialization and schema
 ├── import-parser.js       # Google Keep import parser
 ├── export-generator.js    # Backup generator
-├── backup-parser.js       # Backup restoration
+├── backup-parser.js       # Backup parser (not yet wired up — restore is not available in the UI)
 ├── mailer.js              # Email service for password reset
 ├── package.json           # Dependencies and scripts
 ├── .env.example           # Example environment variables
@@ -1210,7 +1227,7 @@ keep/
 ├── LICENSE                # MIT license
 ├── public/
 │   ├── index.html         # Frontend HTML (425 lines)
-│   ├── app.js             # Frontend JavaScript (2,063 lines)
+│   ├── app.js             # Frontend JavaScript
 │   └── css/               # Modular CSS architecture (1,615 lines)
 │       ├── base.css       # Variables, reset, dark mode
 │       ├── layout.css     # Header, grid
@@ -1220,8 +1237,8 @@ keep/
 │       └── debug.css      # Debug tools
 ├── data/
 │   ├── keep.db            # SQLite database
-│   ├── sessions/          # Session database
-│   └── media/             # Imported attachments
+│   ├── sessions.db        # Session database
+│   └── note-images/       # Uploaded and imported images
 └── Documentation/
     ├── README.md          # This file
     ├── FEATURES.md        # Feature documentation (390 lines)
@@ -1388,7 +1405,7 @@ Keep Clone is specially designed for families who want to:
 - 🎨 12 färger att välja mellan
 - 📌 Fäst viktiga anteckningar
 - 📦 Arkivera anteckningar
-- 🔍 Snabb sökning
+- 🔍 Snabb serverside-sökning bland alla dina anteckningar
 - 🤖 AI-kommandon `//list` och `//ocr` (opt-in, se [AI-kommandon](#-ai-kommandon-valfritt))
 
 </td>
@@ -1925,33 +1942,42 @@ shares
 ## 🛠️ API Endpoints
 
 ### Autentisering
-- `POST /api/auth/register` - Registrera ny användare
-- `POST /api/auth/login` - Logga in
-- `POST /api/auth/logout` - Logga ut
-- `GET /api/me` - Kontrollera session
+Alla tillståndsändrande anrop (POST/PUT/DELETE) kräver en CSRF-token i headern `CSRF-Token` (hämtas från `GET /api/csrf-token`), utom `POST /api/logout`.
+
 - `GET /api/csrf-token` - Hämta CSRF token
-- `POST /api/auth/request-reset` - Begär lösenordsåterställning
-- `POST /api/auth/reset-password` - Återställ lösenord
+- `POST /api/register` - Registrera ny användare (CSRF)
+- `POST /api/login` - Logga in (CSRF)
+- `POST /api/logout` - Logga ut (ingen CSRF)
+- `GET /api/me` - Kontrollera session
+- `GET /api/password-reset/check-config` - Är e-post (lösenordsåterställning) konfigurerad?
+- `POST /api/password-reset/request` - Begär lösenordsåterställning (CSRF)
+- `POST /api/password-reset/verify` - Sätt nytt lösenord med återställningstoken (CSRF)
 
 ### Anteckningar
-- `GET /api/notes?archived=true&shared=true` - Hämta anteckningar
+- `GET /api/notes?archived=true&shared=true&q=text&limit=&offset=&sortBy=` - Lista anteckningar; `q` är serverside-sökning bland alla användarens anteckningar (inte bara den inladdade sidan)
 - `POST /api/notes` - Skapa anteckning (CSRF)
 - `PUT /api/notes/:id` - Uppdatera anteckning (CSRF)
-- `DELETE /api/notes/:id` - Ta bort anteckning (CSRF)
-- `PUT /api/notes/:id/pin` - Fäst/avfästa anteckning (CSRF)
-- `PUT /api/notes/:id/archive` - Arkivera/återställ anteckning (CSRF)
+- `DELETE /api/notes/:id` - Ta bort anteckning (mjukradering, kan återställas under en karenstid) (CSRF)
+- `POST /api/notes/:id/restore` - Återställ borttagen anteckning (CSRF)
+- `POST /api/notes/:id/pin` - Fäst/avfästa anteckning (CSRF)
+- `POST /api/notes/image` - Ladda upp anteckningsbild (CSRF)
+- `GET /api/notes/image/:filename` - Hämta anteckningsbild
+
+Arkivering sker via `PUT /api/notes/:id` (fältet `is_archived`); det finns ingen separat arkiv-endpoint.
 
 ### Delning
 - `POST /api/notes/:id/share` - Dela anteckning (CSRF)
 - `DELETE /api/notes/:noteId/share/:userId` - Sluta dela (CSRF)
+- `DELETE /api/notes/:noteId/dismiss-share` - Ta bort en delad anteckning från din egen vy (CSRF)
 - `GET /api/notes/:id/shares` - Hämta delningar
 - `GET /api/users` - Lista användare (för delning)
 
 ### Profil & Data
 - `POST /api/profile/avatar-color` - Ändra avatarfärg (CSRF)
 - `POST /api/profile/background-theme` - Ändra bakgrundstema (CSRF)
-- `POST /api/import` - Importera Google Keep (CSRF)
-- `GET /api/export` - Exportera backup (ZIP)
+- `POST /api/profile/change-password` - Byt lösenord (CSRF)
+- `POST /api/import/keep` - Importera Google Keep-export (CSRF)
+- `GET /api/backup/export` - Exportera backup (ZIP)
 
 ## 🔧 Konfiguration
 
@@ -1966,6 +1992,8 @@ SESSION_SECRET=din_säkra_secret_här
 # Valfritt
 PORT=3000
 NODE_ENV=production
+# BASE_URL=https://keep.example.com   # används i återställningslänkar
+# DATA_DIR=./data
 
 # HTTPS-konfiguration (valfritt)
 # Sätt till 'true' om du kör bakom en reverse proxy med TLS-terminering
@@ -1987,6 +2015,12 @@ GEMINI_API_KEY=
 AI_RATE_LIMIT_HOURLY=10
 AI_RATE_LIMIT_DAILY=50
 ```
+
+#### Obligatoriska / driftsrelaterade variabler
+
+- `SESSION_SECRET` - **Obligatorisk i produktion.** Servern vägrar starta (`NODE_ENV=production`) om den saknas, är kortare än 16 tecken eller fortfarande platshållaren från `.env.example`. Generera en med `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+- `BASE_URL` - Appens publika URL (t.ex. `https://keep.example.com`, utan avslutande snedstreck), används för länkarna i lösenordsåterställningsmejl. Rekommenderas starkt när e-post är aktiverat; annars används `Host`-headern.
+- `DATA_DIR` - Katalog för all persistent data (databas, sessioner, anteckningsbilder). Standard: `./data`.
 
 #### FORCE_HTTPS (Avancerad konfiguration)
 
@@ -2084,10 +2118,10 @@ services:
 
 ### Datalokalisering
 
-Data lagras i `./data/`:
+Data lagras i `./data/` (kan ändras med `DATA_DIR`):
 - `keep.db` - SQLite databas
-- `sessions/` - Sessionsdatabas
-- `media/` - Importerade bilagor från Google Keep
+- `sessions.db` - Sessionsdatabas
+- `note-images/` - Uppladdade bilder och bilagor importerade från Google Keep
 
 ### Rate Limiting
 
@@ -2513,11 +2547,11 @@ rm data/keep.db
 
 ```
 keep/
-├── server.js              # Huvudserver (1,391 rader)
+├── server.js              # Huvudserver
 ├── database.js            # Databas-initialisering och schema
 ├── import-parser.js       # Google Keep import-parser
 ├── export-generator.js    # Backup-generator
-├── backup-parser.js       # Backup-återställning
+├── backup-parser.js       # Backup-parser (inte kopplad ännu — återställning finns inte i UI:t)
 ├── mailer.js              # E-posttjänst för lösenordsåterställning
 ├── package.json           # Dependencies och scripts
 ├── .env.example           # Exempel på miljövariabler
@@ -2527,7 +2561,7 @@ keep/
 ├── LICENSE                # MIT-licens
 ├── public/
 │   ├── index.html         # Frontend HTML (425 rader)
-│   ├── app.js             # Frontend JavaScript (2,063 rader)
+│   ├── app.js             # Frontend JavaScript
 │   └── css/               # Modulär CSS-arkitektur (1,615 rader)
 │       ├── base.css       # Variabler, reset, dark mode
 │       ├── layout.css     # Header, grid
@@ -2537,8 +2571,8 @@ keep/
 │       └── debug.css      # Debug-verktyg
 ├── data/
 │   ├── keep.db            # SQLite databas
-│   ├── sessions/          # Sessionsdatabas
-│   └── media/             # Importerade bilagor
+│   ├── sessions.db        # Sessionsdatabas
+│   └── note-images/       # Uppladdade och importerade bilder
 └── Documentation/
     ├── README.md          # Denna fil
     ├── FEATURES.md        # Funktionsdokumentation (390 rader)
