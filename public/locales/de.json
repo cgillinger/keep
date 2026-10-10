@@ -46,7 +46,15 @@
     "reset_password_help": "Gib unten dein neues Passwort ein.",
     "new_password_placeholder": "Neues Passwort",
     "confirm_new_password_placeholder": "Neues Passwort bestätigen",
-    "reset_password_button": "Passwort zurücksetzen"
+    "reset_password_button": "Passwort zurücksetzen",
+    "fill_credentials": "Benutzername und Passwort eingeben",
+    "passwords_mismatch": "Die Passwörter stimmen nicht überein",
+    "enter_username_or_email": "Gib deinen Benutzernamen oder deine E-Mail ein",
+    "email_not_configured": "E-Mail ist nicht konfiguriert. Wende dich an deinen Familienadministrator, um das Zurücksetzen des Passworts zu aktivieren.",
+    "network_error_check": "Netzwerkfehler. Überprüfe deine Verbindung.",
+    "invalid_reset_link": "Ungültiger Zurücksetzen-Link. Fordere einen neuen an.",
+    "fill_both_fields": "Beide Felder ausfüllen",
+    "resetting": "Wird zurückgesetzt…"
   },
   "header": {
     "search_placeholder": "Notizen durchsuchen...",
@@ -54,7 +62,9 @@
     "show_all": "Alle anzeigen",
     "show_archive": "Archiv anzeigen",
     "show_active": "Aktive anzeigen",
-    "logout_button": "Abmelden"
+    "logout_button": "Abmelden",
+    "hide_shared": "Geteilte ausblenden",
+    "hide_archive": "Archiv ausblenden"
   },
   "notes": {
     "title_placeholder": "Titel",
@@ -79,7 +89,13 @@
     "other_label": "ANDERE",
     "created": "Erstellt",
     "can_view": "kann ansehen",
-    "can_edit": "kann bearbeiten"
+    "can_edit": "kann bearbeiten",
+    "image_alt": "Notizbild",
+    "image_preview_alt": "Vorschau",
+    "unsaved_text": "Du hast nicht gespeicherte Änderungen. Möchtest du sie verwerfen?",
+    "discard_changes": "Änderungen verwerfen",
+    "confirm_convert_checklist": "Dadurch wird der vorhandene Text in eine Checkliste umgewandelt. Möchtest du fortfahren?",
+    "list_item_placeholder": "Listenpunkt"
   },
   "import": {
     "title": "Von Google Keep importieren",
@@ -93,7 +109,22 @@
     "import_button": "Importieren",
     "close_button": "Schließen",
     "import_complete": "Import abgeschlossen!",
-    "importing": "Importiere..."
+    "importing": "Importiere...",
+    "select_zip": "Bitte wähle eine .zip-Datei",
+    "selected_file": "Ausgewählte Datei",
+    "network_error": "Netzwerkfehler beim Import. Bitte versuche es erneut.",
+    "error": "Beim Import ist ein Fehler aufgetreten.",
+    "imported_notes": "Importierte Notizen",
+    "total_from_keep": "Gesamt aus Google Keep",
+    "checklists": "Checklisten",
+    "attachments": "Anhänge",
+    "missing_attachments": "Fehlende Anhänge",
+    "failed": "Fehlgeschlagen",
+    "warnings_errors": "Warnungen/Fehler",
+    "unknown": "Unbekannt",
+    "and": "und",
+    "more": "weitere",
+    "confidence": "Sicherheitsfaktor"
   },
   "profile": {
     "title": "Dein Profil",
@@ -119,7 +150,9 @@
     "import_from_keep": "📥 Von Google Keep importieren",
     "export_backup": "📤 Backup exportieren",
     "close_button": "Schließen",
-    "select_language": "Sprache wählen"
+    "select_language": "Sprache wählen",
+    "avatar_update_failed": "Avatarfarbe konnte nicht aktualisiert werden",
+    "theme_update_failed": "Hintergrunddesign konnte nicht aktualisiert werden"
   },
   "share": {
     "title": "Notiz teilen",
@@ -137,7 +170,10 @@
     "new_share_notification": "Neue Notiz mit dir geteilt",
     "permission_changed": "Deine Berechtigung wurde geändert",
     "confirm_dismiss": "Diese geteilte Notiz aus deiner Ansicht entfernen? Die Notiz bleibt beim Eigentümer.",
-    "dismiss_title": "Aus meiner Ansicht entfernen"
+    "dismiss_title": "Aus meiner Ansicht entfernen",
+    "permission_changed_to": "Deine Berechtigung wurde geändert zu",
+    "load_error": "Freigabeinformationen konnten nicht geladen werden",
+    "save_errors": "Fehler beim Speichern aufgetreten"
   },
   "messages": {
     "note_created": "Notiz erstellt",
@@ -173,7 +209,26 @@
     "no_notes": "Noch keine Notizen",
     "no_shared_notes": "Keine geteilten Notizen",
     "no_archived_notes": "Keine archivierten Notizen",
-    "confirm_delete": "Bist du sicher, dass du diese Notiz löschen möchtest?"
+    "confirm_delete": "Bist du sicher, dass du diese Notiz löschen möchtest?",
+    "cancel": "Abbrechen",
+    "saving": "Speichern…",
+    "updating": "Aktualisieren…",
+    "note_saved": "Notiz gespeichert",
+    "session_expired": "Sitzung abgelaufen, bitte versuche es erneut",
+    "load_notes_failed": "Notizen konnten nicht geladen werden",
+    "save_note_failed": "Notiz konnte nicht gespeichert werden",
+    "update_note_failed": "Notiz konnte nicht aktualisiert werden",
+    "delete_note_failed": "Notiz konnte nicht gelöscht werden",
+    "pin_note_failed": "Notiz konnte nicht angeheftet werden",
+    "archive_note_failed": "Notiz konnte nicht archiviert werden",
+    "duplicate_skipped": "1 Duplikat wurde ignoriert",
+    "duplicates_skipped": "Duplikate wurden ignoriert",
+    "confirm_export": "Möchtest du ein Backup aller deiner Notizen exportieren?",
+    "export_preparing": "Backup wird vorbereitet…",
+    "export_failed_login": "Backup konnte nicht exportiert werden. Stelle sicher, dass du angemeldet bist.",
+    "conflict_changed_elsewhere": "Die Notiz wurde auf einem anderen Gerät geändert, seit du sie geöffnet hast.",
+    "overwrite": "Überschreiben",
+    "conflict_reopen": "Die Notiz wurde auf einem anderen Gerät geändert. Schließe sie und öffne sie erneut."
   },
   "attribution": {
     "icon_credit": "Notizsymbole erstellt von Freepik - Flaticon"
@@ -181,5 +236,15 @@
   "footer": {
     "version": "Keep Clone",
     "license": "MIT-Lizenz"
+  },
+  "images": {
+    "uploading": "Bild wird hochgeladen",
+    "too_many": "Du kannst nur noch so viele Bilder hinzufügen",
+    "max_per_note": "max. pro Notiz",
+    "too_large": "Das Bild ist zu groß (max. 10MB)",
+    "upload_failed": "Bilder konnten nicht hochgeladen werden"
+  },
+  "errors": {
+    "network_error": "Netzwerkfehler. Bitte versuche es erneut."
   }
 }

@@ -46,7 +46,15 @@
     "reset_password_help": "Indtast din nye adgangskode nedenfor.",
     "new_password_placeholder": "Ny adgangskode",
     "confirm_new_password_placeholder": "Bekræft ny adgangskode",
-    "reset_password_button": "Nulstil adgangskode"
+    "reset_password_button": "Nulstil adgangskode",
+    "fill_credentials": "Udfyld brugernavn og adgangskode",
+    "passwords_mismatch": "Adgangskoderne stemmer ikke overens",
+    "enter_username_or_email": "Angiv dit brugernavn eller din e-mail",
+    "email_not_configured": "E-mail er ikke konfigureret. Kontakt din familieadministrator for at aktivere nulstilling af adgangskode.",
+    "network_error_check": "Netværksfejl. Kontrollér din forbindelse.",
+    "invalid_reset_link": "Ugyldigt nulstillingslink. Anmod om et nyt.",
+    "fill_both_fields": "Udfyld begge felter",
+    "resetting": "Nulstiller…"
   },
   "header": {
     "search_placeholder": "Søg i noter...",
@@ -54,7 +62,9 @@
     "show_all": "Vis alle",
     "show_archive": "Vis arkiv",
     "show_active": "Vis aktive",
-    "logout_button": "Log ud"
+    "logout_button": "Log ud",
+    "hide_shared": "Skjul delte",
+    "hide_archive": "Skjul arkiv"
   },
   "notes": {
     "title_placeholder": "Titel",
@@ -79,7 +89,13 @@
     "other_label": "ANDRE",
     "created": "Oprettet",
     "can_view": "kan se",
-    "can_edit": "kan redigere"
+    "can_edit": "kan redigere",
+    "image_alt": "Notebillede",
+    "image_preview_alt": "Forhåndsvisning",
+    "unsaved_text": "Du har ændringer, der ikke er gemt. Vil du kassere dem?",
+    "discard_changes": "Kassér ændringer",
+    "confirm_convert_checklist": "Dette omdanner den eksisterende tekst til en tjekliste. Vil du fortsætte?",
+    "list_item_placeholder": "Listepunkt"
   },
   "import": {
     "title": "Importer fra Google Keep",
@@ -93,7 +109,22 @@
     "import_button": "Importer",
     "close_button": "Luk",
     "import_complete": "Import fuldført!",
-    "importing": "Importerer..."
+    "importing": "Importerer...",
+    "select_zip": "Vælg en .zip-fil",
+    "selected_file": "Valgt fil",
+    "network_error": "Netværksfejl under import. Prøv igen.",
+    "error": "Der opstod en fejl under importen.",
+    "imported_notes": "Importerede noter",
+    "total_from_keep": "I alt fra Google Keep",
+    "checklists": "Tjeklister",
+    "attachments": "Bilag",
+    "missing_attachments": "Manglende bilag",
+    "failed": "Mislykkedes",
+    "warnings_errors": "Advarsler/Fejl",
+    "unknown": "Ukendt",
+    "and": "og",
+    "more": "flere",
+    "confidence": "Sikkerhedsfaktor"
   },
   "profile": {
     "title": "Din profil",
@@ -119,7 +150,9 @@
     "import_from_keep": "📥 Importer fra Google Keep",
     "export_backup": "📤 Eksporter sikkerhedskopi",
     "close_button": "Luk",
-    "select_language": "Vælg sprog"
+    "select_language": "Vælg sprog",
+    "avatar_update_failed": "Kunne ikke opdatere avatarfarve",
+    "theme_update_failed": "Kunne ikke opdatere baggrundstema"
   },
   "share": {
     "title": "Del note",
@@ -137,7 +170,10 @@
     "new_share_notification": "Ny note delt med dig",
     "permission_changed": "Din tilladelse blev ændret",
     "confirm_dismiss": "Fjern denne delte note fra din visning? Noten forbliver hos ejeren.",
-    "dismiss_title": "Fjern fra min visning"
+    "dismiss_title": "Fjern fra min visning",
+    "permission_changed_to": "Din tilladelse blev ændret til",
+    "load_error": "Kunne ikke indlæse delingsoplysninger",
+    "save_errors": "fejl opstod under lagring"
   },
   "messages": {
     "note_created": "Note oprettet",
@@ -173,7 +209,26 @@
     "no_notes": "Ingen noter endnu",
     "no_shared_notes": "Ingen delte noter",
     "no_archived_notes": "Ingen arkiverede noter",
-    "confirm_delete": "Er du sikker på, at du vil slette denne note?"
+    "confirm_delete": "Er du sikker på, at du vil slette denne note?",
+    "cancel": "Annuller",
+    "saving": "Gemmer…",
+    "updating": "Opdaterer…",
+    "note_saved": "Note gemt",
+    "session_expired": "Sessionen er udløbet, prøv igen",
+    "load_notes_failed": "Kunne ikke indlæse noter",
+    "save_note_failed": "Kunne ikke gemme noten",
+    "update_note_failed": "Kunne ikke opdatere noten",
+    "delete_note_failed": "Kunne ikke slette noten",
+    "pin_note_failed": "Kunne ikke fastgøre noten",
+    "archive_note_failed": "Kunne ikke arkivere noten",
+    "duplicate_skipped": "1 dublet blev ignoreret",
+    "duplicates_skipped": "dubletter blev ignoreret",
+    "confirm_export": "Vil du eksportere en sikkerhedskopi af alle dine noter?",
+    "export_preparing": "Forbereder sikkerhedskopi…",
+    "export_failed_login": "Kunne ikke eksportere sikkerhedskopi. Kontrollér, at du er logget ind.",
+    "conflict_changed_elsewhere": "Noten er blevet ændret på en anden enhed, siden du åbnede den.",
+    "overwrite": "Overskriv",
+    "conflict_reopen": "Noten er blevet ændret på en anden enhed. Luk og åbn den igen."
   },
   "attribution": {
     "icon_credit": "Notatikoner lavet af Freepik - Flaticon"
@@ -181,5 +236,15 @@
   "footer": {
     "version": "Keep Clone",
     "license": "MIT-licens"
+  },
+  "images": {
+    "uploading": "Uploader billede",
+    "too_many": "Du kan kun tilføje så mange flere billeder",
+    "max_per_note": "maks pr. note",
+    "too_large": "Billedet er for stort (maks 10MB)",
+    "upload_failed": "Kunne ikke uploade billeder"
+  },
+  "errors": {
+    "network_error": "Netværksfejl. Prøv igen."
   }
 }

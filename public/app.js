@@ -513,7 +513,7 @@ async function login() {
   const rememberMe = rememberEl ? rememberEl.checked : false;
 
   if (!username || !password) {
-    showAuthError('Fyll i användarnamn och lösenord');
+    showAuthError(t('auth.fill_credentials'));
     return;
   }
 
@@ -560,18 +560,18 @@ async function register() {
   const confirmPassword = document.getElementById('register-password-confirm').value;
 
   if (!username || !password || !confirmPassword) {
-    showAuthError('Fyll i användarnamn och lösenord');
+    showAuthError(t('auth.fill_credentials'));
     return;
   }
 
   if (password !== confirmPassword) {
-    showAuthError('Lösenorden matchar inte');
+    showAuthError(t('auth.passwords_mismatch'));
     return;
   }
 
   // Client-side validation matching server requirements
   if (password.length < 5) {
-    showAuthError('Lösenordet måste vara minst 5 tecken');
+    showAuthError(t('auth.password_min_12'));
     return;
   }
 
@@ -705,7 +705,7 @@ async function requestPasswordReset() {
   const usernameOrEmail = document.getElementById('forgot-password-input').value;
 
   if (!usernameOrEmail || !usernameOrEmail.trim()) {
-    showAuthError('Ange ditt användarnamn eller e-post');
+    showAuthError(t('auth.enter_username_or_email'));
     return;
   }
 
@@ -737,15 +737,15 @@ async function requestPasswordReset() {
       // Clear input
       document.getElementById('forgot-password-input').value = '';
     } else if (response.status === 503 && data.emailNotConfigured) {
-      showAuthError('E-post är inte konfigurerat. Kontakta din familjeadministratör för att aktivera lösenordsåterställning.');
+      showAuthError(t('auth.email_not_configured'));
     } else {
-      showAuthError(data.error || 'Ett fel uppstod');
+      showAuthError(data.error || t('messages.error'));
     }
 
     // Refresh CSRF token
     await fetchCSRFToken();
   } catch (error) {
-    showAuthError('Nätverksfel. Kontrollera din anslutning.');
+    showAuthError(t('auth.network_error_check'));
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -761,28 +761,28 @@ async function resetPassword() {
   const confirmPassword = document.getElementById('reset-password-confirm').value;
 
   if (!token) {
-    showAuthError('Ogiltig återställningslänk. Begär en ny.');
+    showAuthError(t('auth.invalid_reset_link'));
     return;
   }
 
   if (!newPassword || !confirmPassword) {
-    showAuthError('Fyll i båda fälten');
+    showAuthError(t('auth.fill_both_fields'));
     return;
   }
 
   if (newPassword !== confirmPassword) {
-    showAuthError('Lösenorden matchar inte');
+    showAuthError(t('auth.passwords_mismatch'));
     return;
   }
 
   // Client-side validation matching server requirements
   if (newPassword.length < 5) {
-    showAuthError('Lösenordet måste vara minst 5 tecken');
+    showAuthError(t('auth.password_min_12'));
     return;
   }
 
   const rpBtn = document.querySelector('#reset-password-form button[onclick="resetPassword()"]');
-  setBtnBusy(rpBtn, 'Återställer…');
+  setBtnBusy(rpBtn, t('auth.resetting'));
 
   try {
     const response = await apiFetch('/api/password-reset/verify', {
@@ -813,13 +813,13 @@ async function resetPassword() {
         showLogin();
       }, 2000);
     } else {
-      showAuthError(data.error || 'Återställning misslyckades');
+      showAuthError(data.error || t('messages.password_reset_failed'));
     }
 
     // Refresh CSRF token
     await fetchCSRFToken();
   } catch (error) {
-    showAuthError('Nätverksfel. Kontrollera din anslutning.');
+    showAuthError(t('auth.network_error_check'));
   } finally {
     clearBtnBusy(rpBtn);
   }
@@ -894,7 +894,7 @@ function connectWebSocket() {
       } else if (data.type === 'note_shared') {
         // A note was shared with us. It shows up in both the default and the
         // "shared" views, so refresh whenever we're not in the archived view.
-        showToast('Ny anteckning delad med dig', 'info');
+        showToast(t('share.new_share_notification'), 'info');
         if (!showingArchived) {
           loadNotes();
         }
@@ -914,7 +914,7 @@ function connectWebSocket() {
             // Re-render edit modal to reflect new permissions
             openEditModal(data.noteId);
           }
-          showToast(`Din behörighet ändrades till: ${data.permission === 'edit' ? 'Redigera' : 'Visa'}`, 'info');
+          showToast(`${t('share.permission_changed_to')}: ${data.permission === 'edit' ? t('share.can_edit') : t('share.can_view')}`, 'info');
         }
       }
     } catch (e) {
@@ -1028,10 +1028,10 @@ async function selectAvatarColor(color) {
       updateProfilePicture();
       updateSelectedAvatarColor(color);
     } else {
-      showToast('Kunde inte uppdatera avatarfärg', 'error');
+      showToast(t('profile.avatar_update_failed'), 'error');
     }
   } catch (error) {
-    showToast('Nätverksfel', 'error');
+    showToast(t('messages.network_error'), 'error');
   }
 }
 
@@ -1067,10 +1067,10 @@ async function selectBackgroundTheme(theme) {
       applyBackgroundTheme(theme);
       updateSelectedTheme(theme);
     } else {
-      showToast('Kunde inte uppdatera bakgrundstema', 'error');
+      showToast(t('profile.theme_update_failed'), 'error');
     }
   } catch (error) {
-    showToast('Nätverksfel', 'error');
+    showToast(t('messages.network_error'), 'error');
   }
 }
 
@@ -1395,7 +1395,7 @@ function renderNoteHTML(note) {
     imagesHtml = `
       <div class="note-images" onclick="event.stopPropagation()">
         ${note.images.map(img => `
-          <img src="/api/notes/image/${img}" alt="Note image" loading="lazy" onclick="openImageModal('${img}', JSON.parse(this.parentElement.dataset.images))" >
+          <img src="/api/notes/image/${img}" alt="${t('notes.image_alt')}" loading="lazy" onclick="openImageModal('${img}', JSON.parse(this.parentElement.dataset.images))" >
         `).join('')}
       </div>
     `.replace('<div class="note-images"', `<div class="note-images" data-images="${imagesJson}"`);
@@ -1505,13 +1505,13 @@ async function loadNotes(options = {}) {
       setupScrollObserver();
     } else if (!append) {
       // Clear the skeletons so users aren't stuck staring at a shimmer forever.
-      showToast('Kunde inte ladda anteckningar', 'error');
+      showToast(t('messages.load_notes_failed'), 'error');
       renderNotes();
     }
   } catch (error) {
     console.error('Failed to load notes:', error);
     if (!append) {
-      showToast('Kunde inte ladda anteckningar', 'error');
+      showToast(t('messages.load_notes_failed'), 'error');
       renderNotes();
     }
   } finally {
@@ -1698,10 +1698,10 @@ function renderNotes(options = {}) {
 
   if (filteredNotes.length === 0) {
     const emptyMessage = showingShared
-      ? 'Inga delade anteckningar ännu'
+      ? t('messages.no_shared_notes')
       : showingArchived
-        ? 'Inga arkiverade anteckningar'
-        : 'Inga anteckningar ännu';
+        ? t('messages.no_archived_notes')
+        : t('messages.no_notes');
     regularContainer.innerHTML = `<p style="text-align: center; color: #5f6368; grid-column: 1/-1;">${emptyMessage}</p>`;
     pinnedContainer.innerHTML = '';
     return;
@@ -1780,7 +1780,7 @@ async function saveNote() {
   if (isSavingNote) return;
   isSavingNote = true;
   const saveBtn = document.getElementById('save-note-btn');
-  setBtnBusy(saveBtn, 'Sparar…');
+  setBtnBusy(saveBtn, t('messages.saving'));
 
   try {
     const response = await apiFetch('/api/notes', {
@@ -1805,8 +1805,8 @@ async function saveNote() {
       if (result.duplicatesSkipped > 0) {
         showToast(
           result.duplicatesSkipped === 1
-            ? '1 dubblett ignorerades'
-            : `${result.duplicatesSkipped} dubbletter ignorerades`,
+            ? t('messages.duplicate_skipped')
+            : `${result.duplicatesSkipped} ${t('messages.duplicates_skipped')}`,
           'info'
         );
       }
@@ -1822,17 +1822,17 @@ async function saveNote() {
       document.getElementById('new-note-form').style.backgroundColor = getThemeAwareColor('#ffffff');
       document.getElementById('checklist-items').innerHTML = '';
       applyLocalNoteChange(result);
-      showToast('Anteckning sparad', 'success');
+      showToast(t('messages.note_saved'), 'success');
     } else if (response.status === 403) {
       // CSRF token expired
       await fetchCSRFToken();
-      showToast('Sessionen gick ut, försök igen', 'error');
+      showToast(t('messages.session_expired'), 'error');
     } else {
-      showToast('Kunde inte spara anteckningen', 'error');
+      showToast(t('messages.save_note_failed'), 'error');
     }
   } catch (error) {
     console.error('Failed to save note:', error);
-    showToast('Kunde inte spara anteckningen', 'error');
+    showToast(t('messages.save_note_failed'), 'error');
   } finally {
     isSavingNote = false;
     clearBtnBusy(saveBtn);
@@ -1871,7 +1871,7 @@ function openEditModal(noteId) {
   if (pinBtn) {
     pinBtn.style.display = 'inline-block';
     pinBtn.textContent = note.is_pinned ? '📍' : '📌'; // 📍 = pinned, 📌 = unpinned
-    pinBtn.title = note.is_pinned ? 'Avfästa' : 'Fäst';
+    pinBtn.title = note.is_pinned ? t('notes.unpin_title') : t('notes.pin_title');
   }
 
   if (note.is_checklist && note.checklist_items) {
@@ -2007,11 +2007,11 @@ function showUnsavedChangesDialog() {
   dialog.style.cssText = 'z-index: 1001; display: flex; align-items: center; justify-content: center;';
   dialog.innerHTML = `
     <div class="modal-content modal-content--small unsaved-dialog-content" onclick="event.stopPropagation()">
-      <h3 class="unsaved-dialog-title">Osparade ändringar</h3>
-      <p class="unsaved-dialog-text">Du har ändringar som inte sparats. Vill du slänga dem?</p>
+      <h3 class="unsaved-dialog-title">${t('share.unsaved_changes')}</h3>
+      <p class="unsaved-dialog-text">${t('notes.unsaved_text')}</p>
       <div class="unsaved-dialog-buttons">
-        <button class="btn-secondary unsaved-dialog-btn" onclick="closeUnsavedChangesDialog()">Avbryt</button>
-        <button class="btn-danger unsaved-dialog-btn" onclick="discardChangesAndClose()">Släng ändringar</button>
+        <button class="btn-secondary unsaved-dialog-btn" onclick="closeUnsavedChangesDialog()">${t('messages.cancel')}</button>
+        <button class="btn-danger unsaved-dialog-btn" onclick="discardChangesAndClose()">${t('notes.discard_changes')}</button>
       </div>
     </div>
   `;
@@ -2054,7 +2054,7 @@ async function updateNote(options = {}) {
   if (isUpdatingNote) return;
   isUpdatingNote = true;
   const updateBtn = document.getElementById('update-note-btn');
-  setBtnBusy(updateBtn, 'Uppdaterar…');
+  setBtnBusy(updateBtn, t('messages.updating'));
 
   try {
     const response = await apiFetch(`/api/notes/${currentEditingNote.id}`, {
@@ -2083,31 +2083,31 @@ async function updateNote(options = {}) {
       if (result.duplicatesSkipped > 0) {
         showToast(
           result.duplicatesSkipped === 1
-            ? '1 dubblett ignorerades'
-            : `${result.duplicatesSkipped} dubbletter ignorerades`,
+            ? t('messages.duplicate_skipped')
+            : `${result.duplicatesSkipped} ${t('messages.duplicates_skipped')}`,
           'info'
         );
       }
       forceCloseEditModal();
       applyLocalNoteChange(result);
-      showToast('Anteckning uppdaterad', 'success');
+      showToast(t('messages.note_updated'), 'success');
     } else if (response.status === 409) {
       // Someone else (or another of our devices) saved this note after we
       // opened it. Keep the editor open with our text and let the user decide.
-      showToast('Anteckningen har ändrats på en annan enhet sedan du öppnade den.', 'error', {
-        label: 'Skriv över',
+      showToast(t('messages.conflict_changed_elsewhere'), 'error', {
+        label: t('messages.overwrite'),
         duration: 10000,
         onClick: () => updateNote({ force: true })
       });
     } else if (response.status === 403) {
       await fetchCSRFToken();
-      showToast('Sessionen gick ut, försök igen', 'error');
+      showToast(t('messages.session_expired'), 'error');
     } else {
-      showToast('Kunde inte uppdatera anteckningen', 'error');
+      showToast(t('messages.update_note_failed'), 'error');
     }
   } catch (error) {
     console.error('Failed to update note:', error);
-    showToast('Kunde inte uppdatera anteckningen', 'error');
+    showToast(t('messages.update_note_failed'), 'error');
   } finally {
     isUpdatingNote = false;
     clearBtnBusy(updateBtn);
@@ -2147,13 +2147,13 @@ async function deleteNote() {
       });
     } else if (response.status === 403) {
       await fetchCSRFToken();
-      showToast('Sessionen gick ut, försök igen', 'error');
+      showToast(t('messages.session_expired'), 'error');
     } else {
-      showToast('Kunde inte ta bort anteckningen', 'error');
+      showToast(t('messages.delete_note_failed'), 'error');
     }
   } catch (error) {
     console.error('Failed to delete note:', error);
-    showToast('Kunde inte ta bort anteckningen', 'error');
+    showToast(t('messages.delete_note_failed'), 'error');
   } finally {
     isDeletingNote = false;
     clearBtnBusy(deleteBtn);
@@ -2206,7 +2206,7 @@ async function dismissShare() {
       applyLocalNoteRemoval(dismissedId);
     } else if (response.status === 403) {
       await fetchCSRFToken();
-      showToast('Session expired, please try again', 'error');
+      showToast(t('messages.session_expired'), 'error');
     }
   } catch (error) {
     console.error('Failed to dismiss share:', error);
@@ -2235,20 +2235,20 @@ async function togglePinNote() {
       // Update pin button icon in modal
       if (pinBtn) {
         pinBtn.textContent = data.is_pinned ? '📍' : '📌'; // 📍 = pinned, 📌 = unpinned
-        pinBtn.title = data.is_pinned ? 'Avfästa' : 'Fäst';
+        pinBtn.title = data.is_pinned ? t('notes.unpin_title') : t('notes.pin_title');
       }
 
       applyLocalNoteChange({ ...currentEditingNote, is_pinned: data.is_pinned });
-      showToast(data.is_pinned ? 'Anteckning fäst' : 'Anteckning avfäst', 'success');
+      showToast(data.is_pinned ? t('messages.note_pinned') : t('messages.note_unpinned'), 'success');
     } else if (response.status === 403) {
       await fetchCSRFToken();
-      showToast('Sessionen gick ut, försök igen', 'error');
+      showToast(t('messages.session_expired'), 'error');
     } else {
-      showToast('Kunde inte fästa anteckningen', 'error');
+      showToast(t('messages.pin_note_failed'), 'error');
     }
   } catch (error) {
     console.error('Failed to pin note:', error);
-    showToast('Kunde inte fästa anteckningen', 'error');
+    showToast(t('messages.pin_note_failed'), 'error');
   } finally {
     isPinningNote = false;
     clearBtnBusy(pinBtn);
@@ -2290,22 +2290,22 @@ async function toggleArchiveNote() {
       const result = await response.json();
       forceCloseEditModal();
       applyLocalNoteChange(result);
-      showToast(willArchive ? 'Anteckning arkiverad' : 'Anteckning återställd', 'success');
+      showToast(willArchive ? t('messages.note_archived') : t('messages.note_unarchived'), 'success');
     } else if (response.status === 409) {
       currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
-      showToast('Anteckningen har ändrats på en annan enhet. Stäng och öppna den igen.', 'error');
+      showToast(t('messages.conflict_reopen'), 'error');
     } else if (response.status === 403) {
       currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
       await fetchCSRFToken();
-      showToast('Sessionen gick ut, försök igen', 'error');
+      showToast(t('messages.session_expired'), 'error');
     } else {
       currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
-      showToast('Kunde inte arkivera anteckningen', 'error');
+      showToast(t('messages.archive_note_failed'), 'error');
     }
   } catch (error) {
     currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
     console.error('Failed to archive note:', error);
-    showToast('Kunde inte arkivera anteckningen', 'error');
+    showToast(t('messages.archive_note_failed'), 'error');
   } finally {
     isArchivingNote = false;
     clearBtnBusy(archiveBtn);
@@ -2417,7 +2417,7 @@ async function openShareModal() {
     setupShareModalEventListeners();
   } catch (error) {
     console.error('Failed to load sharing data:', error);
-    showToast('Kunde inte ladda delningsinformation', 'error');
+    showToast(t('share.load_error'), 'error');
   }
 }
 
@@ -2464,7 +2464,7 @@ function closeShareModal(event) {
 function cancelShareModal() {
   // Check if there are unsaved changes
   if (hasShareChanges()) {
-    if (!confirm('Du har osparade ändringar. Vill du stänga utan att spara?')) {
+    if (!confirm(t('share.confirm_discard'))) {
       return;
     }
   }
@@ -2559,10 +2559,10 @@ function renderShareModal() {
           <div class="profile-initials-small" style="background-color: ${avatarColor};">${escapeHtml(initials)}</div>
           <span class="username">${escapeHtml(share.username)}</span>
           <select data-user-id="${share.shared_with_user_id}">
-            <option value="view" ${share.permission === 'view' ? 'selected' : ''}>Kan visa</option>
-            <option value="edit" ${share.permission === 'edit' ? 'selected' : ''}>Kan redigera</option>
+            <option value="view" ${share.permission === 'view' ? 'selected' : ''}>${t('share.can_view')}</option>
+            <option value="edit" ${share.permission === 'edit' ? 'selected' : ''}>${t('share.can_edit')}</option>
           </select>
-          <button class="btn-icon share-remove-btn" data-user-id="${share.shared_with_user_id}" title="Ta bort delning">✕</button>
+          <button class="btn-icon share-remove-btn" data-user-id="${share.shared_with_user_id}" title="${t('share.remove')}">✕</button>
         </div>
       `;
     }).join('');
@@ -2612,7 +2612,7 @@ async function saveShares() {
 
   const saveBtn = document.getElementById('save-shares-btn');
   const originalBtnText = saveBtn.textContent;
-  saveBtn.textContent = 'Sparar...';
+  saveBtn.textContent = t('messages.saving');
   saveBtn.disabled = true;
 
   try {
@@ -2685,7 +2685,7 @@ async function saveShares() {
     if (errorCount === 0) {
       const totalChanges = toAdd.length + toRemove.length + toUpdate.length;
       if (totalChanges > 0) {
-        showToast('Delningar sparade', 'success');
+        showToast(t('share.shares_saved'), 'success');
       }
       document.getElementById('share-modal').classList.remove('active');
       resetShareModalState();
@@ -2694,7 +2694,7 @@ async function saveShares() {
       invalidateNotesCache();
       loadNotes();
     } else {
-      showToast(`${errorCount} fel uppstod vid sparning`, 'error');
+      showToast(`${errorCount} ${t('share.save_errors')}`, 'error');
       // Reload shares to get current state
       const sharesResponse = await apiFetch(`/api/notes/${shareModalNoteId}/shares`, {
         credentials: 'include'
@@ -2713,7 +2713,7 @@ async function saveShares() {
     }
   } catch (error) {
     console.error('Failed to save shares:', error);
-    showToast('Kunde inte spara delningar', 'error');
+    showToast(t('share.save_error'), 'error');
   } finally {
     saveBtn.textContent = originalBtnText;
     saveBtn.disabled = false;
@@ -2807,7 +2807,7 @@ function toggleChecklist() {
 
     // Warn user if converting existing text to checklist
     if (existingContent && itemsContainer.children.length === 0) {
-      const confirmed = confirm('Detta omvandlar befintlig text till checklista. Vill du fortsätta?');
+      const confirmed = confirm(t('notes.confirm_convert_checklist'));
       if (!confirmed) {
         // User cancelled, revert the toggle
         isChecklistMode = false;
@@ -2828,7 +2828,7 @@ function toggleChecklist() {
         item.className = 'checklist-item';
         item.innerHTML = `
           <input type="checkbox">
-          <input type="text" value="${escapeHtml(line.trim())}" placeholder="Listpunkt">
+          <input type="text" value="${escapeHtml(line.trim())}" placeholder="${t('notes.list_item_placeholder')}">
           <button onclick="removeChecklistItem(this)">×</button>
         `;
         itemsContainer.appendChild(item);
@@ -2872,7 +2872,7 @@ function addChecklistItem() {
   item.className = 'checklist-item';
   item.innerHTML = `
     <input type="checkbox">
-    <input type="text" placeholder="Listpunkt">
+    <input type="text" placeholder="${t('notes.list_item_placeholder')}">
     <button onclick="removeChecklistItem(this)">×</button>
   `;
 
@@ -2918,7 +2918,7 @@ function isHeaderItem(item) {
 
 function confidenceBadgeHTML(confidence) {
   if (!Number.isInteger(confidence) || confidence < 1 || confidence > 10) return '';
-  return `<span class="confidence-badge confidence-${confidence}" title="Säkerhetsfaktor: ${confidence}/10">${confidence}</span>`;
+  return `<span class="confidence-badge confidence-${confidence}" title="${t('import.confidence')}: ${confidence}/10">${confidence}</span>`;
 }
 
 function toggleEditChecklist() {
@@ -2933,7 +2933,7 @@ function toggleEditChecklist() {
 
     // Warn user if converting existing text to checklist
     if (existingContent && itemsContainer.children.length === 0) {
-      const confirmed = confirm('Detta omvandlar befintlig text till checklista. Vill du fortsätta?');
+      const confirmed = confirm(t('notes.confirm_convert_checklist'));
       if (!confirmed) {
         // User cancelled, don't switch to checklist mode
         return;
@@ -2953,7 +2953,7 @@ function toggleEditChecklist() {
         item.className = 'checklist-item';
         item.innerHTML = `
           <input type="checkbox">
-          <input type="text" value="${escapeHtml(line.trim())}" placeholder="Listpunkt">
+          <input type="text" value="${escapeHtml(line.trim())}" placeholder="${t('notes.list_item_placeholder')}">
           <button onclick="removeEditChecklistItem(this)">×</button>
         `;
         itemsContainer.appendChild(item);
@@ -2997,7 +2997,7 @@ function addEditChecklistItem() {
   item.className = 'checklist-item';
   item.innerHTML = `
     <input type="checkbox">
-    <input type="text" placeholder="Listpunkt">
+    <input type="text" placeholder="${t('notes.list_item_placeholder')}">
     <button onclick="removeEditChecklistItem(this)">×</button>
   `;
 
@@ -3095,12 +3095,12 @@ function handleImportFile() {
 
   if (file) {
     if (!file.name.endsWith('.zip')) {
-      showToast('Vänligen välj en .zip fil', 'error');
+      showToast(t('import.select_zip'), 'error');
       return;
     }
 
     selectedImportFile = file;
-    document.getElementById('import-file-name').textContent = `Vald fil: ${file.name} (${formatFileSize(file.size)})`;
+    document.getElementById('import-file-name').textContent = `${t('import.selected_file')}: ${file.name} (${formatFileSize(file.size)})`;
     document.getElementById('import-button').disabled = false;
   }
 }
@@ -3158,7 +3158,7 @@ async function startImport() {
         loadNotes();
       } else {
         const message = (payload && (payload.message || payload.error)) || `HTTP ${xhr.status}`;
-        showToast(`Import misslyckades: ${message}`, 'error');
+        showToast(`${t('messages.import_failed')}: ${message}`, 'error');
         document.getElementById('import-instructions').style.display = 'block';
         document.getElementById('import-button').disabled = false;
       }
@@ -3166,7 +3166,7 @@ async function startImport() {
 
     xhr.addEventListener('error', () => {
       document.getElementById('import-processing').style.display = 'none';
-      showToast('Nätverksfel vid import. Försök igen.', 'error');
+      showToast(t('import.network_error'), 'error');
       document.getElementById('import-instructions').style.display = 'block';
       document.getElementById('import-button').disabled = false;
     });
@@ -3178,7 +3178,7 @@ async function startImport() {
 
   } catch (error) {
     console.error('Import error:', error);
-    showToast('Ett fel uppstod vid import.', 'error');
+    showToast(t('import.error'), 'error');
     document.getElementById('import-instructions').style.display = 'block';
     document.getElementById('import-progress').style.display = 'none';
     document.getElementById('import-processing').style.display = 'none';
@@ -3197,12 +3197,12 @@ function showImportResults(result) {
 
   const stats = result.stats;
   const statsHtml = `
-    <p><strong>✅ Importerade anteckningar:</strong> ${result.imported}</p>
-    <p><strong>📝 Totalt från Google Keep:</strong> ${stats.totalNotes}</p>
-    <p><strong>☑️ Checklistor:</strong> ${stats.checklistNotes}</p>
-    <p><strong>📎 Bilagor:</strong> ${stats.attachments}</p>
-    ${stats.missingAttachments > 0 ? `<p><strong>⚠️ Saknade bilagor:</strong> ${stats.missingAttachments}</p>` : ''}
-    ${result.failed > 0 ? `<p style="color: #d93025;"><strong>❌ Misslyckades:</strong> ${result.failed}</p>` : ''}
+    <p><strong>✅ ${t('import.imported_notes')}:</strong> ${result.imported}</p>
+    <p><strong>📝 ${t('import.total_from_keep')}:</strong> ${stats.totalNotes}</p>
+    <p><strong>☑️ ${t('import.checklists')}:</strong> ${stats.checklistNotes}</p>
+    <p><strong>📎 ${t('import.attachments')}:</strong> ${stats.attachments}</p>
+    ${stats.missingAttachments > 0 ? `<p><strong>⚠️ ${t('import.missing_attachments')}:</strong> ${stats.missingAttachments}</p>` : ''}
+    ${result.failed > 0 ? `<p style="color: #d93025;"><strong>❌ ${t('import.failed')}:</strong> ${result.failed}</p>` : ''}
   `;
 
   document.getElementById('import-stats').innerHTML = statsHtml;
@@ -3210,9 +3210,9 @@ function showImportResults(result) {
   if (stats.errors && stats.errors.length > 0) {
     const errorsDiv = document.getElementById('import-errors');
     errorsDiv.style.display = 'block';
-    errorsDiv.innerHTML = '<strong>Varningar/Fel:</strong><ul style="margin: 8px 0 0 20px;">' +
-      stats.errors.slice(0, 10).map(e => `<li>${escapeHtml(e.file || e.note || 'Okänd')}: ${escapeHtml(e.error)}</li>`).join('') +
-      (stats.errors.length > 10 ? `<li>... och ${stats.errors.length - 10} fler</li>` : '') +
+    errorsDiv.innerHTML = `<strong>${t('import.warnings_errors')}:</strong><ul style="margin: 8px 0 0 20px;">` +
+      stats.errors.slice(0, 10).map(e => `<li>${escapeHtml(e.file || e.note || t('import.unknown'))}: ${escapeHtml(e.error)}</li>`).join('') +
+      (stats.errors.length > 10 ? `<li>... ${t('import.and')} ${stats.errors.length - 10} ${t('import.more')}</li>` : '') +
       '</ul>';
   }
 }
@@ -3225,13 +3225,13 @@ function formatFileSize(bytes) {
 
 // ===== EXPORT FUNCTIONS =====
 async function exportBackup() {
-  if (!confirm('Vill du exportera en backup av alla dina anteckningar?')) {
+  if (!confirm(t('messages.confirm_export'))) {
     return;
   }
 
   const exportBtn = document.querySelector('button[onclick="exportBackup()"]');
   setBtnBusy(exportBtn);
-  showToast('Förbereder backup…', 'info');
+  showToast(t('messages.export_preparing'), 'info');
 
   try {
     const response = await apiFetch('/api/backup/export', {
@@ -3262,16 +3262,16 @@ async function exportBackup() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      showToast('Backup exporterad!', 'success');
+      showToast(t('messages.export_success'), 'success');
     } else if (response.status === 403) {
       await fetchCSRFToken();
-      showToast('Session expired, please try again', 'error');
+      showToast(t('messages.session_expired'), 'error');
     } else {
       throw new Error('Export failed');
     }
   } catch (error) {
     console.error('Export error:', error);
-    showToast('Kunde inte exportera backup. Kontrollera att du är inloggad.', 'error');
+    showToast(t('messages.export_failed_login'), 'error');
   } finally {
     clearBtnBusy(exportBtn);
   }
@@ -3345,7 +3345,7 @@ function updateImageUploadProgress(prefix, completed, total) {
   const text = document.getElementById(`${prefix}-image-progress-text`);
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
   if (bar) bar.style.width = `${percent}%`;
-  if (text) text.textContent = `Laddar upp bild ${Math.min(completed + 1, total)} av ${total}…`;
+  if (text) text.textContent = `${t('images.uploading')} ${Math.min(completed + 1, total)}/${total}…`;
 }
 
 function hideImageUploadProgress(prefix) {
@@ -3364,7 +3364,7 @@ async function uploadNoteImages(files, context) {
 
   const remainingSlots = maxImagesPerNote - images.length;
   if (files.length > remainingSlots) {
-    showToast(`Du kan bara lägga till ${remainingSlots} till bilder (max ${maxImagesPerNote} per anteckning)`, 'error');
+    showToast(`${t('images.too_many')}: ${remainingSlots} (${t('images.max_per_note')}: ${maxImagesPerNote})`, 'error');
     return;
   }
 
@@ -3374,7 +3374,7 @@ async function uploadNoteImages(files, context) {
     for (const file of files) {
       // Validate file size (10MB max)
       if (file.size > 10 * 1024 * 1024) {
-        showToast(`Bilden "${file.name}" är för stor (max 10MB)`, 'error');
+        showToast(`${file.name}: ${t('images.too_large')}`, 'error');
         continue;
       }
 
@@ -3398,7 +3398,7 @@ async function uploadNoteImages(files, context) {
         updateImageUploadProgress(prefix, uploaded, files.length);
       } else if (response.status === 403) {
         await fetchCSRFToken();
-        showToast('Session expired, please try again', 'error');
+        showToast(t('messages.session_expired'), 'error');
         return;
       } else {
         throw new Error('Failed to upload image');
@@ -3418,7 +3418,7 @@ async function uploadNoteImages(files, context) {
     }
   } catch (error) {
     console.error('Failed to upload images:', error);
-    showToast('Kunde inte ladda upp bilder', 'error');
+    showToast(t('images.upload_failed'), 'error');
   } finally {
     hideImageUploadProgress(prefix);
   }
@@ -3474,7 +3474,7 @@ function renderImagePreview(containerId, images, canRemove) {
   // Active images: clickable, with a ✕ to mark for removal.
   const activeHtml = images.map((img, index) => `
     <div class="image-preview-item">
-      <img src="/api/notes/image/${img}" alt="Preview" loading="lazy" onclick="openImageModal('${img}', JSON.parse(this.closest('[data-images]').dataset.images))">
+      <img src="/api/notes/image/${img}" alt="${t('notes.image_preview_alt')}" loading="lazy" onclick="openImageModal('${img}', JSON.parse(this.closest('[data-images]').dataset.images))">
       ${canRemove ? `<button class="remove-image" onclick="event.stopPropagation(); removeImage('${containerId}', ${index})" aria-label="${t('messages.remove_image')}">✕</button>` : ''}
     </div>
   `).join('');
@@ -3482,7 +3482,7 @@ function renderImagePreview(containerId, images, canRemove) {
   // Images pending removal: dimmed, with an Undo overlay so a mis-tap is reversible.
   const removedHtml = (canRemove ? removed : []).map((img, index) => `
     <div class="image-preview-item image-preview-item--removed">
-      <img src="/api/notes/image/${img}" alt="Preview" loading="lazy">
+      <img src="/api/notes/image/${img}" alt="${t('notes.image_preview_alt')}" loading="lazy">
       <button class="restore-image" onclick="event.stopPropagation(); restoreImageRemoval('${containerId}', ${index})">↺ ${t('messages.undo')}</button>
     </div>
   `).join('');
