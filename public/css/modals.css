@@ -399,3 +399,10 @@
 .btn-danger:active {
   background-color: #a31b15;
 }
+
+/* Hint under the import instructions (backup restore) */
+.import-backup-hint {
+  margin: 8px 0 0;
+  font-size: 0.9em;
+  color: var(--text-secondary, #5f6368);
+}

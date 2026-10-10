@@ -193,25 +193,45 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
 // The session secret signs every session cookie. With a known/default value
-// anyone can forge a cookie for any user id, so in production the server
-// refuses to start without a real one. In development we fall back to a
-// random per-process secret (sessions won't survive a restart, which is fine).
+// anyone can forge a cookie for any user id. Resolution order:
+//   1. SESSION_SECRET from the environment, if it is a real value (not the
+//      .env.example placeholder, at least 16 chars).
+//   2. Otherwise a random secret generated once and persisted in
+//      DATA_DIR/.session-secret (mode 0600), so an upgrade of an existing
+//      installation that never set one keeps starting — users just have to
+//      log in again the first time. A warning is logged on every start.
+//   3. If that file can't be written, a per-process random secret (sessions
+//      won't survive a restart).
 const PLACEHOLDER_SECRETS = new Set([
   'change-this-to-a-random-string-in-production',
   'kreep-secret-change-in-production'
 ]);
+const SESSION_SECRET_FILE = path.join(DATA_DIR, '.session-secret');
 function resolveSessionSecret() {
   const configured = (process.env.SESSION_SECRET || '').trim();
   if (configured && !PLACEHOLDER_SECRETS.has(configured) && configured.length >= 16) {
     return configured;
   }
-  if (process.env.NODE_ENV === 'production') {
-    logger.error('SESSION_SECRET is missing, too short (<16 chars) or still the placeholder. ' +
-      'Set a random value in .env, e.g.: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
-    process.exit(1);
+  const why = configured
+    ? (PLACEHOLDER_SECRETS.has(configured) ? 'is still the placeholder from .env.example' : 'is shorter than 16 characters')
+    : 'is not set';
+  try {
+    const existing = fs.readFileSync(SESSION_SECRET_FILE, 'utf8').trim();
+    if (existing.length >= 32) {
+      logger.warn(`SESSION_SECRET ${why}; using the generated secret in ${SESSION_SECRET_FILE}. ` +
+        'Set SESSION_SECRET in .env to silence this.');
+      return existing;
+    }
+  } catch (e) { /* no file yet */ }
+  const generated = crypto.randomBytes(32).toString('hex');
+  try {
+    fs.writeFileSync(SESSION_SECRET_FILE, generated + '\n', { mode: 0o600 });
+    logger.warn(`SESSION_SECRET ${why}; generated a random one and saved it to ${SESSION_SECRET_FILE}. ` +
+      'Existing logins are invalidated once. Set SESSION_SECRET in .env to silence this.');
+  } catch (e) {
+    logger.logSecurity(`SESSION_SECRET ${why} and ${SESSION_SECRET_FILE} is not writable; using a per-process secret (sessions reset on restart)`);
   }
-  logger.logSecurity('No usable SESSION_SECRET; using a random per-process secret (development only)');
-  return crypto.randomBytes(32).toString('hex');
+  return generated;
 }
 
 // Session configuration (SECURE) with persistent SQLite store
@@ -1047,7 +1067,9 @@ app.get('/api/me', requireAuth, (req, res) => {
     if (err || !user) {
       return res.status(500).json({ error: 'Kunde inte hämta användarinfo' });
     }
-    res.set('Cache-Control', 'private, max-age=300');
+    // Never cache: a cached 200 after logout (or for the previous user) made the
+    // app believe it was still logged in, then fail on the first real request.
+    res.set('Cache-Control', 'no-store');
     res.json({
       id: user.id,
       username: user.username,

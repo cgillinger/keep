@@ -124,7 +124,8 @@
     "unknown": "Unbekannt",
     "and": "und",
     "more": "weitere",
-    "confidence": "Sicherheitsfaktor"
+    "confidence": "Sicherheitsfaktor",
+    "backup_hint": "Du kannst hier auch eine mit „Backup exportieren“ erstellte Backup-ZIP hochladen; die Notizen und Bilder darin werden wiederhergestellt."
   },
   "profile": {
     "title": "Dein Profil",

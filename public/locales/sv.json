@@ -124,7 +124,8 @@
     "unknown": "Okänd",
     "and": "och",
     "more": "fler",
-    "confidence": "Säkerhetsfaktor"
+    "confidence": "Säkerhetsfaktor",
+    "backup_hint": "Du kan också ladda upp en backup-zip som skapats med \"Exportera backup\" här, så återställs anteckningarna och bilderna."
   },
   "profile": {
     "title": "Din profil",

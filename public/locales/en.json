@@ -124,7 +124,8 @@
     "unknown": "Unknown",
     "and": "and",
     "more": "more",
-    "confidence": "Confidence"
+    "confidence": "Confidence",
+    "backup_hint": "You can also upload a backup zip made with \"Export backup\" here; the notes and images in it are restored."
   },
   "profile": {
     "title": "Your profile",

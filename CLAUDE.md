@@ -21,40 +21,25 @@ Keep clone: Express + WebSocket + SQLite backend, vanilla-JS frontend).
 - Deploy is to the Synology NAS (see the deploy note in Claude's memory), from
   `main` after the PR is merged.
 
-## Deferred security TODOs
+## Dependency / security status (updated 2026-10-10)
 
-These were consciously left out of the 2026-07-02 hardening pass because each is a
-**breaking** dependency upgrade that needs its own tested change. Neither is
-exploitable in this app today; they're hygiene/future-proofing, not live holes.
+The two deferred items from the 2026-07-02 hardening pass are done: `csurf` was
+replaced by `csrf-csrf` (double-submit cookie, token not bound to the session id)
+and `sqlite3` is on 6.x (an npm `overrides` entry makes `connect-sqlite3` share
+it). `jsdom`/`dompurify` were dropped — note text is stored verbatim and escaped
+on render — and `nodemon` was replaced by `node --watch`. `npm audit` is clean.
+Keep it that way: run `npm audit` before a release and prefer updating within
+semver first.
 
-- [ ] **Migrate off `csurf`.** `csurf` is archived and unmaintained, and it pulls
-      in an old `cookie` version that `npm audit` flags. *Why it's not a live risk
-      here:* the flagged `cookie` bug is about out-of-bounds characters in a
-      cookie's name/path/domain, but csurf sets its own fixed cookie name — none of
-      it is attacker-controlled. *The real problem:* an archived library gets no
-      future security patches, so if a genuine CSRF bypass is ever found there's no
-      upstream fix. *Fix:* replace with a maintained lib (e.g. `csrf-csrf` or
-      `lusca`) and re-test the full CSRF flow (login, note CRUD, image upload,
-      import, share) end-to-end.
-
-- [ ] **Upgrade `sqlite3` 5 → 6 (or swap to `better-sqlite3`).** Most of the
-      remaining `npm audit` "high" findings (`tar`, `cacache`, `node-gyp`,
-      `@tootallnate/once`) come in through sqlite3's install/compile chain.
-      *Why it's not a live risk:* those packages only run at `npm install` time to
-      build the native module — they are **never reached by app users at runtime**,
-      so an attacker hitting the running server can't touch them. *The real problem:*
-      the audit stays noisy and the build toolchain carries known CVEs. *Fix:* bump
-      to `sqlite3@6` (breaking major) and regression-test every DB path, or migrate
-      to `better-sqlite3`. Left alone because it's the core data layer and the
-      payoff is build-time-only.
-
-### TL;DR of "what's the issue"
-The runtime dependencies were updated (adm-zip, sharp, nodemailer, multer and the
-express stack), so `npm audit` no longer reports anything reachable by app users
-at runtime. What remains falls into harmless-here buckets: (1) the **sqlite3
-install-time chain** (tar, cacache, node-gyp, ...) that only runs during
-`npm install` to build the native module; (2) **csurf**'s old cookie dep, where
-the vulnerable code path isn't reachable given how we use it; and (3) **nodemon's
-dev-only chain**, which never ships to production. Worth cleaning up eventually
-via the breaking upgrades above, but none of it is an open door into the running
-app.
+Other things to know before changing the server:
+- `SESSION_SECRET` is resolved in `resolveSessionSecret()`: env value, else a
+  generated secret persisted in `DATA_DIR/.session-secret`. Don't reintroduce a
+  hard-coded fallback.
+- The CSP forbids inline script (`script-src-attr 'none'`). New UI handlers go
+  through `data-action`/`data-change`/`data-input` and the dispatch tables at
+  the top of `public/app.js`, never `onclick=`.
+- `PUT /api/notes/:id` honours `expected_updated_at` (409 on conflict). Clients
+  that must overwrite omit it.
+- Schema changes go in `database.js` `initialize()` (ordered, awaited before
+  `listen`); one-off data repairs are tracked in `schema_meta`.
+- Upgrade notes for operators live in README → "Upgrading an existing installation".

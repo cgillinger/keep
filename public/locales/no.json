@@ -124,7 +124,8 @@
     "unknown": "Ukjent",
     "and": "og",
     "more": "flere",
-    "confidence": "Sikkerhetsfaktor"
+    "confidence": "Sikkerhetsfaktor",
+    "backup_hint": "Du kan også laste opp en backup-zip laget med «Eksporter backup» her, så gjenopprettes notatene og bildene."
   },
   "profile": {
     "title": "Din profil",

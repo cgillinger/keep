@@ -203,6 +203,10 @@ function updateUITranslations() {
     importSteps[3].textContent = t('import.step4');
     importSteps[4].textContent = t('import.step5');
   }
+  const backupHint = document.getElementById('import-backup-hint');
+  if (backupHint) {
+    backupHint.textContent = t('import.backup_hint');
+  }
   document.querySelector('#import-modal button.btn-primary:not(#import-button)').textContent = t('import.select_file_button');
   document.querySelector('#import-modal button.btn-secondary').textContent = t('import.close_button');
   document.querySelector('#import-button').textContent = t('import.import_button');

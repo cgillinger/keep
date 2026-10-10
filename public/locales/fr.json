@@ -124,7 +124,8 @@
     "unknown": "Inconnu",
     "and": "et",
     "more": "autres",
-    "confidence": "Indice de confiance"
+    "confidence": "Indice de confiance",
+    "backup_hint": "Vous pouvez aussi déposer ici une archive zip créée avec « Exporter la sauvegarde » : les notes et les images qu’elle contient seront restaurées."
   },
   "profile": {
     "title": "Votre profil",

@@ -6,7 +6,7 @@
 
 [![Version](https://img.shields.io/badge/version-1.1.0-blue?style=for-the-badge)](https://github.com/cgillinger/keep/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](./LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20.17--339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/docker-supported-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![Express.js](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
@@ -92,7 +92,7 @@
 
 ### Prerequisites
 
-- Node.js 18 or later (recommended)
+- Node.js 20.17 or later (sqlite3 6 and sharp need it; Docker image uses Node 22)
 - npm (included with Node.js)
 - Approximately 200 MB disk space (for dependencies and data)
 
@@ -563,7 +563,7 @@ Share notes with family members:
 **Security:**
 - helmet - HTTP security headers
 - express-rate-limit - Rate limiting
-- csurf - CSRF protection
+- csrf-csrf - CSRF protection (double-submit cookie)
 - bcryptjs - Password hashing
 - dompurify + jsdom - XSS prevention
 - sharp - Safe image optimization
@@ -644,6 +644,18 @@ Archiving is done through `PUT /api/notes/:id` (the `is_archived` field); there 
 - `POST /api/profile/change-password` - Change password (CSRF)
 - `POST /api/import/keep` - Import Google Keep export (CSRF)
 - `GET /api/backup/export` - Export backup (ZIP)
+
+## ⬆️ Upgrading an existing installation
+
+Upgrading from 1.4.x is in-place; the database is migrated automatically on first start. Before you upgrade:
+
+1. **Back up `data/`** (SQLite database, sessions and images): `cp -a data data.bak-$(date +%F)`.
+2. **Check `.env`:** `SESSION_SECRET` should be a real random value (see `.env.example`). If it is missing or still the placeholder, the server generates one and stores it in `data/.session-secret` — everything keeps working, but everyone is logged out once. Set `BASE_URL` if you use e-mail password reset.
+3. **Node.js 20.17+** is required for bare-metal installs (the Docker image already uses Node 22). Run `npm ci` after pulling — dependencies changed (sqlite3 6, csrf-csrf, no jsdom/dompurify/nodemon).
+4. Start as usual (`docker compose up -d --build`, `systemctl restart kreep` or `./start.sh`). On first start the log shows the schema migrations and, once, `Decoded HTML entities in N row(s)` — that repairs notes where `<`, `>` or `&` had been stored as HTML entities by earlier versions.
+5. Ask users to **reload the page** once; a tab that was open during the upgrade gets a "session expired, try again" on its first save and then works.
+
+Rolling back: stop the server, restore `data/` from the backup, check out the previous version, `npm ci`, start.
 
 ## 🔧 Configuration
 
@@ -1217,7 +1229,7 @@ keep/
 ├── database.js            # Database initialization and schema
 ├── import-parser.js       # Google Keep import parser
 ├── export-generator.js    # Backup generator
-├── backup-parser.js       # Backup parser (not yet wired up — restore is not available in the UI)
+├── backup-parser.js       # Restores a kreep backup zip (via the import dialog)
 ├── mailer.js              # Email service for password reset
 ├── package.json           # Dependencies and scripts
 ├── .env.example           # Example environment variables
@@ -1384,7 +1396,7 @@ Keep Clone is specially designed for families who want to:
 
 [![Version](https://img.shields.io/badge/version-1.1.0-blue?style=for-the-badge)](https://github.com/cgillinger/keep/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](./LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20.17--339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/docker-supported-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/)
 
 [🇬🇧 English Version](#keep-clone)
@@ -1434,7 +1446,7 @@ Keep Clone is specially designed for families who want to:
 
 ### Förutsättningar
 
-- Node.js 18 eller senare (rekommenderat)
+- Node.js 20.17 eller senare (krävs av sqlite3 6 och sharp; Docker-imagen använder Node 22)
 - npm (medföljer Node.js)
 - ca 200 MB diskutrymme (för dependencies och data)
 
@@ -1897,7 +1909,7 @@ Dela anteckningar med familjemedlemmar:
 **Säkerhet:**
 - helmet - HTTP security headers
 - express-rate-limit - Rate limiting
-- csurf - CSRF protection
+- csrf-csrf - CSRF protection (double-submit cookie)
 - bcryptjs - Lösenordshashning
 - dompurify + jsdom - XSS prevention
 - sharp - Säker bildoptimering
@@ -1978,6 +1990,18 @@ Arkivering sker via `PUT /api/notes/:id` (fältet `is_archived`); det finns inge
 - `POST /api/profile/change-password` - Byt lösenord (CSRF)
 - `POST /api/import/keep` - Importera Google Keep-export (CSRF)
 - `GET /api/backup/export` - Exportera backup (ZIP)
+
+## ⬆️ Uppgradera en befintlig installation
+
+Uppgradering från 1.4.x sker på plats; databasen migreras automatiskt vid första start. Innan du uppgraderar:
+
+1. **Säkerhetskopiera `data/`** (SQLite-databas, sessioner och bilder): `cp -a data data.bak-$(date +%F)`.
+2. **Kontrollera `.env`:** `SESSION_SECRET` bör vara ett riktigt slumpvärde (se `.env.example`). Saknas det eller är det kvar som platshållare genererar servern ett och sparar det i `data/.session-secret` — allt fortsätter fungera, men alla loggas ut en gång. Sätt `BASE_URL` om du använder lösenordsåterställning via e-post.
+3. **Node.js 20.17+** krävs vid installation utan Docker (Docker-imagen använder redan Node 22). Kör `npm ci` efter `git pull` — beroendena har ändrats (sqlite3 6, csrf-csrf, inte längre jsdom/dompurify/nodemon).
+4. Starta som vanligt (`docker compose up -d --build`, `systemctl restart kreep` eller `./start.sh`). Vid första start visar loggen schemamigreringarna och, en enda gång, `Decoded HTML entities in N row(s)` — det reparerar anteckningar där `<`, `>` eller `&` lagrats som HTML-entiteter av tidigare versioner.
+5. Be användarna **ladda om sidan** en gång; en flik som var öppen under uppgraderingen får "sessionen gick ut, försök igen" vid första sparningen och fungerar sedan.
+
+Återställning: stoppa servern, återställ `data/` från säkerhetskopian, checka ut föregående version, `npm ci`, starta.
 
 ## 🔧 Konfiguration
 
@@ -2551,7 +2575,7 @@ keep/
 ├── database.js            # Databas-initialisering och schema
 ├── import-parser.js       # Google Keep import-parser
 ├── export-generator.js    # Backup-generator
-├── backup-parser.js       # Backup-parser (inte kopplad ännu — återställning finns inte i UI:t)
+├── backup-parser.js       # Återställer en kreep-backup (via importdialogen)
 ├── mailer.js              # E-posttjänst för lösenordsåterställning
 ├── package.json           # Dependencies och scripts
 ├── .env.example           # Exempel på miljövariabler
