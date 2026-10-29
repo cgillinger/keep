@@ -1,3 +1,4 @@
+<!-- md optimerad 2026:10:29 -->
 # CLAUDE.md
 
 Guidance for Claude Code when working in this repo (kreep — a self-hosted Google
