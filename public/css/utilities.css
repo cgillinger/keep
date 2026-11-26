@@ -6,56 +6,6 @@
   display: none;
 }
 
-/* Text utilities */
-.text-muted {
-  color: var(--color-text-muted);
-}
-
-.text-small {
-  font-size: var(--font-size-xs);
-}
-
-.text-medium-small {
-  font-size: var(--font-size-sm);
-}
-
-.text-normal {
-  font-size: var(--font-size-md);
-}
-
-.text-body {
-  font-size: var(--font-size-base);
-}
-
-/* Spacing utilities */
-.mt-1 {
-  margin-top: var(--space-sm);
-}
-
-.mt-2 {
-  margin-top: 10px;
-}
-
-.mt-3 {
-  margin-top: var(--space-xl);
-}
-
-.mb-1 {
-  margin-bottom: var(--space-sm);
-}
-
-.mb-2 {
-  margin-bottom: 10px;
-}
-
-.mb-3 {
-  margin-bottom: var(--space-md);
-}
-
-.mb-4 {
-  margin-bottom: var(--space-lg);
-}
-
 /* Layout utilities */
 .flex-col {
   display: flex;
@@ -66,40 +16,12 @@
   gap: var(--space-sm);
 }
 
-.gap-2 {
-  gap: var(--space-md);
-}
-
 .w-full {
   width: 100%;
 }
 
 .justify-center {
   justify-content: center;
-}
-
-/* Background utilities */
-.bg-subtle {
-  background: var(--color-bg-light);
-}
-
-.bg-light {
-  background: var(--color-bg-subtle);
-}
-
-/* Border utilities */
-.rounded {
-  border-radius: var(--radius-lg);
-}
-
-/* Padding utilities */
-.p-2 {
-  padding: var(--space-md);
-}
-
-/* Font weight */
-.font-medium {
-  font-weight: 500;
 }
 
 /* Additional helper classes */

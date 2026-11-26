@@ -41,7 +41,6 @@ const cssOrder = [
   'confidence-badge.css',
   'modals.css',
   'utilities.css',
-  'debug.css',
 ];
 const cssConcat = cssOrder.map((f) => fs.readFileSync(path.join(pub, 'css', f), 'utf8')).join('\n');
 const cssMin = esbuild.transformSync(cssConcat, { loader: 'css', minify: true }).code;

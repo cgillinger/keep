@@ -406,3 +406,9 @@
   font-size: 0.9em;
   color: var(--text-secondary, #5f6368);
 }
+
+/* Dialogs receive programmatic focus when they open; no ring on the container */
+.modal-content:focus,
+.image-modal:focus {
+  outline: none;
+}
