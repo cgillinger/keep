@@ -29,14 +29,13 @@
   <meta name="twitter:url" content="https://github.com/cgillinger/keep">
   <meta name="twitter:title" content="Keep Clone - Självhostad anteckningsapp">
   <meta name="twitter:description" content="Open source Google Keep-klon för familjer. Självhostad med fullständig datakontroll.">
-  <!-- CSS files loaded in specific order: base → layout → components → modals → utilities → debug -->
+  <!-- CSS files loaded in specific order: base → layout → components → modals → utilities -->
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/confidence-badge.css">
   <link rel="stylesheet" href="css/modals.css">
   <link rel="stylesheet" href="css/utilities.css">
-  <link rel="stylesheet" href="css/debug.css">
 </head>
 <body>
   <div id="loading-splash" class="loading-splash">
@@ -181,8 +180,8 @@
           <button class="btn-secondary" data-action="toggleArchived">
             <span id="archive-toggle-text">Visa arkiv</span>
           </button>
-          <div id="user-profile-pic" class="profile-pic-header" data-action="openProfileModal"></div>
-          <span id="user-info" data-action="openProfileModal"></span>
+          <div id="user-profile-pic" class="profile-pic-header" role="button" tabindex="0" data-action="openProfileModal"></div>
+          <span id="user-info" role="button" tabindex="0" data-action="openProfileModal"></span>
           <button class="btn-secondary" data-action="logout">Logga ut</button>
         </div>
       </div>
@@ -278,8 +277,8 @@
 
   <!-- Edit Note Modal -->
   <div id="edit-modal" class="modal" data-action="closeEditModal">
-    <div class="modal-content" id="modal-content" data-stop>
-      <button class="modal-close-btn" data-action="closeEditModal">✕</button>
+    <div class="modal-content" id="modal-content" role="dialog" aria-modal="true" aria-labelledby="edit-note-title" tabindex="-1" data-stop>
+      <button class="modal-close-btn" data-action="closeEditModal" aria-label="Stäng">✕</button>
       <div class="note-edit-form">
         <input type="text" id="edit-note-title" placeholder="Titel">
         <textarea id="edit-note-content" placeholder="Skriv en anteckning..." rows="6"></textarea>
@@ -353,8 +352,8 @@
 
   <!-- Import Modal -->
   <div id="import-modal" class="modal" data-action="closeImportModal">
-    <div class="modal-content" data-stop>
-      <h2>Importera från Google Keep</h2>
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="import-modal-title" tabindex="-1" data-stop>
+      <h2 id="import-modal-title">Importera från Google Keep</h2>
 
       <div id="import-instructions" class="settings-section">
         <h3>Så här gör du:</h3>
@@ -411,9 +410,9 @@
 
   <!-- Profile Modal -->
   <div id="profile-modal" class="modal" data-action="closeProfileModal">
-    <div class="modal-content modal-content--small" data-stop>
-      <button class="modal-close-btn" data-action="closeProfileModal">✕</button>
-      <h2>Din profil</h2>
+    <div class="modal-content modal-content--small" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title" tabindex="-1" data-stop>
+      <button class="modal-close-btn" data-action="closeProfileModal" aria-label="Stäng">✕</button>
+      <h2 id="profile-modal-title">Din profil</h2>
 
       <div class="text-center settings-section">
         <div id="profile-picture-preview" class="profile-pic-large"></div>
@@ -554,9 +553,9 @@
 
   <!-- Share Modal -->
   <div id="share-modal" class="modal" data-action="closeShareModal">
-    <div class="modal-content modal-content--medium" data-stop>
+    <div class="modal-content modal-content--medium" role="dialog" aria-modal="true" aria-labelledby="share-modal-title" tabindex="-1" data-stop>
       <div class="modal-header">
-        <h2>Dela anteckning</h2>
+        <h2 id="share-modal-title">Dela anteckning</h2>
         <button class="modal-close-btn" data-action="cancelShareModal" aria-label="Stäng">✕</button>
       </div>
 
@@ -590,8 +589,8 @@
   </div>
 
   <!-- Image View Modal -->
-  <div id="image-modal" class="image-modal" data-action="closeImageModal">
-    <button class="close-image-modal" data-action="closeImageModal">✕</button>
+  <div id="image-modal" class="image-modal" role="dialog" aria-modal="true" aria-label="Full size image" tabindex="-1" data-action="closeImageModal">
+    <button class="close-image-modal" data-action="closeImageModal" aria-label="Stäng">✕</button>
     <button class="image-modal-nav prev" data-action="navigateImage" data-arg="-1">&#8249;</button>
     <img id="image-modal-img" src="" alt="Full size image" data-stop>
     <button class="image-modal-nav next" data-action="navigateImage" data-arg="1">&#8250;</button>

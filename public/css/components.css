@@ -619,21 +619,6 @@
   border: 3px solid #dadce0;
 }
 
-.profile-pic-small {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-full);
-  background: var(--color-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 600;
-  font-size: var(--font-size-sm);
-  text-transform: uppercase;
-  user-select: none;
-}
-
 .profile-initials-small {
   width: 32px;
   height: 32px;
@@ -757,11 +742,6 @@
   color: var(--color-text);
 }
 
-.share-user-item .share-toggle {
-  display: flex;
-  gap: var(--space-sm);
-}
-
 .share-user-item button {
   padding: 6px var(--space-md);
   font-size: var(--font-size-sm);
@@ -814,24 +794,6 @@
   flex: 1;
   font-size: var(--font-size-base);
   color: var(--color-text);
-}
-
-.share-item .permission-badge {
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  text-transform: uppercase;
-}
-
-.share-item .permission-badge.view {
-  background: #e8f0fe;
-  color: #1967d2;
-}
-
-.share-item .permission-badge.edit {
-  background: var(--color-success-bg);
-  color: var(--color-success);
 }
 
 .share-item .remove-btn {
@@ -991,18 +953,6 @@
 .note-card .share-indicator--received {
   background: #e8f5e9;
   color: #2e7d32;
-}
-
-.note-card .owner-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: var(--space-sm);
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--color-border);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  font-style: italic;
 }
 
 /* Note owner header for shared notes */
@@ -1365,3 +1315,10 @@
 @keyframes spin{to{transform:rotate(360deg);}}
 button:disabled,.btn:disabled{opacity:.6;cursor:not-allowed;}
 .btn-busy{pointer-events:none;opacity:.7;}
+
+/* Empty-state message shown in place of the notes */
+.notes-empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  grid-column: 1 / -1;
+}

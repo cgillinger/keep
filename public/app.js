@@ -22,7 +22,7 @@ function getAppName() {
 }
 
 // Initialize kreep mode on load
-const kreepModeEnabled = initKreepMode();
+initKreepMode();
 
 // ===== INTERNATIONALIZATION (i18n) =====
 // Cache-busting token — keep in sync with package.json "version". Appended to
@@ -103,6 +103,14 @@ function updateMetaTags() {
   document.documentElement.setAttribute('lang', currentLocale);
 }
 
+// Icon buttons only have a tooltip; give them the same translated text as
+// accessible name.
+function setIconLabel(el, text) {
+  if (!el) return;
+  el.title = text;
+  el.setAttribute('aria-label', text);
+}
+
 // Update all UI text elements with translations
 function updateUITranslations() {
   // Auth screen
@@ -169,9 +177,9 @@ function updateUITranslations() {
   document.querySelector('#new-note-title').placeholder = t('notes.title_placeholder');
   document.querySelector('#new-note-content').placeholder = t('notes.content_placeholder');
   document.querySelector('#checklist-container button').textContent = t('notes.add_checklist_item');
-  document.querySelector('#new-note-form button.btn-icon[title]').title = t('notes.add_image_title');
-  document.querySelector('#new-note-form button[data-action="toggleChecklist"]').title = t('notes.checklist_title');
-  document.querySelector('#new-note-form .color-picker button').title = t('notes.color_title');
+  setIconLabel(document.querySelector('#new-note-form button.btn-icon[title]'), t('notes.add_image_title'));
+  setIconLabel(document.querySelector('#new-note-form button[data-action="toggleChecklist"]'), t('notes.checklist_title'));
+  setIconLabel(document.querySelector('#new-note-form .color-picker button'), t('notes.color_title'));
   document.querySelector('#new-note-form button.btn-primary').textContent = t('notes.save_button');
 
   // Section labels
@@ -182,14 +190,14 @@ function updateUITranslations() {
   document.querySelector('#edit-note-title').placeholder = t('notes.title_placeholder');
   document.querySelector('#edit-note-content').placeholder = t('notes.content_placeholder');
   document.querySelector('#edit-checklist-container button').textContent = t('notes.add_checklist_item');
-  document.querySelector('#edit-modal button.btn-icon[title]').title = t('notes.add_image_title');
-  document.querySelector('#edit-modal button[data-action="toggleEditChecklist"]').title = t('notes.checklist_title');
-  document.querySelector('#edit-modal .color-picker button').title = t('notes.color_title');
-  document.querySelector('#share-note-btn').title = t('notes.share_title');
-  document.querySelector('#pin-note-btn').title = t('notes.pin_title');
-  document.querySelector('#archive-note-btn').title = t('notes.archive_title');
-  document.querySelector('#delete-note-btn').title = t('notes.delete_title');
-  document.querySelector('#dismiss-share-btn').title = t('share.dismiss_title');
+  setIconLabel(document.querySelector('#edit-modal button.btn-icon[title]'), t('notes.add_image_title'));
+  setIconLabel(document.querySelector('#edit-modal button[data-action="toggleEditChecklist"]'), t('notes.checklist_title'));
+  setIconLabel(document.querySelector('#edit-modal .color-picker button'), t('notes.color_title'));
+  setIconLabel(document.querySelector('#share-note-btn'), t('notes.share_title'));
+  setIconLabel(document.querySelector('#pin-note-btn'), t('notes.pin_title'));
+  setIconLabel(document.querySelector('#archive-note-btn'), t('notes.archive_title'));
+  setIconLabel(document.querySelector('#delete-note-btn'), t('notes.delete_title'));
+  setIconLabel(document.querySelector('#dismiss-share-btn'), t('share.dismiss_title'));
   document.querySelector('#update-note-btn').textContent = t('notes.update_button');
 
   // Import modal
@@ -272,6 +280,14 @@ function updateUITranslations() {
   if (attributionText) {
     attributionText.textContent = t('attribution.icon_credit');
   }
+
+  // Accessible names for controls without visible text
+  document.querySelector('#search-input').setAttribute('aria-label', t('header.search_placeholder'));
+  document.getElementById('mobile-menu-btn').setAttribute('aria-label', t('header.menu'));
+  document.getElementById('user-profile-pic').setAttribute('aria-label', t('profile.title'));
+  document.querySelectorAll('.password-toggle-btn').forEach(btn => btn.setAttribute('aria-label', t('auth.show_password')));
+  document.querySelectorAll('.modal-close-btn, .close-image-modal').forEach(btn => btn.setAttribute('aria-label', t('import.close_button')));
+  document.getElementById('image-modal').setAttribute('aria-label', t('notes.image_alt'));
 
   // Update meta tags
   updateMetaTags();
@@ -375,9 +391,9 @@ const CLICK_ACTIONS = {
   login: () => login(),
   register: () => register(),
   logout: () => logout(),
-  showLogin: () => showLogin(),
-  showRegister: () => showRegister(),
-  showForgotPassword: () => showForgotPassword(),
+  showLogin: () => showAuthForm('login-form'),
+  showRegister: () => showAuthForm('register-form'),
+  showForgotPassword: () => showAuthForm('forgot-password-form'),
   requestPasswordReset: () => requestPasswordReset(),
   resetPassword: () => resetPassword(),
   togglePasswordVisibility: (el) => togglePasswordVisibility(el.dataset.arg),
@@ -386,13 +402,13 @@ const CLICK_ACTIONS = {
   toggleArchived: () => toggleArchived(),
   openProfileModal: () => openProfileModal(),
   closeProfileModal: (el, e) => closeProfileModal(el.classList.contains('modal') ? e : undefined),
-  addChecklistItem: () => addChecklistItem(),
-  addEditChecklistItem: () => addEditChecklistItem(),
+  addChecklistItem: () => addChecklistItem('new'),
+  addEditChecklistItem: () => addChecklistItem('edit'),
   removeChecklistItem: (el) => removeChecklistItem(el),
-  removeEditChecklistItem: (el) => removeEditChecklistItem(el),
+  removeEditChecklistItem: (el) => removeChecklistItem(el),
   clickInput: (el) => document.getElementById(el.dataset.arg).click(),
-  toggleChecklist: () => toggleChecklist(),
-  toggleEditChecklist: () => toggleEditChecklist(),
+  toggleChecklist: () => toggleChecklist('new'),
+  toggleEditChecklist: () => toggleChecklist('edit'),
   saveNote: () => saveNote(),
   updateNote: () => updateNote(),
   deleteNote: () => deleteNote(),
@@ -436,21 +452,40 @@ const INPUT_ACTIONS = {
   searchNotes: () => searchNotes()
 };
 
+function runClickAction(el, e) {
+  const handler = CLICK_ACTIONS[el.dataset.action];
+  if (!handler) { console.warn('Unknown data-action:', el.dataset.action); return; }
+  if (el.tagName === 'A') e.preventDefault();
+  handler(el, e);
+}
+
 document.addEventListener('click', (e) => {
   let el = e.target;
   while (el && el !== document) {
     if (el.dataset) {
       if (el.dataset.action !== undefined) {
-        const handler = CLICK_ACTIONS[el.dataset.action];
-        if (!handler) { console.warn('Unknown data-action:', el.dataset.action); return; }
-        if (el.tagName === 'A') e.preventDefault();
-        handler(el, e);
+        runClickAction(el, e);
         return;
       }
       if (el.dataset.stop !== undefined) return;
     }
     el = el.parentElement;
   }
+});
+
+// Keyboard activation for clickable non-button elements (note cards, avatar,
+// images: role="button" tabindex="0"). Native buttons, links and form fields
+// already handle Enter/Space themselves, and the key must be pressed on the
+// element itself, so typing inside a field within a card never triggers it.
+const NATIVE_INTERACTIVE = new Set(['BUTTON', 'A', 'INPUT', 'TEXTAREA', 'SELECT']);
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  if (e.isComposing || e.defaultPrevented) return;
+  const el = e.target;
+  if (!el || !el.dataset || el.dataset.action === undefined) return;
+  if (NATIVE_INTERACTIVE.has(el.tagName) || el.isContentEditable) return;
+  e.preventDefault(); // Space would otherwise scroll the page
+  runClickAction(el, e);
 });
 
 document.addEventListener('change', (e) => {
@@ -473,19 +508,19 @@ window.addEventListener('DOMContentLoaded', async () => {
   const versionEl = document.getElementById('app-version');
   if (versionEl) versionEl.textContent = `v${APP_VERSION}`;
 
-  // UI text first so whichever screen we land on is already translated.
-  await loadTranslations(currentLocale);
-  updateUITranslations();
+  // Translations, the CSRF token and GET /api/me (which only needs the session
+  // cookie) all start at once. checkAuth waits for the translations before it
+  // reveals a screen, so the splash is swapped exactly once, already translated.
+  const i18nReady = loadTranslations(currentLocale)
+    .then(updateUITranslations)
+    .catch(error => console.error('Failed to apply translations:', error));
 
   checkForResetToken();
 
-  // Decide the screen as early as possible: checkAuth (GET /api/me) only needs
-  // the session cookie, so run it together with the CSRF fetch instead of
-  // serially behind it. Whichever screen wins, the splash is swapped exactly
-  // once when these resolve — no more login flash before the app appears.
-  await Promise.all([fetchCSRFToken(), checkAuth()]);
+  await Promise.all([i18nReady, fetchCSRFToken(), checkAuth(i18nReady)]);
 
   setupColorPickers();
+  setupDialogFocus();
 
   // Paste-to-upload: images pasted from the clipboard land in the note
   // that has focus (new-note form or the edit modal).
@@ -506,9 +541,7 @@ function getCSRFHeaders() {
 
 async function fetchCSRFToken() {
   try {
-    const response = await apiFetch('/api/csrf-token', {
-      credentials: 'include'
-    });
+    const response = await apiFetch('/api/csrf-token');
     if (response.ok) {
       const data = await response.json();
       csrfToken = data.csrfToken;
@@ -521,47 +554,62 @@ async function fetchCSRFToken() {
 // ===== API FETCH WRAPPER =====
 // Global fetch wrapper that always includes credentials for session cookies
 async function apiFetch(url, options = {}) {
-  const defaultOptions = {
-    credentials: 'include', // Always include cookies/session
-    headers: {
-      'Content-Type': 'application/json',
-      ...getCSRFHeaders(), // Include CSRF token if available
-      ...(options.headers || {})
-    },
-    ...options
+  const { headers: callerHeaders, body, ...rest } = options;
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
+  const send = () => {
+    // Caller headers are merged in (never replace the defaults). FormData must
+    // not get a Content-Type: the browser adds the multipart boundary itself.
+    const headers = {
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+      ...getCSRFHeaders(),
+      ...(callerHeaders || {})
+    };
+    const init = { credentials: 'include', ...rest, headers };
+    if (body !== undefined) {
+      init.body = (body && typeof body === 'object' && !isFormData) ? JSON.stringify(body) : body;
+    }
+    return fetch(url, init);
   };
 
-  // If body is provided and is an object, stringify it
-  if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
-    defaultOptions.body = JSON.stringify(options.body);
-  }
+  const response = await send();
 
-  return fetch(url, defaultOptions);
+  // A 403 may mean the CSRF token expired: fetch a fresh one and retry once.
+  // If it was a real permission error the retry fails the same way and the
+  // caller still gets that response (with its own error message).
+  if (response.status === 403 && url !== '/api/csrf-token') {
+    await fetchCSRFToken();
+    return send();
+  }
+  return response;
 }
 
 // ===== AUTH FUNCTIONS =====
-async function checkAuth() {
+async function checkAuth(i18nReady = Promise.resolve()) {
+  let user = null;
   try {
     const response = await apiFetch('/api/me');
-    if (response.ok) {
-      const user = await response.json();
-      currentUser = user;
-      maxImagesPerNote = user.maxImages || 30;
-      showApp();
-      loadNotes();
-      connectWebSocket();
-      updateProfilePicture();
-      applyBackgroundTheme(user.backgroundTheme || 'default');
+    if (response.ok) user = await response.json();
+  } catch (error) {
+    // treated as signed out below
+  }
+
+  // /api/me and the translation file load in parallel; whichever screen wins,
+  // it is only revealed once the UI text is translated (no flash of Swedish).
+  await i18nReady;
+
+  try {
+    if (user) {
+      enterApp(user);
       // Pre-fetch archived notes in background for faster switching
       setTimeout(prefetchArchivedNotes, 2000);
-    } else {
-      currentUser = null; // Clear user on auth failure
-      showAuthScreen();
+      return;
     }
   } catch (error) {
-    currentUser = null; // Clear user on error
-    showAuthScreen();
+    console.error('Failed to enter app:', error);
   }
+  currentUser = null; // Clear user on auth failure
+  showAuthScreen();
 }
 
 // Remove the startup splash once the real screen (app or login) is ready.
@@ -583,40 +631,26 @@ function showApp() {
   document.getElementById('user-info').textContent = currentUser.username;
 }
 
-function showLogin() {
-  document.getElementById('login-form').style.display = 'block';
-  document.getElementById('register-form').style.display = 'none';
-  document.getElementById('forgot-password-form').style.display = 'none';
-  document.getElementById('reset-password-form').style.display = 'none';
+const AUTH_FORM_IDS = ['login-form', 'register-form', 'forgot-password-form', 'reset-password-form'];
+
+// Show exactly one of the auth forms and clear any previous message.
+function showAuthForm(formId) {
+  AUTH_FORM_IDS.forEach(id => {
+    document.getElementById(id).style.display = id === formId ? 'block' : 'none';
+  });
   document.getElementById('auth-error').textContent = '';
   document.getElementById('auth-success').style.display = 'none';
 }
 
-function showRegister() {
-  document.getElementById('login-form').style.display = 'none';
-  document.getElementById('register-form').style.display = 'block';
-  document.getElementById('forgot-password-form').style.display = 'none';
-  document.getElementById('reset-password-form').style.display = 'none';
-  document.getElementById('auth-error').textContent = '';
-  document.getElementById('auth-success').style.display = 'none';
-}
-
-function showForgotPassword() {
-  document.getElementById('login-form').style.display = 'none';
-  document.getElementById('register-form').style.display = 'none';
-  document.getElementById('forgot-password-form').style.display = 'block';
-  document.getElementById('reset-password-form').style.display = 'none';
-  document.getElementById('auth-error').textContent = '';
-  document.getElementById('auth-success').style.display = 'none';
-}
-
-function showResetPassword() {
-  document.getElementById('login-form').style.display = 'none';
-  document.getElementById('register-form').style.display = 'none';
-  document.getElementById('forgot-password-form').style.display = 'none';
-  document.getElementById('reset-password-form').style.display = 'block';
-  document.getElementById('auth-error').textContent = '';
-  document.getElementById('auth-success').style.display = 'none';
+// Enter the app after a successful checkAuth / login / register.
+function enterApp(user) {
+  currentUser = user;
+  maxImagesPerNote = user.maxImages || 30;
+  showApp();
+  loadNotes();
+  connectWebSocket();
+  updateProfilePicture();
+  applyBackgroundTheme(user.backgroundTheme || 'default');
 }
 
 async function login() {
@@ -639,19 +673,10 @@ async function login() {
     const data = await response.json();
 
     if (response.ok) {
-      // Set current user immediately so session is available
-      currentUser = data;
-      maxImagesPerNote = data.maxImages || 30;
-
       // Clear password field for security
       document.getElementById('login-password').value = '';
 
-      // Show app immediately
-      showApp();
-      loadNotes();
-      connectWebSocket();
-      updateProfilePicture();
-      applyBackgroundTheme(data.backgroundTheme || 'default');
+      enterApp(data);
 
       // Show success message after transition
       showAuthSuccess(t('messages.login_success'));
@@ -697,22 +722,13 @@ async function register() {
     const data = await response.json();
 
     if (response.ok) {
-      // Set current user immediately so session is available
-      currentUser = data;
-      maxImagesPerNote = data.maxImages || 30;
-
       // Clear form fields
       document.getElementById('register-username').value = '';
       document.getElementById('register-email').value = '';
       document.getElementById('register-password').value = '';
       document.getElementById('register-password-confirm').value = '';
 
-      // Show app immediately
-      showApp();
-      loadNotes();
-      connectWebSocket();
-      updateProfilePicture();
-      applyBackgroundTheme(data.backgroundTheme || 'default');
+      enterApp(data);
 
       // Show success message after transition
       showAuthSuccess(t('messages.register_success'));
@@ -731,6 +747,7 @@ async function logout() {
     method: 'POST'
   });
   resetClientState();
+  showAuthForm('login-form');
   showAuthScreen();
 }
 
@@ -880,7 +897,7 @@ function checkForResetToken() {
   if (resetToken) {
     // Store token and show reset password form
     sessionStorage.setItem('resetToken', resetToken);
-    showResetPassword();
+    showAuthForm('reset-password-form');
 
     // Clean up URL
     window.history.replaceState({}, document.title, window.location.pathname);
@@ -909,11 +926,6 @@ async function requestPasswordReset() {
   try {
     const response = await apiFetch('/api/password-reset/request', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({ usernameOrEmail: usernameOrEmail.trim() })
     });
 
@@ -974,11 +986,6 @@ async function resetPassword() {
   try {
     const response = await apiFetch('/api/password-reset/verify', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({ token, newPassword })
     });
 
@@ -997,7 +1004,7 @@ async function resetPassword() {
 
       // Redirect to login after 2 seconds
       setTimeout(() => {
-        showLogin();
+        showAuthForm('login-form');
       }, 2000);
     } else {
       showAuthError(data.error || t('messages.password_reset_failed'));
@@ -1239,11 +1246,6 @@ async function selectAvatarColor(color) {
   try {
     const response = await apiFetch('/api/profile/avatar-color', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({ avatarColor: color })
     });
 
@@ -1278,11 +1280,6 @@ async function selectBackgroundTheme(theme) {
   try {
     const response = await apiFetch('/api/profile/background-theme', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({ theme })
     });
 
@@ -1394,11 +1391,6 @@ async function changePassword() {
   try {
     const response = await apiFetch('/api/profile/change-password', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({ currentPassword, newPassword })
     });
 
@@ -1448,14 +1440,14 @@ function formatCreatedDate(dateString) {
 
   // If today, show time
   if (diffDays === 0) {
-    return date.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString(currentLocale, { hour: '2-digit', minute: '2-digit' });
   }
   // If this year, show date without year
   if (date.getFullYear() === now.getFullYear()) {
-    return date.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString(currentLocale, { month: 'short', day: 'numeric' });
   }
   // Otherwise show full date
-  return date.toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' });
+  return date.toLocaleDateString(currentLocale, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 // ===== NOTES FUNCTIONS =====
@@ -1524,7 +1516,7 @@ function updateSingleNote(note) {
     existingCard.replaceWith(newCard);
 
     // Re-calculate grid span for the updated card
-    requestAnimationFrame(() => calculateCardLayout(newCard));
+    scheduleCardLayout([newCard]);
   } else {
     // Add new card at the beginning
     const tempDiv = document.createElement('div');
@@ -1533,7 +1525,7 @@ function updateSingleNote(note) {
     container.insertBefore(newCard, container.firstChild);
 
     // Calculate grid span for new card
-    requestAnimationFrame(() => calculateCardLayout(newCard));
+    scheduleCardLayout([newCard]);
   }
 
   // Update section visibility
@@ -1551,27 +1543,77 @@ function removeSingleNote(noteId) {
   }
 }
 
-// Calculate grid layout for a single card
-function calculateCardLayout(card) {
-  const cardHeight = card.getBoundingClientRect().height;
-  const rowHeight = 10;
-  const gap = 16;
-  const rowSpan = Math.ceil((cardHeight + gap) / (rowHeight + gap));
-  card.style.gridRowEnd = `span ${rowSpan}`;
+// ----- Masonry-style card layout -----
+// Each card spans as many 10px grid rows as it is tall. Done in two phases so
+// the browser lays out only once: first everything is read (heights,
+// truncation, colour), then everything is written (row span, fade colour).
+const GRID_ROW_HEIGHT = 10; // Must match grid-auto-rows in layout.css
+const GRID_GAP = 16;        // Must match gap in layout.css
 
-  // Check truncation
-  if (card.scrollHeight > card.clientHeight) {
-    card.classList.add('truncated');
-    const bgColor = window.getComputedStyle(card).backgroundColor;
-    const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-    if (rgbMatch) {
-      const [, r, g, b] = rgbMatch;
-      card.style.setProperty('--card-color-r', r);
-      card.style.setProperty('--card-color-g', g);
-      card.style.setProperty('--card-color-b', b);
+function layoutCards(cards) {
+  cards = cards.filter(card => card && card.isConnected);
+  if (cards.length === 0) return;
+
+  // Re-measuring an already laid-out card: drop the truncation padding first
+  // so the natural size is measured (no-op for fresh cards).
+  cards.forEach(card => card.classList.remove('truncated'));
+
+  // Read phase
+  const measured = cards.map(card => {
+    const height = card.getBoundingClientRect().height;
+    const truncated = card.scrollHeight > card.clientHeight;
+    const rgb = truncated
+      ? window.getComputedStyle(card).backgroundColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/)
+      : null;
+    return { card, height, truncated, rgb };
+  });
+
+  // Write phase
+  measured.forEach(({ card, height, truncated, rgb }) => {
+    card.style.gridRowEnd = `span ${Math.ceil((height + GRID_GAP) / (GRID_ROW_HEIGHT + GRID_GAP))}`;
+    if (truncated) {
+      card.classList.add('truncated');
+      // CSS custom properties drive the fade-out gradient colour
+      if (rgb) {
+        card.style.setProperty('--card-color-r', rgb[1]);
+        card.style.setProperty('--card-color-g', rgb[2]);
+        card.style.setProperty('--card-color-b', rgb[3]);
+      }
     }
-  }
+  });
 }
+
+// Batch layout requests into one animation frame (render, image loads, ...)
+const pendingLayoutCards = new Set();
+function scheduleCardLayout(cards) {
+  const wasEmpty = pendingLayoutCards.size === 0;
+  cards.forEach(card => pendingLayoutCards.add(card));
+  if (!wasEmpty) return;
+  requestAnimationFrame(() => {
+    const batch = [...pendingLayoutCards];
+    pendingLayoutCards.clear();
+    layoutCards(batch);
+  });
+}
+
+function allNoteCards() {
+  return [...document.querySelectorAll('#pinned-notes-grid .note-card:not(.skeleton-card), #notes-grid .note-card:not(.skeleton-card)')];
+}
+
+// Column widths change with the window, so row spans must be recomputed
+let layoutResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(layoutResizeTimer);
+  layoutResizeTimer = setTimeout(() => scheduleCardLayout(allNoteCards()), 150);
+});
+
+// A lazy-loaded image changes its card's height once it has loaded.
+// 'load' does not bubble, so listen in the capture phase.
+document.addEventListener('load', (e) => {
+  if (e.target.tagName !== 'IMG') return;
+  const card = e.target.closest('.note-card');
+  if (card) scheduleCardLayout([card]);
+}, true);
 
 // Update visibility of pinned/regular sections
 function updateSectionVisibility() {
@@ -1652,7 +1694,7 @@ function renderNoteHTML(note) {
     imagesHtml = `
       <div class="note-images" data-stop>
         ${note.images.map(img => `
-          <img src="/api/notes/image/${img}" alt="${t('notes.image_alt')}" loading="lazy" data-action="openImageModal" data-arg="${img}">
+          <img src="/api/notes/image/${img}" alt="${t('notes.image_alt')}" loading="lazy" role="button" tabindex="0" data-action="openImageModal" data-arg="${img}">
         `).join('')}
       </div>
     `.replace('<div class="note-images"', `<div class="note-images" data-images="${imagesJson}"`);
@@ -1668,7 +1710,7 @@ function renderNoteHTML(note) {
   const themeColor = getThemeAwareColor(note.color);
 
   return `
-    <div class="note-card" data-note-id="${note.id}" style="background-color: ${escapeHtml(themeColor)}" data-action="openEditModal" data-arg="${note.id}">
+    <div class="note-card" role="button" tabindex="0" data-note-id="${note.id}" style="background-color: ${escapeHtml(themeColor)}" data-action="openEditModal" data-arg="${note.id}">
       ${pinIndicator}
       ${ownerIndicator}
       ${note.title ? `<h3>${escapeHtml(note.title)}${dateHtml}</h3>` : dateHtml}
@@ -1973,11 +2015,12 @@ function renderNotes(options = {}) {
       : showingArchived
         ? t('messages.no_archived_notes')
         : t('messages.no_notes');
-    regularContainer.innerHTML = `<p style="text-align: center; color: #5f6368; grid-column: 1/-1;">${emptyMessage}</p>`;
+    regularContainer.innerHTML = `<p class="notes-empty">${emptyMessage}</p>`;
     pinnedContainer.innerHTML = '';
     return;
   }
 
+  let cardsToLayout = null; // null = measure every card (full render)
   if (append) {
     // Append mode: Only add new notes that aren't already rendered
     const existingIds = new Set(
@@ -1995,44 +2038,15 @@ function renderNotes(options = {}) {
     if (newRegularNotes.length > 0) {
       regularContainer.insertAdjacentHTML('beforeend', newRegularNotes.map(note => renderNoteHTML(note)).join(''));
     }
+    // Only the cards that were just added need measuring
+    cardsToLayout = allNoteCards().filter(card => !existingIds.has(parseInt(card.dataset.noteId)));
   } else {
     // Full render mode: Replace all notes
     pinnedContainer.innerHTML = pinnedNotes.map(note => renderNoteHTML(note)).join('');
     regularContainer.innerHTML = regularNotes.map(note => renderNoteHTML(note)).join('');
   }
 
-  // Use requestAnimationFrame for smooth DOM updates after render
-  requestAnimationFrame(() => {
-    const allCards = [
-      ...pinnedContainer.querySelectorAll('.note-card'),
-      ...regularContainer.querySelectorAll('.note-card')
-    ];
-
-    allCards.forEach((card, index) => {
-      // Calculate grid-row span based on card height
-      // Each grid row unit is 10px, gap is 16px
-      const cardHeight = card.getBoundingClientRect().height;
-      const rowHeight = 10; // Must match grid-auto-rows in CSS
-      const gap = 16; // Must match gap in CSS
-      const rowSpan = Math.ceil((cardHeight + gap) / (rowHeight + gap));
-      card.style.gridRowEnd = `span ${rowSpan}`;
-
-      // Check if card content is truncated (scrollHeight > clientHeight)
-      if (card.scrollHeight > card.clientHeight) {
-        card.classList.add('truncated');
-
-        // Use CSS custom properties for gradient color
-        const bgColor = window.getComputedStyle(card).backgroundColor;
-        const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-        if (rgbMatch) {
-          const [, r, g, b] = rgbMatch;
-          card.style.setProperty('--card-color-r', r);
-          card.style.setProperty('--card-color-g', g);
-          card.style.setProperty('--card-color-b', b);
-        }
-      }
-    });
-  });
+  scheduleCardLayout(cardsToLayout || allNoteCards());
 }
 
 async function saveNote() {
@@ -2056,11 +2070,6 @@ async function saveNote() {
   try {
     const response = await apiFetch('/api/notes', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({
         title,
         content,
@@ -2095,8 +2104,6 @@ async function saveNote() {
       applyLocalNoteChange(result);
       showToast(t('messages.note_saved'), 'success');
     } else if (response.status === 403) {
-      // CSRF token expired
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
       showToast(t('messages.save_note_failed'), 'error');
@@ -2132,7 +2139,7 @@ function openEditModal(noteId) {
   if (pinBtn) {
     pinBtn.style.display = 'inline-block';
     pinBtn.textContent = note.is_pinned ? '📍' : '📌'; // 📍 = pinned, 📌 = unpinned
-    pinBtn.title = note.is_pinned ? t('notes.unpin_title') : t('notes.pin_title');
+    setIconLabel(pinBtn, note.is_pinned ? t('notes.unpin_title') : t('notes.pin_title'));
   }
 
   if (note.is_checklist && note.checklist_items) {
@@ -2296,13 +2303,15 @@ function showUnsavedChangesDialog() {
   const existingDialog = document.getElementById('unsaved-changes-dialog');
   if (existingDialog) existingDialog.remove();
 
+  const returnFocus = rememberFocus();
   const dialog = document.createElement('div');
   dialog.id = 'unsaved-changes-dialog';
   dialog.className = 'modal active';
+  dialog._returnFocus = returnFocus;
   dialog.style.cssText = 'z-index: 1001; display: flex; align-items: center; justify-content: center;';
   dialog.innerHTML = `
-    <div class="modal-content modal-content--small unsaved-dialog-content" data-stop>
-      <h3 class="unsaved-dialog-title">${t('share.unsaved_changes')}</h3>
+    <div class="modal-content modal-content--small unsaved-dialog-content" role="alertdialog" aria-modal="true" aria-labelledby="unsaved-dialog-title" tabindex="-1" data-stop>
+      <h3 class="unsaved-dialog-title" id="unsaved-dialog-title">${t('share.unsaved_changes')}</h3>
       <p class="unsaved-dialog-text">${t('notes.unsaved_text')}</p>
       <div class="unsaved-dialog-buttons">
         <button class="btn-secondary unsaved-dialog-btn" data-action="closeUnsavedChangesDialog">${t('messages.cancel')}</button>
@@ -2316,21 +2325,19 @@ function showUnsavedChangesDialog() {
     }
   };
   document.body.appendChild(dialog);
+  focusDialog(dialog);
 }
 
 function closeUnsavedChangesDialog() {
-  document.getElementById('unsaved-changes-dialog')?.remove();
+  const dialog = document.getElementById('unsaved-changes-dialog');
+  if (!dialog) return;
+  dialog.remove();
+  restoreFocus(dialog._returnFocus);
 }
 
 function discardChangesAndClose() {
-  document.getElementById('unsaved-changes-dialog')?.remove();
+  closeUnsavedChangesDialog();
   forceCloseEditModal();
-}
-
-async function saveChangesAndClose() {
-  document.getElementById('unsaved-changes-dialog')?.remove();
-  await updateNote();
-  // updateNote will close the modal on success
 }
 
 async function updateNote(options = {}) {
@@ -2356,11 +2363,6 @@ async function updateNote(options = {}) {
   try {
     const response = await apiFetch(`/api/notes/${currentEditingNote.id}`, {
       method: 'PUT',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({
         title,
         content,
@@ -2400,7 +2402,6 @@ async function updateNote(options = {}) {
         }
       });
     } else if (response.status === 403) {
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
       showToast(t('messages.update_note_failed'), 'error');
@@ -2433,8 +2434,6 @@ async function deleteNote() {
   try {
     const response = await apiFetch(`/api/notes/${deletedId}`, {
       method: 'DELETE',
-      credentials: 'include',
-      headers: getCSRFHeaders()
     });
 
     if (response.ok) {
@@ -2446,7 +2445,6 @@ async function deleteNote() {
         onClick: () => restoreNote(deletedId)
       });
     } else if (response.status === 403) {
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
       showToast(t('messages.delete_note_failed'), 'error');
@@ -2466,17 +2464,12 @@ async function restoreNote(noteId) {
   try {
     const response = await apiFetch(`/api/notes/${noteId}/restore`, {
       method: 'POST',
-      credentials: 'include',
-      headers: getCSRFHeaders()
     });
     if (response.ok) {
       const data = await response.json();
       if (data.note) applyLocalNoteChange(data.note);
       else { invalidateNotesCache(); loadNotes({ forceRefresh: true }); }
       showToast(t('messages.note_restored'), 'success');
-    } else if (response.status === 403) {
-      await fetchCSRFToken();
-      showToast(t('messages.restore_failed'), 'error');
     } else {
       showToast(t('messages.restore_failed'), 'error');
     }
@@ -2496,8 +2489,6 @@ async function dismissShare() {
   try {
     const response = await apiFetch(`/api/notes/${currentEditingNote.id}/dismiss-share`, {
       method: 'DELETE',
-      credentials: 'include',
-      headers: getCSRFHeaders()
     });
 
     if (response.ok) {
@@ -2505,7 +2496,6 @@ async function dismissShare() {
       forceCloseEditModal();
       applyLocalNoteRemoval(dismissedId);
     } else if (response.status === 403) {
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     }
   } catch (error) {
@@ -2524,8 +2514,6 @@ async function togglePinNote() {
   try {
     const response = await apiFetch(`/api/notes/${currentEditingNote.id}/pin`, {
       method: 'POST',
-      credentials: 'include',
-      headers: getCSRFHeaders()
     });
 
     if (response.ok) {
@@ -2539,13 +2527,12 @@ async function togglePinNote() {
       // Update pin button icon in modal
       if (pinBtn) {
         pinBtn.textContent = data.is_pinned ? '📍' : '📌'; // 📍 = pinned, 📌 = unpinned
-        pinBtn.title = data.is_pinned ? t('notes.unpin_title') : t('notes.pin_title');
+        setIconLabel(pinBtn, data.is_pinned ? t('notes.unpin_title') : t('notes.pin_title'));
       }
 
       if (listed) applyLocalNoteChange({ ...listed, is_pinned: data.is_pinned });
       showToast(data.is_pinned ? t('messages.note_pinned') : t('messages.note_unpinned'), 'success');
     } else if (response.status === 403) {
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
       showToast(t('messages.pin_note_failed'), 'error');
@@ -2577,11 +2564,6 @@ async function toggleArchiveNote() {
   try {
     const response = await apiFetch(`/api/notes/${noteId}`, {
       method: 'PUT',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({
         title: document.getElementById('edit-note-title').value.trim(),
         content: document.getElementById('edit-note-content').value.trim(),
@@ -2602,7 +2584,6 @@ async function toggleArchiveNote() {
     } else if (response.status === 409) {
       showToast(t('messages.conflict_reopen'), 'error');
     } else if (response.status === 403) {
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
       showToast(t('messages.archive_note_failed'), 'error');
@@ -2643,17 +2624,6 @@ function toggleMobileMenu() {
   headerActions.classList.toggle('mobile-open');
 }
 
-// Close mobile menu when clicking outside or selecting an option
-function closeMobileMenu() {
-  const menuBtn = document.getElementById('mobile-menu-btn');
-  const headerActions = document.getElementById('header-actions');
-
-  if (menuBtn && headerActions) {
-    menuBtn.classList.remove('active');
-    headerActions.classList.remove('mobile-open');
-  }
-}
-
 // Debounced search: ask the server (see loadNotes) once typing pauses.
 let searchTimeout = null;
 let lastSearchQuery = '';
@@ -2692,8 +2662,8 @@ async function openShareModal() {
   try {
     // Load users and current shares in parallel (halves the wait).
     const [usersResponse, sharesResponse] = await Promise.all([
-      apiFetch('/api/users', { credentials: 'include' }),
-      apiFetch(`/api/notes/${shareModalNoteId}/shares`, { credentials: 'include' })
+      apiFetch('/api/users'),
+      apiFetch(`/api/notes/${shareModalNoteId}/shares`)
     ]);
 
     if (usersResponse.ok) {
@@ -2866,7 +2836,7 @@ function renderShareModal() {
             <option value="view" ${share.permission === 'view' ? 'selected' : ''}>${t('share.can_view')}</option>
             <option value="edit" ${share.permission === 'edit' ? 'selected' : ''}>${t('share.can_edit')}</option>
           </select>
-          <button class="btn-icon share-remove-btn" data-user-id="${share.shared_with_user_id}" title="${t('share.remove')}">✕</button>
+          <button class="btn-icon share-remove-btn" data-user-id="${share.shared_with_user_id}" title="${t('share.remove')}" aria-label="${t('share.remove')}">✕</button>
         </div>
       `;
     }).join('');
@@ -2940,11 +2910,6 @@ async function saveShares() {
       try {
         const response = await apiFetch(`/api/notes/${shareModalNoteId}/share`, {
           method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getCSRFHeaders()
-          },
           body: JSON.stringify({
             userId: share.shared_with_user_id,
             permission: share.permission
@@ -2953,9 +2918,6 @@ async function saveShares() {
 
         if (response.ok) {
           successCount++;
-        } else if (response.status === 403) {
-          await fetchCSRFToken();
-          errorCount++;
         } else {
           errorCount++;
         }
@@ -2970,8 +2932,6 @@ async function saveShares() {
       try {
         const response = await apiFetch(`/api/notes/${shareModalNoteId}/share/${share.shared_with_user_id}`, {
           method: 'DELETE',
-          credentials: 'include',
-          headers: getCSRFHeaders()
         });
 
         if (response.ok) {
@@ -3000,9 +2960,7 @@ async function saveShares() {
     } else {
       showToast(`${errorCount} ${t('share.save_errors')}`, 'error');
       // Reload shares to get current state
-      const sharesResponse = await apiFetch(`/api/notes/${shareModalNoteId}/shares`, {
-        credentials: 'include'
-      });
+      const sharesResponse = await apiFetch(`/api/notes/${shareModalNoteId}/shares`);
       if (sharesResponse.ok) {
         originalShares = await sharesResponse.json();
         pendingShares = originalShares.map(s => ({
@@ -3098,55 +3056,64 @@ function clearBtnBusy(btn) {
 }
 
 // ===== CHECKLIST FUNCTIONS =====
-function toggleChecklist() {
-  isChecklistMode = !isChecklistMode;
-  const container = document.getElementById('checklist-container');
-  const contentArea = document.getElementById('new-note-content');
-  const toggle = document.getElementById('checklist-toggle');
-  const itemsContainer = document.getElementById('checklist-items');
+// One implementation for both editors: 'new' (new-note form) and 'edit' (edit modal).
+const CHECKLIST_CONTEXTS = {
+  new: {
+    container: 'checklist-container', content: 'new-note-content',
+    toggle: 'checklist-toggle', items: 'checklist-items', removeAction: 'removeChecklistItem'
+  },
+  edit: {
+    container: 'edit-checklist-container', content: 'edit-note-content',
+    toggle: 'edit-checklist-toggle', items: 'edit-checklist-items', removeAction: 'removeEditChecklistItem'
+  }
+};
 
-  if (isChecklistMode) {
+function createChecklistRow(ctx, text = '') {
+  const row = document.createElement('div');
+  row.className = 'checklist-item';
+  row.innerHTML = `
+    <input type="checkbox">
+    <input type="text" value="${escapeHtml(text)}" placeholder="${t('notes.list_item_placeholder')}">
+    <button data-action="${CHECKLIST_CONTEXTS[ctx].removeAction}">×</button>
+  `;
+  return row;
+}
+
+function toggleChecklist(ctx) {
+  const c = CHECKLIST_CONTEXTS[ctx];
+  const container = document.getElementById(c.container);
+  const contentArea = document.getElementById(c.content);
+  const toggle = document.getElementById(c.toggle);
+  const itemsContainer = document.getElementById(c.items);
+  const isActive = ctx === 'new' ? isChecklistMode : container.style.display !== 'none';
+
+  if (!isActive) {
     // Switching TO checklist mode
     const existingContent = contentArea.value.trim();
 
     // Warn user if converting existing text to checklist
     if (existingContent && itemsContainer.children.length === 0) {
-      const confirmed = confirm(t('notes.confirm_convert_checklist'));
-      if (!confirmed) {
-        // User cancelled, revert the toggle
-        isChecklistMode = false;
-        return;
-      }
+      if (!confirm(t('notes.confirm_convert_checklist'))) return;
     }
 
+    if (ctx === 'new') isChecklistMode = true;
     container.style.display = 'block';
     contentArea.style.display = 'none';
     toggle.textContent = '☑';
 
-    // Convert existing text content to checklist items
     if (existingContent && itemsContainer.children.length === 0) {
-      // Split content by newlines and create checklist items
-      const lines = existingContent.split('\n').filter(line => line.trim() !== '');
-      lines.forEach(line => {
-        const item = document.createElement('div');
-        item.className = 'checklist-item';
-        item.innerHTML = `
-          <input type="checkbox">
-          <input type="text" value="${escapeHtml(line.trim())}" placeholder="${t('notes.list_item_placeholder')}">
-          <button data-action="removeChecklistItem">×</button>
-        `;
-        itemsContainer.appendChild(item);
-      });
-
+      // Convert existing text content (one item per line) to checklist items
+      existingContent.split('\n')
+        .filter(line => line.trim() !== '')
+        .forEach(line => itemsContainer.appendChild(createChecklistRow(ctx, line.trim())));
       // Clear the textarea since content is now in checklist
       contentArea.value = '';
     } else if (itemsContainer.children.length === 0) {
       // No existing content, add empty checklist item
-      addChecklistItem();
+      addChecklistItem(ctx);
     }
   } else {
-    // Switching FROM checklist mode back to text mode
-    // Convert checklist items back to text
+    // Switching FROM checklist mode back to text: convert items back to text
     const items = [];
     itemsContainer.querySelectorAll('.checklist-item').forEach(item => {
       const textInput = item.querySelector('input[type="text"]');
@@ -3160,34 +3127,26 @@ function toggleChecklist() {
       contentArea.value = items.join('\n');
     }
 
-    // Clear checklist items
     itemsContainer.innerHTML = '';
-
+    if (ctx === 'new') isChecklistMode = false;
     container.style.display = 'none';
     contentArea.style.display = 'block';
     toggle.textContent = '☐';
   }
 }
 
-function addChecklistItem() {
-  const container = document.getElementById('checklist-items');
-
-  const item = document.createElement('div');
-  item.className = 'checklist-item';
-  item.innerHTML = `
-    <input type="checkbox">
-    <input type="text" placeholder="${t('notes.list_item_placeholder')}">
-    <button data-action="removeChecklistItem">×</button>
-  `;
-
-  container.appendChild(item);
-  item.querySelector('input[type="text"]').focus();
+function addChecklistItem(ctx) {
+  const row = createChecklistRow(ctx);
+  document.getElementById(CHECKLIST_CONTEXTS[ctx].items).appendChild(row);
+  row.querySelector('input[type="text"]').focus();
 }
 
+// Takes the clicked button, not an index: indexes baked in at render time go
+// stale as soon as one row is removed, so the wrong row got deleted.
 function removeChecklistItem(button) {
-  button.parentElement.remove();
+  const row = button.closest('.checklist-item');
+  if (row) row.remove();
 }
-
 function getChecklistItems(containerId) {
   const container = document.getElementById(containerId);
   const items = [];
@@ -3224,98 +3183,6 @@ function confidenceBadgeHTML(confidence) {
   if (!Number.isInteger(confidence) || confidence < 1 || confidence > 10) return '';
   return `<span class="confidence-badge confidence-${confidence}" title="${t('import.confidence')}: ${confidence}/10">${confidence}</span>`;
 }
-
-function toggleEditChecklist() {
-  const container = document.getElementById('edit-checklist-container');
-  const contentArea = document.getElementById('edit-note-content');
-  const toggle = document.getElementById('edit-checklist-toggle');
-  const itemsContainer = document.getElementById('edit-checklist-items');
-
-  if (container.style.display === 'none') {
-    // Switching TO checklist mode
-    const existingContent = contentArea.value.trim();
-
-    // Warn user if converting existing text to checklist
-    if (existingContent && itemsContainer.children.length === 0) {
-      const confirmed = confirm(t('notes.confirm_convert_checklist'));
-      if (!confirmed) {
-        // User cancelled, don't switch to checklist mode
-        return;
-      }
-    }
-
-    container.style.display = 'block';
-    contentArea.style.display = 'none';
-    toggle.textContent = '☑';
-
-    // Convert existing text content to checklist items
-    if (existingContent && itemsContainer.children.length === 0) {
-      // Split content by newlines and create checklist items
-      const lines = existingContent.split('\n').filter(line => line.trim() !== '');
-      lines.forEach(line => {
-        const item = document.createElement('div');
-        item.className = 'checklist-item';
-        item.innerHTML = `
-          <input type="checkbox">
-          <input type="text" value="${escapeHtml(line.trim())}" placeholder="${t('notes.list_item_placeholder')}">
-          <button data-action="removeEditChecklistItem">×</button>
-        `;
-        itemsContainer.appendChild(item);
-      });
-
-      // Clear the textarea since content is now in checklist
-      contentArea.value = '';
-    } else if (itemsContainer.children.length === 0) {
-      // No existing content, add empty checklist item
-      addEditChecklistItem();
-    }
-  } else {
-    // Switching FROM checklist mode back to text mode
-    // Convert checklist items back to text
-    const items = [];
-    itemsContainer.querySelectorAll('.checklist-item').forEach(item => {
-      const textInput = item.querySelector('input[type="text"]');
-      if (textInput && textInput.value.trim()) {
-        items.push(textInput.value.trim());
-      }
-    });
-
-    // If there are checklist items and no text content, convert them to text
-    if (items.length > 0 && !contentArea.value.trim()) {
-      contentArea.value = items.join('\n');
-    }
-
-    // Clear checklist items
-    itemsContainer.innerHTML = '';
-
-    container.style.display = 'none';
-    contentArea.style.display = 'block';
-    toggle.textContent = '☐';
-  }
-}
-
-function addEditChecklistItem() {
-  const container = document.getElementById('edit-checklist-items');
-
-  const item = document.createElement('div');
-  item.className = 'checklist-item';
-  item.innerHTML = `
-    <input type="checkbox">
-    <input type="text" placeholder="${t('notes.list_item_placeholder')}">
-    <button data-action="removeEditChecklistItem">×</button>
-  `;
-
-  container.appendChild(item);
-  item.querySelector('input[type="text"]').focus();
-}
-
-// Takes the clicked button, not an index: indexes baked into onclick at render
-// time go stale as soon as one row is removed, so the wrong row got deleted.
-function removeEditChecklistItem(button) {
-  const row = button.closest('.checklist-item');
-  if (row) row.remove();
-}
-
 
 // ===== COLOR PICKER =====
 function setupColorPickers() {
@@ -3538,8 +3405,6 @@ async function exportBackup() {
   try {
     const response = await apiFetch('/api/backup/export', {
       method: 'GET',
-      credentials: 'include',
-      headers: getCSRFHeaders()
     });
 
     if (response.ok) {
@@ -3566,7 +3431,6 @@ async function exportBackup() {
 
       showToast(t('messages.export_success'), 'success');
     } else if (response.status === 403) {
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
       throw new Error('Export failed');
@@ -3622,18 +3486,70 @@ function linkify(text) {
   return escaped;
 }
 
-// Enter key handling
+// Enter key handling: Enter in any field of an auth form submits that form
+const ENTER_SUBMITS = {
+  'login-username': () => login(),
+  'login-password': () => login(),
+  'register-username': () => register(),
+  'register-email': () => register(),
+  'register-password': () => register(),
+  'register-password-confirm': () => register(),
+  'forgot-password-input': () => requestPasswordReset(),
+  'reset-password-new': () => resetPassword(),
+  'reset-password-confirm': () => resetPassword()
+};
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && e.target.id === 'login-password') {
-    login();
-  }
-  if (e.key === 'Enter' && e.target.id === 'register-password-confirm') {
-    register();
+  if (e.key === 'Enter' && !e.isComposing && ENTER_SUBMITS[e.target.id]) {
+    ENTER_SUBMITS[e.target.id]();
   }
   if (e.key === 'Escape') {
     closeTopmostModal();
   }
 });
+
+// ===== DIALOG FOCUS =====
+// When a modal opens, focus moves into it; when it closes, focus returns to
+// the element that opened it. Done by watching the 'active' class so every
+// open/close path (buttons, backdrop, Escape, saving) is covered.
+function rememberFocus() {
+  const el = document.activeElement;
+  if (!el || el === document.body) return null;
+  return { el, noteId: el.dataset ? el.dataset.noteId : undefined };
+}
+
+function restoreFocus(saved) {
+  if (!saved) return;
+  let target = saved.el;
+  // A card that was re-rendered while the modal was open is a new element
+  if (!target.isConnected && saved.noteId) {
+    target = document.querySelector(`.note-card[data-note-id="${saved.noteId}"]`);
+  }
+  if (target && target.isConnected) target.focus({ preventScroll: true });
+}
+
+function focusDialog(modal) {
+  const target = modal.querySelector('.modal-content') || modal;
+  target.focus({ preventScroll: true });
+}
+
+function setupDialogFocus() {
+  document.querySelectorAll('.modal, .image-modal').forEach(modal => {
+    let saved = null;
+    let wasOpen = modal.classList.contains('active');
+    new MutationObserver(() => {
+      const isOpen = modal.classList.contains('active');
+      if (isOpen === wasOpen) return;
+      wasOpen = isOpen;
+      if (isOpen) {
+        saved = rememberFocus();
+        focusDialog(modal);
+      } else {
+        restoreFocus(saved);
+        saved = null;
+      }
+    }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+  });
+}
 
 // Escape closes only the topmost layer, through the same functions the close
 // buttons use (so unsaved-changes / pending-share checks still apply).
@@ -3704,8 +3620,6 @@ async function uploadNoteImages(files, context) {
 
       const response = await apiFetch('/api/notes/image', {
         method: 'POST',
-        credentials: 'include',
-        headers: getCSRFHeaders(),
         body: formData
       });
 
@@ -3715,7 +3629,6 @@ async function uploadNoteImages(files, context) {
         uploaded++;
         updateImageUploadProgress(prefix, uploaded, files.length);
       } else if (response.status === 403) {
-        await fetchCSRFToken();
         showToast(t('messages.session_expired'), 'error');
         return;
       } else {
@@ -3792,7 +3705,7 @@ function renderImagePreview(containerId, images, canRemove) {
   // Active images: clickable, with a ✕ to mark for removal.
   const activeHtml = images.map((img, index) => `
     <div class="image-preview-item">
-      <img src="/api/notes/image/${img}" alt="${t('notes.image_preview_alt')}" loading="lazy" data-action="openImageModal" data-arg="${img}">
+      <img src="/api/notes/image/${img}" alt="${t('notes.image_preview_alt')}" loading="lazy" role="button" tabindex="0" data-action="openImageModal" data-arg="${img}">
       ${canRemove ? `<button class="remove-image" data-action="removeImage" data-container="${containerId}" data-index="${index}" aria-label="${t('messages.remove_image')}">✕</button>` : ''}
     </div>
   `).join('');
