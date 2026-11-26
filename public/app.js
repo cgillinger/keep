@@ -1037,15 +1037,24 @@ function connectWebSocket() {
       const data = JSON.parse(event.data);
 
       if (data.type === 'note_created' || data.type === 'note_updated') {
-        // If the note's archived state no longer matches the current view, drop
-        // it (e.g. the owner archived a shared note in another session).
-        const archived = !!data.note.is_archived;
-        if ((archived && !showingArchived) || (!archived && showingArchived)) {
-          notes = notes.filter(n => n.id !== data.note.id);
-          removeSingleNote(data.note.id);
+        const incoming = data.note;
+        const existingIndex = notes.findIndex(n => n.id === incoming.id);
+        // Drop notes that don't belong in the current view (e.g. the owner
+        // archived a shared note in another session, or an own note arrives
+        // while the "shared" view is open).
+        if (!noteBelongsInCurrentView(incoming)) {
+          notes = notes.filter(n => n.id !== incoming.id);
+          removeSingleNote(incoming.id);
+          syncCurrentViewCache();
           return;
         }
-        const existingIndex = notes.findIndex(n => n.id === data.note.id);
+        // A foreign note we don't hold yet lacks the derived fields (owner,
+        // permission, isShared) the broadcast row doesn't carry: refetch
+        // instead of inserting a half-formed card.
+        if (existingIndex < 0 && currentUser && incoming.user_id !== undefined && incoming.user_id !== currentUser.id) {
+          if (data.type === 'note_created') loadNotes({ forceRefresh: true, showLoading: false });
+          return;
+        }
         let merged;
         if (existingIndex >= 0) {
           // MERGE rather than replace: broadcasts send raw DB rows without the
@@ -1053,7 +1062,7 @@ function connectWebSocket() {
           // owner_avatar_color, share_count). Replacing would make a recipient's
           // shared note look like their own (wrong buttons) and drop the owner's
           // "shared with N" badge. Spreading the existing note first preserves them.
-          merged = { ...notes[existingIndex], ...data.note };
+          merged = { ...notes[existingIndex], ...incoming };
           // Pin is per-user for shared notes: the owner's broadcast carries
           // their own is_pinned, which must not clobber our per-user pin.
           if (notes[existingIndex].isShared) {
@@ -1061,11 +1070,19 @@ function connectWebSocket() {
           }
           notes[existingIndex] = merged;
         } else {
-          merged = data.note;
+          merged = incoming;
           notes.unshift(merged);
+        }
+        // During a search the list only holds matches: drop what no longer matches
+        if (!noteMatchesSearch(merged)) {
+          notes = notes.filter(n => n.id !== merged.id);
+          removeSingleNote(merged.id);
+          syncCurrentViewCache();
+          return;
         }
         // Use incremental update for better performance
         updateSingleNote(merged);
+        syncCurrentViewCache();
       } else if (data.type === 'note_pinned') {
         // Our own pin toggled from another tab/device (pins are per-user).
         const idx = notes.findIndex(n => n.id === data.noteId);
@@ -1078,19 +1095,21 @@ function connectWebSocket() {
           }
         }
       } else if (data.type === 'note_deleted' || data.type === 'note_unshared') {
-        notes = notes.filter(n => n.id !== data.noteId);
-        removeSingleNote(data.noteId);
+        applyLocalNoteRemoval(data.noteId);
       } else if (data.type === 'note_shared') {
         // A note was shared with us. It shows up in both the default and the
         // "shared" views, so refresh whenever we're not in the archived view.
+        // The cached lists are stale now, so bypass them.
         showToast(t('share.new_share_notification'), 'info');
+        invalidateNotesCache();
         if (!showingArchived) {
-          loadNotes();
+          loadNotes({ forceRefresh: true, showLoading: false });
         }
       } else if (data.type === 'share_count_updated') {
         // Our note's share count changed - reload to update the indicator
+        invalidateNotesCache();
         if (!showingShared && !showingArchived) {
-          loadNotes();
+          loadNotes({ forceRefresh: true, showLoading: false });
         }
       } else if (data.type === 'permission_changed') {
         // Our permission on a shared note changed
@@ -1426,15 +1445,41 @@ function formatCreatedDate(dateString) {
 // ===== NOTES FUNCTIONS =====
 
 // Incremental update: Update or add a single note without full re-render
+// Does a note belong in the list the current view shows? Mirrors the server
+// (GET /api/notes): "archived" = own archived notes, "shared" = non-archived
+// notes shared WITH us (not our own), default = every non-archived note.
+function noteBelongsInCurrentView(note) {
+  const archived = !!note.is_archived;
+  if (showingArchived) return archived && isOwnNote(note);
+  if (archived) return false;
+  if (showingShared) return !isOwnNote(note);
+  return true;
+}
+
+function isOwnNote(note) {
+  if (note.user_id !== undefined && currentUser) return note.user_id === currentUser.id;
+  const held = notes.find(n => n.id === note.id);
+  return !(note.isShared || (held && held.isShared));
+}
+
+// Used for notes that arrive after the list was fetched (WebSocket, local
+// saves) while a search is active. The server already filtered the fetched
+// pages, so those are never filtered again. Like the server, it matches title,
+// body and checklist item text.
+function noteMatchesSearch(note) {
+  const q = currentSearchQuery().toLowerCase();
+  if (!q) return true;
+  if ((note.title || '').toLowerCase().includes(q)) return true;
+  if ((note.content || '').toLowerCase().includes(q)) return true;
+  let items = note.checklist_items;
+  if (typeof items === 'string') {
+    try { items = JSON.parse(items); } catch (e) { items = []; }
+  }
+  return Array.isArray(items) && items.some(item => String(item && item.text || '').toLowerCase().includes(q));
+}
+
 function updateSingleNote(note) {
-  const searchTerm = document.getElementById('search-input').value.toLowerCase();
-
-  // Check if note matches current search/filter
-  const matchesSearch = !searchTerm ||
-    note.title.toLowerCase().includes(searchTerm) ||
-    note.content.toLowerCase().includes(searchTerm);
-
-  if (!matchesSearch) {
+  if (!noteMatchesSearch(note)) {
     removeSingleNote(note.id);
     return;
   }
@@ -1810,8 +1855,7 @@ function setupScrollObserver() {
 // arrives afterwards and is idempotent. Other views' caches are dropped so
 // they refetch on next switch; the current view's cache is kept in sync.
 function applyLocalNoteChange(note) {
-  const archived = !!note.is_archived;
-  const inView = showingArchived ? archived : !archived;
+  const inView = noteBelongsInCurrentView(note) && noteMatchesSearch(note);
   const idx = notes.findIndex(n => n.id === note.id);
   if (!inView) {
     if (idx >= 0) notes.splice(idx, 1);
@@ -1841,7 +1885,8 @@ function syncCurrentViewCache() {
   for (const key of ['all', 'archived', 'shared']) {
     if (key !== current) invalidateNotesCache(key);
   }
-  if (!currentSearchQuery()) {
+  // While a view switch is still loading, `notes` belongs to the previous view.
+  if (!currentSearchQuery() && !isLoadingNotes) {
     notesCache[current] = { notes, hasMore: hasMoreNotes, total: notesCache[current].total };
     notesCache.timestamp[current] = Date.now();
   }
@@ -1883,16 +1928,9 @@ function renderNotes(options = {}) {
   const pinnedContainer = document.getElementById('pinned-notes-grid');
   const pinnedSection = document.getElementById('pinned-section');
   const otherLabel = document.getElementById('other-label');
-  const searchTerm = document.getElementById('search-input').value.toLowerCase();
-
-  const filteredNotes = notes.filter(note => {
-    if (searchTerm) {
-      const titleMatch = note.title.toLowerCase().includes(searchTerm);
-      const contentMatch = note.content.toLowerCase().includes(searchTerm);
-      return titleMatch || contentMatch;
-    }
-    return true;
-  });
+  // `notes` is already what the server returned for the current search (which
+  // also covers checklist items), so it is not filtered again here.
+  const filteredNotes = notes;
 
   // Separate pinned and regular notes
   const pinnedNotes = filteredNotes.filter(note => note.is_pinned);
