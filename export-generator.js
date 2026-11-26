@@ -1,12 +1,21 @@
 const fs = require('fs');
+const fsp = fs.promises;
 const path = require('path');
-const archiver = require('archiver');
 const { isValidImageName } = require('./image-names');
+
+// archiver 8 is ESM-only; a dynamic import() works from CommonJS on every
+// supported Node version (require(esm) only arrived in 20.19 / 22.12).
+let archiverModule = null;
+const loadArchiver = async () => archiverModule || (archiverModule = await import('archiver'));
 
 /**
  * Generate a complete backup of user's notes
  * Includes: notes, images, shares, metadata
- * Output: ZIP file with maximal compression
+ * Output: ZIP file. JSON is deflated; images (already compressed WebP/JPEG)
+ * are streamed straight from note-images into the archive, stored as-is.
+ *
+ * Archive layout (restore depends on it):
+ *   manifest.json, notes/note_<id>_<title>.json, shares.json, images/<name>
  */
 class BackupGenerator {
   constructor(userId, db, dataDir, outputPath) {
@@ -14,7 +23,6 @@ class BackupGenerator {
     this.db = db;
     this.dataDir = dataDir;
     this.outputPath = outputPath;
-    this.tempDir = path.join(dataDir, 'temp', `backup_${userId}_${Date.now()}`);
 
     this.stats = {
       totalNotes: 0,
@@ -29,28 +37,14 @@ class BackupGenerator {
    */
   async generate() {
     try {
-      // Create temp directory for building backup
-      if (!fs.existsSync(this.tempDir)) {
-        fs.mkdirSync(this.tempDir, { recursive: true });
-      }
+      const files = []; // { name, data } entries held in memory (small JSON)
 
-      // 1. Export manifest (metadata about backup)
-      await this.exportManifest();
+      files.push(await this.buildManifest());
+      files.push(...await this.buildNotes());
+      files.push(await this.buildShares());
+      const images = await this.collectImages();
 
-      // 2. Export all notes
-      await this.exportNotes();
-
-      // 3. Export shares (both owned and shared with user)
-      await this.exportShares();
-
-      // 4. Export images
-      await this.exportImages();
-
-      // 5. Create ZIP with maximal compression
-      await this.createZip();
-
-      // 6. Cleanup temp directory
-      this.cleanup();
+      await this.createZip(files, images);
 
       return {
         success: true,
@@ -58,239 +52,174 @@ class BackupGenerator {
         outputPath: this.outputPath
       };
     } catch (error) {
-      this.cleanup();
+      // Don't leave a half-written archive behind.
+      await fsp.unlink(this.outputPath).catch(() => {});
       throw error;
     }
   }
 
   /**
-   * Export manifest with backup metadata
+   * Manifest with backup metadata
    */
-  async exportManifest() {
-    return new Promise((resolve, reject) => {
-      this.db.get('SELECT username FROM users WHERE id = ?', [this.userId], (err, user) => {
-        if (err) return reject(err);
+  async buildManifest() {
+    const user = await this.db.getAsync('SELECT username FROM users WHERE id = ?', [this.userId]);
+    const manifest = {
+      version: '1.0.0',
+      type: 'kreep-backup',
+      created_at: new Date().toISOString(),
+      user_id: this.userId,
+      username: user ? user.username : 'unknown',
+      description: 'Complete backup of Kreep data'
+    };
+    return { name: 'manifest.json', data: JSON.stringify(manifest, null, 2) };
+  }
 
-        const manifest = {
-          version: '1.0.0',
-          type: 'kreep-backup',
-          created_at: new Date().toISOString(),
-          user_id: this.userId,
-          username: user ? user.username : 'unknown',
-          description: 'Complete backup of Kreep data'
-        };
+  /**
+   * All of the user's notes (including archived), one JSON file each
+   */
+  async buildNotes() {
+    const notes = await this.db.allAsync(
+      `SELECT
+         id, title, content, color,
+         is_checklist, checklist_items,
+         is_archived, is_pinned,
+         images,
+         created_at, updated_at
+       FROM notes
+       WHERE user_id = ? AND deleted_at IS NULL
+       ORDER BY created_at DESC`,
+      [this.userId]
+    );
 
-        fs.writeFileSync(
-          path.join(this.tempDir, 'manifest.json'),
-          JSON.stringify(manifest, null, 2)
-        );
+    return notes.map((note) => {
+      // Parse JSON fields. Guard each parse so one corrupt row doesn't abort
+      // the entire backup export.
+      if (note.checklist_items && typeof note.checklist_items === 'string') {
+        try { note.checklist_items = JSON.parse(note.checklist_items); }
+        catch (e) { note.checklist_items = []; }
+      }
+      if (note.images && typeof note.images === 'string') {
+        try { note.images = JSON.parse(note.images); }
+        catch (e) { note.images = []; }
+      }
+      if (Array.isArray(note.images)) {
+        note.images = note.images.filter(img => typeof img === 'string' && img === path.basename(img) && isValidImageName(img));
+      }
 
-        resolve();
-      });
+      // Convert boolean fields
+      note.is_checklist = Boolean(note.is_checklist);
+      note.is_archived = Boolean(note.is_archived);
+      note.is_pinned = Boolean(note.is_pinned);
+
+      this.stats.totalNotes++;
+      return {
+        name: `notes/note_${note.id}_${this.sanitizeFilename(note.title || 'untitled')}.json`,
+        data: JSON.stringify(note, null, 2)
+      };
     });
   }
 
   /**
-   * Export all notes (including archived)
+   * Shares (both owned and shared with the user)
    */
-  async exportNotes() {
-    return new Promise((resolve, reject) => {
-      const query = `
-        SELECT
-          id, title, content, color,
-          is_checklist, checklist_items,
-          is_archived, is_pinned,
-          images,
-          created_at, updated_at
-        FROM notes
-        WHERE user_id = ? AND deleted_at IS NULL
-        ORDER BY created_at DESC
-      `;
+  async buildShares() {
+    const ownedShares = await this.db.allAsync(
+      `SELECT
+         s.id, s.note_id, s.shared_with_user_id, s.permission, s.created_at,
+         u.username as shared_with_username
+       FROM shares s
+       JOIN users u ON s.shared_with_user_id = u.id
+       WHERE s.shared_by_user_id = ?`,
+      [this.userId]
+    );
+    const receivedShares = await this.db.allAsync(
+      `SELECT
+         s.id, s.note_id, s.shared_by_user_id, s.permission, s.created_at,
+         u.username as shared_by_username
+       FROM shares s
+       JOIN users u ON s.shared_by_user_id = u.id
+       WHERE s.shared_with_user_id = ?`,
+      [this.userId]
+    );
 
-      this.db.all(query, [this.userId], (err, notes) => {
-        if (err) return reject(err);
+    this.stats.totalShares = ownedShares.length + receivedShares.length;
+    return {
+      name: 'shares.json',
+      data: JSON.stringify({ owned: ownedShares, received: receivedShares }, null, 2)
+    };
+  }
 
-        const notesDir = path.join(this.tempDir, 'notes');
-        if (!fs.existsSync(notesDir)) {
-          fs.mkdirSync(notesDir, { recursive: true });
+  /**
+   * Source paths of every referenced image that exists on disk. Nothing is
+   * copied: createZip() reads them straight from note-images.
+   */
+  async collectImages() {
+    const notes = await this.db.allAsync(
+      'SELECT images FROM notes WHERE user_id = ? AND images IS NOT NULL AND deleted_at IS NULL',
+      [this.userId]
+    );
+
+    const noteImagesDir = path.join(this.dataDir, 'note-images');
+    const allImages = new Set();
+
+    notes.forEach(note => {
+      let images = note.images;
+      if (typeof images === 'string') {
+        try { images = JSON.parse(images); } catch (e) { images = []; }
+      }
+      if (!Array.isArray(images)) return;
+      // Defence in depth: never let a stored name escape note-images.
+      images.forEach(img => {
+        if (typeof img === 'string' && img === path.basename(img) && isValidImageName(img)) {
+          allImages.add(img);
         }
-
-        // Save each note as separate JSON file
-        notes.forEach((note, index) => {
-          // Parse JSON fields. Guard each parse so one corrupt row doesn't abort
-          // the entire backup export.
-          if (note.checklist_items && typeof note.checklist_items === 'string') {
-            try { note.checklist_items = JSON.parse(note.checklist_items); }
-            catch (e) { note.checklist_items = []; }
-          }
-          if (note.images && typeof note.images === 'string') {
-            try { note.images = JSON.parse(note.images); }
-            catch (e) { note.images = []; }
-          }
-          if (Array.isArray(note.images)) {
-            note.images = note.images.filter(img => typeof img === 'string' && img === path.basename(img) && isValidImageName(img));
-          }
-
-          // Convert boolean fields
-          note.is_checklist = Boolean(note.is_checklist);
-          note.is_archived = Boolean(note.is_archived);
-          note.is_pinned = Boolean(note.is_pinned);
-
-          const filename = `note_${note.id}_${this.sanitizeFilename(note.title || 'untitled')}.json`;
-          fs.writeFileSync(
-            path.join(notesDir, filename),
-            JSON.stringify(note, null, 2)
-          );
-
-          this.stats.totalNotes++;
-        });
-
-        resolve();
       });
     });
+
+    const found = [];
+    for (const name of allImages) {
+      const source = path.join(noteImagesDir, name);
+      try {
+        if ((await fsp.stat(source)).isFile()) found.push({ name, source });
+      } catch (error) {
+        if (error.code !== 'ENOENT') console.error(`Failed to read image ${name}:`, error);
+      }
+    }
+    this.stats.totalImages = found.length;
+    return found;
   }
 
   /**
-   * Export shares (both owned and shared with user)
+   * Stream everything into the ZIP file
    */
-  async exportShares() {
-    return new Promise((resolve, reject) => {
-      // Get shares where user is owner
-      const query1 = `
-        SELECT
-          s.id, s.note_id, s.shared_with_user_id, s.permission, s.created_at,
-          u.username as shared_with_username
-        FROM shares s
-        JOIN users u ON s.shared_with_user_id = u.id
-        WHERE s.shared_by_user_id = ?
-      `;
+  async createZip(files, images) {
+    const { ZipArchive } = await loadArchiver();
 
-      // Get shares where user has access
-      const query2 = `
-        SELECT
-          s.id, s.note_id, s.shared_by_user_id, s.permission, s.created_at,
-          u.username as shared_by_username
-        FROM shares s
-        JOIN users u ON s.shared_by_user_id = u.id
-        WHERE s.shared_with_user_id = ?
-      `;
-
-      this.db.all(query1, [this.userId], (err, ownedShares) => {
-        if (err) return reject(err);
-
-        this.db.all(query2, [this.userId], (err, receivedShares) => {
-          if (err) return reject(err);
-
-          const shares = {
-            owned: ownedShares,
-            received: receivedShares
-          };
-
-          fs.writeFileSync(
-            path.join(this.tempDir, 'shares.json'),
-            JSON.stringify(shares, null, 2)
-          );
-
-          this.stats.totalShares = ownedShares.length + receivedShares.length;
-          resolve();
-        });
-      });
-    });
-  }
-
-  /**
-   * Export images (copy all referenced images)
-   */
-  async exportImages() {
-    return new Promise((resolve, reject) => {
-      // Get all image filenames from notes
-      const query = `SELECT images FROM notes WHERE user_id = ? AND images IS NOT NULL AND deleted_at IS NULL`;
-
-      this.db.all(query, [this.userId], (err, notes) => {
-        if (err) return reject(err);
-
-        const imagesDir = path.join(this.tempDir, 'images');
-        if (!fs.existsSync(imagesDir)) {
-          fs.mkdirSync(imagesDir, { recursive: true });
-        }
-
-        const noteImagesDir = path.join(this.dataDir, 'note-images');
-        const allImages = new Set();
-
-        // Collect all unique image filenames
-        notes.forEach(note => {
-          if (note.images) {
-            let images = note.images;
-            if (typeof images === 'string') {
-              try { images = JSON.parse(images); } catch (e) { images = []; }
-            }
-
-            if (Array.isArray(images)) {
-              // Defence in depth: never let a stored name escape note-images.
-              images.forEach(img => {
-                if (typeof img === 'string' && img === path.basename(img) && isValidImageName(img)) {
-                  allImages.add(img);
-                }
-              });
-            }
-          }
-        });
-
-        // Copy each image
-        allImages.forEach(imageFilename => {
-          const sourcePath = path.join(noteImagesDir, imageFilename);
-          const destPath = path.join(imagesDir, imageFilename);
-
-          if (fs.existsSync(sourcePath)) {
-            try {
-              fs.copyFileSync(sourcePath, destPath);
-              this.stats.totalImages++;
-            } catch (error) {
-              console.error(`Failed to copy image ${imageFilename}:`, error);
-            }
-          }
-        });
-
-        resolve();
-      });
-    });
-  }
-
-  /**
-   * Create ZIP file with maximal compression
-   */
-  async createZip() {
     return new Promise((resolve, reject) => {
       const output = fs.createWriteStream(this.outputPath);
-      const archive = archiver('zip', {
-        zlib: { level: 9 } // Maximum compression
+      const archive = new ZipArchive({
+        zlib: { level: 6 } // JSON only; images below are stored, not recompressed
       });
 
       output.on('close', () => {
         this.stats.backupSize = archive.pointer();
         resolve();
       });
-
-      archive.on('error', (err) => {
-        reject(err);
-      });
+      output.on('error', reject);
+      archive.on('error', reject);
+      archive.on('warning', (err) => console.error('Backup archive warning:', err));
 
       archive.pipe(output);
 
-      // Add all files from temp directory
-      archive.directory(this.tempDir, false);
+      for (const file of files) {
+        archive.append(file.data, { name: file.name });
+      }
+      for (const image of images) {
+        archive.file(image.source, { name: `images/${image.name}`, store: true });
+      }
 
-      archive.finalize();
+      archive.finalize().catch(reject);
     });
-  }
-
-  /**
-   * Cleanup temp directory
-   */
-  cleanup() {
-    if (fs.existsSync(this.tempDir)) {
-      fs.rmSync(this.tempDir, { recursive: true, force: true });
-    }
   }
 
   /**
@@ -301,13 +230,6 @@ class BackupGenerator {
       .replace(/[^a-zA-Z0-9åäöÅÄÖ\s-]/g, '')
       .replace(/\s+/g, '_')
       .substring(0, 50);
-  }
-
-  /**
-   * Get export statistics
-   */
-  getStats() {
-    return this.stats;
   }
 }
 
