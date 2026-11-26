@@ -22,7 +22,7 @@ function getAppName() {
 }
 
 // Initialize kreep mode on load
-const kreepModeEnabled = initKreepMode();
+initKreepMode();
 
 // ===== INTERNATIONALIZATION (i18n) =====
 // Cache-busting token — keep in sync with package.json "version". Appended to
@@ -375,9 +375,9 @@ const CLICK_ACTIONS = {
   login: () => login(),
   register: () => register(),
   logout: () => logout(),
-  showLogin: () => showLogin(),
-  showRegister: () => showRegister(),
-  showForgotPassword: () => showForgotPassword(),
+  showLogin: () => showAuthForm('login-form'),
+  showRegister: () => showAuthForm('register-form'),
+  showForgotPassword: () => showAuthForm('forgot-password-form'),
   requestPasswordReset: () => requestPasswordReset(),
   resetPassword: () => resetPassword(),
   togglePasswordVisibility: (el) => togglePasswordVisibility(el.dataset.arg),
@@ -473,17 +473,16 @@ window.addEventListener('DOMContentLoaded', async () => {
   const versionEl = document.getElementById('app-version');
   if (versionEl) versionEl.textContent = `v${APP_VERSION}`;
 
-  // UI text first so whichever screen we land on is already translated.
-  await loadTranslations(currentLocale);
-  updateUITranslations();
+  // Translations, the CSRF token and GET /api/me (which only needs the session
+  // cookie) all start at once. checkAuth waits for the translations before it
+  // reveals a screen, so the splash is swapped exactly once, already translated.
+  const i18nReady = loadTranslations(currentLocale)
+    .then(updateUITranslations)
+    .catch(error => console.error('Failed to apply translations:', error));
 
   checkForResetToken();
 
-  // Decide the screen as early as possible: checkAuth (GET /api/me) only needs
-  // the session cookie, so run it together with the CSRF fetch instead of
-  // serially behind it. Whichever screen wins, the splash is swapped exactly
-  // once when these resolve — no more login flash before the app appears.
-  await Promise.all([fetchCSRFToken(), checkAuth()]);
+  await Promise.all([i18nReady, fetchCSRFToken(), checkAuth(i18nReady)]);
 
   setupColorPickers();
 
@@ -506,9 +505,7 @@ function getCSRFHeaders() {
 
 async function fetchCSRFToken() {
   try {
-    const response = await apiFetch('/api/csrf-token', {
-      credentials: 'include'
-    });
+    const response = await apiFetch('/api/csrf-token');
     if (response.ok) {
       const data = await response.json();
       csrfToken = data.csrfToken;
@@ -521,47 +518,62 @@ async function fetchCSRFToken() {
 // ===== API FETCH WRAPPER =====
 // Global fetch wrapper that always includes credentials for session cookies
 async function apiFetch(url, options = {}) {
-  const defaultOptions = {
-    credentials: 'include', // Always include cookies/session
-    headers: {
-      'Content-Type': 'application/json',
-      ...getCSRFHeaders(), // Include CSRF token if available
-      ...(options.headers || {})
-    },
-    ...options
+  const { headers: callerHeaders, body, ...rest } = options;
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
+  const send = () => {
+    // Caller headers are merged in (never replace the defaults). FormData must
+    // not get a Content-Type: the browser adds the multipart boundary itself.
+    const headers = {
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+      ...getCSRFHeaders(),
+      ...(callerHeaders || {})
+    };
+    const init = { credentials: 'include', ...rest, headers };
+    if (body !== undefined) {
+      init.body = (body && typeof body === 'object' && !isFormData) ? JSON.stringify(body) : body;
+    }
+    return fetch(url, init);
   };
 
-  // If body is provided and is an object, stringify it
-  if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
-    defaultOptions.body = JSON.stringify(options.body);
-  }
+  const response = await send();
 
-  return fetch(url, defaultOptions);
+  // A 403 may mean the CSRF token expired: fetch a fresh one and retry once.
+  // If it was a real permission error the retry fails the same way and the
+  // caller still gets that response (with its own error message).
+  if (response.status === 403 && url !== '/api/csrf-token') {
+    await fetchCSRFToken();
+    return send();
+  }
+  return response;
 }
 
 // ===== AUTH FUNCTIONS =====
-async function checkAuth() {
+async function checkAuth(i18nReady = Promise.resolve()) {
+  let user = null;
   try {
     const response = await apiFetch('/api/me');
-    if (response.ok) {
-      const user = await response.json();
-      currentUser = user;
-      maxImagesPerNote = user.maxImages || 30;
-      showApp();
-      loadNotes();
-      connectWebSocket();
-      updateProfilePicture();
-      applyBackgroundTheme(user.backgroundTheme || 'default');
+    if (response.ok) user = await response.json();
+  } catch (error) {
+    // treated as signed out below
+  }
+
+  // /api/me and the translation file load in parallel; whichever screen wins,
+  // it is only revealed once the UI text is translated (no flash of Swedish).
+  await i18nReady;
+
+  try {
+    if (user) {
+      enterApp(user);
       // Pre-fetch archived notes in background for faster switching
       setTimeout(prefetchArchivedNotes, 2000);
-    } else {
-      currentUser = null; // Clear user on auth failure
-      showAuthScreen();
+      return;
     }
   } catch (error) {
-    currentUser = null; // Clear user on error
-    showAuthScreen();
+    console.error('Failed to enter app:', error);
   }
+  currentUser = null; // Clear user on auth failure
+  showAuthScreen();
 }
 
 // Remove the startup splash once the real screen (app or login) is ready.
@@ -583,40 +595,26 @@ function showApp() {
   document.getElementById('user-info').textContent = currentUser.username;
 }
 
-function showLogin() {
-  document.getElementById('login-form').style.display = 'block';
-  document.getElementById('register-form').style.display = 'none';
-  document.getElementById('forgot-password-form').style.display = 'none';
-  document.getElementById('reset-password-form').style.display = 'none';
+const AUTH_FORM_IDS = ['login-form', 'register-form', 'forgot-password-form', 'reset-password-form'];
+
+// Show exactly one of the auth forms and clear any previous message.
+function showAuthForm(formId) {
+  AUTH_FORM_IDS.forEach(id => {
+    document.getElementById(id).style.display = id === formId ? 'block' : 'none';
+  });
   document.getElementById('auth-error').textContent = '';
   document.getElementById('auth-success').style.display = 'none';
 }
 
-function showRegister() {
-  document.getElementById('login-form').style.display = 'none';
-  document.getElementById('register-form').style.display = 'block';
-  document.getElementById('forgot-password-form').style.display = 'none';
-  document.getElementById('reset-password-form').style.display = 'none';
-  document.getElementById('auth-error').textContent = '';
-  document.getElementById('auth-success').style.display = 'none';
-}
-
-function showForgotPassword() {
-  document.getElementById('login-form').style.display = 'none';
-  document.getElementById('register-form').style.display = 'none';
-  document.getElementById('forgot-password-form').style.display = 'block';
-  document.getElementById('reset-password-form').style.display = 'none';
-  document.getElementById('auth-error').textContent = '';
-  document.getElementById('auth-success').style.display = 'none';
-}
-
-function showResetPassword() {
-  document.getElementById('login-form').style.display = 'none';
-  document.getElementById('register-form').style.display = 'none';
-  document.getElementById('forgot-password-form').style.display = 'none';
-  document.getElementById('reset-password-form').style.display = 'block';
-  document.getElementById('auth-error').textContent = '';
-  document.getElementById('auth-success').style.display = 'none';
+// Enter the app after a successful checkAuth / login / register.
+function enterApp(user) {
+  currentUser = user;
+  maxImagesPerNote = user.maxImages || 30;
+  showApp();
+  loadNotes();
+  connectWebSocket();
+  updateProfilePicture();
+  applyBackgroundTheme(user.backgroundTheme || 'default');
 }
 
 async function login() {
@@ -639,19 +637,10 @@ async function login() {
     const data = await response.json();
 
     if (response.ok) {
-      // Set current user immediately so session is available
-      currentUser = data;
-      maxImagesPerNote = data.maxImages || 30;
-
       // Clear password field for security
       document.getElementById('login-password').value = '';
 
-      // Show app immediately
-      showApp();
-      loadNotes();
-      connectWebSocket();
-      updateProfilePicture();
-      applyBackgroundTheme(data.backgroundTheme || 'default');
+      enterApp(data);
 
       // Show success message after transition
       showAuthSuccess(t('messages.login_success'));
@@ -697,22 +686,13 @@ async function register() {
     const data = await response.json();
 
     if (response.ok) {
-      // Set current user immediately so session is available
-      currentUser = data;
-      maxImagesPerNote = data.maxImages || 30;
-
       // Clear form fields
       document.getElementById('register-username').value = '';
       document.getElementById('register-email').value = '';
       document.getElementById('register-password').value = '';
       document.getElementById('register-password-confirm').value = '';
 
-      // Show app immediately
-      showApp();
-      loadNotes();
-      connectWebSocket();
-      updateProfilePicture();
-      applyBackgroundTheme(data.backgroundTheme || 'default');
+      enterApp(data);
 
       // Show success message after transition
       showAuthSuccess(t('messages.register_success'));
@@ -731,6 +711,7 @@ async function logout() {
     method: 'POST'
   });
   resetClientState();
+  showAuthForm('login-form');
   showAuthScreen();
 }
 
@@ -880,7 +861,7 @@ function checkForResetToken() {
   if (resetToken) {
     // Store token and show reset password form
     sessionStorage.setItem('resetToken', resetToken);
-    showResetPassword();
+    showAuthForm('reset-password-form');
 
     // Clean up URL
     window.history.replaceState({}, document.title, window.location.pathname);
@@ -909,11 +890,6 @@ async function requestPasswordReset() {
   try {
     const response = await apiFetch('/api/password-reset/request', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({ usernameOrEmail: usernameOrEmail.trim() })
     });
 
@@ -974,11 +950,6 @@ async function resetPassword() {
   try {
     const response = await apiFetch('/api/password-reset/verify', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({ token, newPassword })
     });
 
@@ -997,7 +968,7 @@ async function resetPassword() {
 
       // Redirect to login after 2 seconds
       setTimeout(() => {
-        showLogin();
+        showAuthForm('login-form');
       }, 2000);
     } else {
       showAuthError(data.error || t('messages.password_reset_failed'));
@@ -1239,11 +1210,6 @@ async function selectAvatarColor(color) {
   try {
     const response = await apiFetch('/api/profile/avatar-color', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({ avatarColor: color })
     });
 
@@ -1278,11 +1244,6 @@ async function selectBackgroundTheme(theme) {
   try {
     const response = await apiFetch('/api/profile/background-theme', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({ theme })
     });
 
@@ -1394,11 +1355,6 @@ async function changePassword() {
   try {
     const response = await apiFetch('/api/profile/change-password', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({ currentPassword, newPassword })
     });
 
@@ -2056,11 +2012,6 @@ async function saveNote() {
   try {
     const response = await apiFetch('/api/notes', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({
         title,
         content,
@@ -2095,8 +2046,6 @@ async function saveNote() {
       applyLocalNoteChange(result);
       showToast(t('messages.note_saved'), 'success');
     } else if (response.status === 403) {
-      // CSRF token expired
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
       showToast(t('messages.save_note_failed'), 'error');
@@ -2327,12 +2276,6 @@ function discardChangesAndClose() {
   forceCloseEditModal();
 }
 
-async function saveChangesAndClose() {
-  document.getElementById('unsaved-changes-dialog')?.remove();
-  await updateNote();
-  // updateNote will close the modal on success
-}
-
 async function updateNote(options = {}) {
   if (!currentEditingNote) return;
   const { force = false } = options;
@@ -2356,11 +2299,6 @@ async function updateNote(options = {}) {
   try {
     const response = await apiFetch(`/api/notes/${currentEditingNote.id}`, {
       method: 'PUT',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({
         title,
         content,
@@ -2400,7 +2338,6 @@ async function updateNote(options = {}) {
         }
       });
     } else if (response.status === 403) {
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
       showToast(t('messages.update_note_failed'), 'error');
@@ -2433,8 +2370,6 @@ async function deleteNote() {
   try {
     const response = await apiFetch(`/api/notes/${deletedId}`, {
       method: 'DELETE',
-      credentials: 'include',
-      headers: getCSRFHeaders()
     });
 
     if (response.ok) {
@@ -2446,7 +2381,6 @@ async function deleteNote() {
         onClick: () => restoreNote(deletedId)
       });
     } else if (response.status === 403) {
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
       showToast(t('messages.delete_note_failed'), 'error');
@@ -2466,17 +2400,12 @@ async function restoreNote(noteId) {
   try {
     const response = await apiFetch(`/api/notes/${noteId}/restore`, {
       method: 'POST',
-      credentials: 'include',
-      headers: getCSRFHeaders()
     });
     if (response.ok) {
       const data = await response.json();
       if (data.note) applyLocalNoteChange(data.note);
       else { invalidateNotesCache(); loadNotes({ forceRefresh: true }); }
       showToast(t('messages.note_restored'), 'success');
-    } else if (response.status === 403) {
-      await fetchCSRFToken();
-      showToast(t('messages.restore_failed'), 'error');
     } else {
       showToast(t('messages.restore_failed'), 'error');
     }
@@ -2496,8 +2425,6 @@ async function dismissShare() {
   try {
     const response = await apiFetch(`/api/notes/${currentEditingNote.id}/dismiss-share`, {
       method: 'DELETE',
-      credentials: 'include',
-      headers: getCSRFHeaders()
     });
 
     if (response.ok) {
@@ -2505,7 +2432,6 @@ async function dismissShare() {
       forceCloseEditModal();
       applyLocalNoteRemoval(dismissedId);
     } else if (response.status === 403) {
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     }
   } catch (error) {
@@ -2524,8 +2450,6 @@ async function togglePinNote() {
   try {
     const response = await apiFetch(`/api/notes/${currentEditingNote.id}/pin`, {
       method: 'POST',
-      credentials: 'include',
-      headers: getCSRFHeaders()
     });
 
     if (response.ok) {
@@ -2545,7 +2469,6 @@ async function togglePinNote() {
       if (listed) applyLocalNoteChange({ ...listed, is_pinned: data.is_pinned });
       showToast(data.is_pinned ? t('messages.note_pinned') : t('messages.note_unpinned'), 'success');
     } else if (response.status === 403) {
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
       showToast(t('messages.pin_note_failed'), 'error');
@@ -2577,11 +2500,6 @@ async function toggleArchiveNote() {
   try {
     const response = await apiFetch(`/api/notes/${noteId}`, {
       method: 'PUT',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCSRFHeaders()
-      },
       body: JSON.stringify({
         title: document.getElementById('edit-note-title').value.trim(),
         content: document.getElementById('edit-note-content').value.trim(),
@@ -2602,7 +2520,6 @@ async function toggleArchiveNote() {
     } else if (response.status === 409) {
       showToast(t('messages.conflict_reopen'), 'error');
     } else if (response.status === 403) {
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
       showToast(t('messages.archive_note_failed'), 'error');
@@ -2643,17 +2560,6 @@ function toggleMobileMenu() {
   headerActions.classList.toggle('mobile-open');
 }
 
-// Close mobile menu when clicking outside or selecting an option
-function closeMobileMenu() {
-  const menuBtn = document.getElementById('mobile-menu-btn');
-  const headerActions = document.getElementById('header-actions');
-
-  if (menuBtn && headerActions) {
-    menuBtn.classList.remove('active');
-    headerActions.classList.remove('mobile-open');
-  }
-}
-
 // Debounced search: ask the server (see loadNotes) once typing pauses.
 let searchTimeout = null;
 let lastSearchQuery = '';
@@ -2692,8 +2598,8 @@ async function openShareModal() {
   try {
     // Load users and current shares in parallel (halves the wait).
     const [usersResponse, sharesResponse] = await Promise.all([
-      apiFetch('/api/users', { credentials: 'include' }),
-      apiFetch(`/api/notes/${shareModalNoteId}/shares`, { credentials: 'include' })
+      apiFetch('/api/users'),
+      apiFetch(`/api/notes/${shareModalNoteId}/shares`)
     ]);
 
     if (usersResponse.ok) {
@@ -2940,11 +2846,6 @@ async function saveShares() {
       try {
         const response = await apiFetch(`/api/notes/${shareModalNoteId}/share`, {
           method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getCSRFHeaders()
-          },
           body: JSON.stringify({
             userId: share.shared_with_user_id,
             permission: share.permission
@@ -2953,9 +2854,6 @@ async function saveShares() {
 
         if (response.ok) {
           successCount++;
-        } else if (response.status === 403) {
-          await fetchCSRFToken();
-          errorCount++;
         } else {
           errorCount++;
         }
@@ -2970,8 +2868,6 @@ async function saveShares() {
       try {
         const response = await apiFetch(`/api/notes/${shareModalNoteId}/share/${share.shared_with_user_id}`, {
           method: 'DELETE',
-          credentials: 'include',
-          headers: getCSRFHeaders()
         });
 
         if (response.ok) {
@@ -3000,9 +2896,7 @@ async function saveShares() {
     } else {
       showToast(`${errorCount} ${t('share.save_errors')}`, 'error');
       // Reload shares to get current state
-      const sharesResponse = await apiFetch(`/api/notes/${shareModalNoteId}/shares`, {
-        credentials: 'include'
-      });
+      const sharesResponse = await apiFetch(`/api/notes/${shareModalNoteId}/shares`);
       if (sharesResponse.ok) {
         originalShares = await sharesResponse.json();
         pendingShares = originalShares.map(s => ({
@@ -3538,8 +3432,6 @@ async function exportBackup() {
   try {
     const response = await apiFetch('/api/backup/export', {
       method: 'GET',
-      credentials: 'include',
-      headers: getCSRFHeaders()
     });
 
     if (response.ok) {
@@ -3566,7 +3458,6 @@ async function exportBackup() {
 
       showToast(t('messages.export_success'), 'success');
     } else if (response.status === 403) {
-      await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
       throw new Error('Export failed');
@@ -3704,8 +3595,6 @@ async function uploadNoteImages(files, context) {
 
       const response = await apiFetch('/api/notes/image', {
         method: 'POST',
-        credentials: 'include',
-        headers: getCSRFHeaders(),
         body: formData
       });
 
@@ -3715,7 +3604,6 @@ async function uploadNoteImages(files, context) {
         uploaded++;
         updateImageUploadProgress(prefix, uploaded, files.length);
       } else if (response.status === 403) {
-        await fetchCSRFToken();
         showToast(t('messages.session_expired'), 'error');
         return;
       } else {
