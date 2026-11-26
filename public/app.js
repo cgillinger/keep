@@ -1018,10 +1018,22 @@ let wsReconnectTimer = null;
 let authEpoch = 0; // bumped on logout; stale async loads compare against it
 let wsHasConnectedBefore = false;
 function connectWebSocket() {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${protocol}//${window.location.host}`);
+  // Never keep two connections: cancel a pending reconnect and replace any
+  // socket that is open or still connecting. Handlers of a replaced socket
+  // check `socket !== ws` and bail out, so its close can't trigger a reconnect.
+  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    const old = ws;
+    ws = null;
+    old.close();
+  }
 
-  ws.onopen = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const socket = new WebSocket(`${protocol}//${window.location.host}`);
+  ws = socket;
+
+  socket.onopen = () => {
+    if (socket !== ws) return;
     console.log('WebSocket connected');
     wsReconnectDelay = 2000;
     if (wsHasConnectedBefore) {
@@ -1032,7 +1044,8 @@ function connectWebSocket() {
     wsHasConnectedBefore = true;
   };
 
-  ws.onmessage = (event) => {
+  socket.onmessage = (event) => {
+    if (socket !== ws) return;
     try {
       const data = JSON.parse(event.data);
 
@@ -1131,7 +1144,8 @@ function connectWebSocket() {
     }
   };
 
-  ws.onclose = (event) => {
+  socket.onclose = (event) => {
+    if (socket !== ws) return; // replaced or signed out: not our business anymore
     console.log('WebSocket disconnected', event.code, event.reason);
     // Don't reconnect if server rejected (auth error)
     if (event.code === 1008) {
@@ -1151,7 +1165,8 @@ function connectWebSocket() {
     }
   };
 
-  ws.onerror = (error) => {
+  socket.onerror = (error) => {
+    if (socket !== ws) return;
     console.error('WebSocket error:', error);
   };
 }
@@ -3616,13 +3631,21 @@ document.addEventListener('keydown', (e) => {
     register();
   }
   if (e.key === 'Escape') {
-    closeEditModal();
-    closeImportModal();
-    closeProfileModal();
-    closeShareModal();
-    closeImageModal();
+    closeTopmostModal();
   }
 });
+
+// Escape closes only the topmost layer, through the same functions the close
+// buttons use (so unsaved-changes / pending-share checks still apply).
+function closeTopmostModal() {
+  const isOpen = (id) => document.getElementById(id)?.classList.contains('active');
+  if (isOpen('image-modal')) closeImageModal();
+  else if (document.getElementById('unsaved-changes-dialog')) closeUnsavedChangesDialog();
+  else if (isOpen('share-modal')) cancelShareModal();
+  else if (isOpen('import-modal')) closeImportModal();
+  else if (isOpen('profile-modal')) closeProfileModal();
+  else if (isOpen('edit-modal')) closeEditModal();
+}
 
 // ===== IMAGE HANDLING =====
 
@@ -3870,9 +3893,7 @@ document.addEventListener('keydown', function(e) {
   const modal = document.getElementById('image-modal');
   if (!modal.classList.contains('active')) return;
 
-  if (e.key === 'Escape') {
-    closeImageModal();
-  } else if (e.key === 'ArrowLeft') {
+  if (e.key === 'ArrowLeft') {
     navigateImage(-1);
   } else if (e.key === 'ArrowRight') {
     navigateImage(1);
