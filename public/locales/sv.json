@@ -48,7 +48,8 @@
     "network_error_check": "Nätverksfel. Kontrollera din anslutning.",
     "invalid_reset_link": "Ogiltig återställningslänk. Begär en ny.",
     "fill_both_fields": "Fyll i båda fälten",
-    "resetting": "Återställer…"
+    "resetting": "Återställer…",
+    "show_password": "Visa lösenord"
   },
   "header": {
     "search_placeholder": "Sök anteckningar...",
@@ -58,7 +59,8 @@
     "show_active": "Visa aktiva",
     "logout_button": "Logga ut",
     "hide_shared": "Dölj delade",
-    "hide_archive": "Dölj arkiv"
+    "hide_archive": "Dölj arkiv",
+    "menu": "Meny"
   },
   "notes": {
     "title_placeholder": "Titel",

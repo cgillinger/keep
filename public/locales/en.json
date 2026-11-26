@@ -48,7 +48,8 @@
     "network_error_check": "Network error. Check your connection.",
     "invalid_reset_link": "Invalid reset link. Request a new one.",
     "fill_both_fields": "Fill in both fields",
-    "resetting": "Resetting…"
+    "resetting": "Resetting…",
+    "show_password": "Show password"
   },
   "header": {
     "search_placeholder": "Search notes...",
@@ -58,7 +59,8 @@
     "show_active": "Show active",
     "logout_button": "Log out",
     "hide_shared": "Hide shared",
-    "hide_archive": "Hide archive"
+    "hide_archive": "Hide archive",
+    "menu": "Menu"
   },
   "notes": {
     "title_placeholder": "Title",

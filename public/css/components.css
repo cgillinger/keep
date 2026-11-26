@@ -1315,3 +1315,10 @@
 @keyframes spin{to{transform:rotate(360deg);}}
 button:disabled,.btn:disabled{opacity:.6;cursor:not-allowed;}
 .btn-busy{pointer-events:none;opacity:.7;}
+
+/* Empty-state message shown in place of the notes */
+.notes-empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  grid-column: 1 / -1;
+}

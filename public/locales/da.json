@@ -48,7 +48,8 @@
     "network_error_check": "Netværksfejl. Kontrollér din forbindelse.",
     "invalid_reset_link": "Ugyldigt nulstillingslink. Anmod om et nyt.",
     "fill_both_fields": "Udfyld begge felter",
-    "resetting": "Nulstiller…"
+    "resetting": "Nulstiller…",
+    "show_password": "Vis adgangskode"
   },
   "header": {
     "search_placeholder": "Søg i noter...",
@@ -58,7 +59,8 @@
     "show_active": "Vis aktive",
     "logout_button": "Log ud",
     "hide_shared": "Skjul delte",
-    "hide_archive": "Skjul arkiv"
+    "hide_archive": "Skjul arkiv",
+    "menu": "Menu"
   },
   "notes": {
     "title_placeholder": "Titel",

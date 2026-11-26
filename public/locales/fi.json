@@ -48,7 +48,8 @@
     "network_error_check": "Verkkovirhe. Tarkista yhteytesi.",
     "invalid_reset_link": "Virheellinen palautuslinkki. Pyydä uusi.",
     "fill_both_fields": "Täytä molemmat kentät",
-    "resetting": "Palautetaan…"
+    "resetting": "Palautetaan…",
+    "show_password": "Näytä salasana"
   },
   "header": {
     "search_placeholder": "Hae muistiinpanoja...",
@@ -58,7 +59,8 @@
     "show_active": "Näytä aktiiviset",
     "logout_button": "Kirjaudu ulos",
     "hide_shared": "Piilota jaetut",
-    "hide_archive": "Piilota arkisto"
+    "hide_archive": "Piilota arkisto",
+    "menu": "Valikko"
   },
   "notes": {
     "title_placeholder": "Otsikko",

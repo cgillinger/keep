@@ -48,7 +48,8 @@
     "network_error_check": "Erreur réseau. Vérifiez votre connexion.",
     "invalid_reset_link": "Lien de réinitialisation invalide. Demandez-en un nouveau.",
     "fill_both_fields": "Remplissez les deux champs",
-    "resetting": "Réinitialisation…"
+    "resetting": "Réinitialisation…",
+    "show_password": "Afficher le mot de passe"
   },
   "header": {
     "search_placeholder": "Rechercher des notes...",
@@ -58,7 +59,8 @@
     "show_active": "Afficher actives",
     "logout_button": "Déconnexion",
     "hide_shared": "Masquer partagées",
-    "hide_archive": "Masquer l'archive"
+    "hide_archive": "Masquer l'archive",
+    "menu": "Menu"
   },
   "notes": {
     "title_placeholder": "Titre",

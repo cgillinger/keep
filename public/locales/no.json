@@ -48,7 +48,8 @@
     "network_error_check": "Nettverksfeil. Sjekk tilkoblingen din.",
     "invalid_reset_link": "Ugyldig tilbakestillingslenke. Be om en ny.",
     "fill_both_fields": "Fyll ut begge feltene",
-    "resetting": "Tilbakestiller…"
+    "resetting": "Tilbakestiller…",
+    "show_password": "Vis passord"
   },
   "header": {
     "search_placeholder": "Søk i notater...",
@@ -58,7 +59,8 @@
     "show_active": "Vis aktive",
     "logout_button": "Logg ut",
     "hide_shared": "Skjul delte",
-    "hide_archive": "Skjul arkiv"
+    "hide_archive": "Skjul arkiv",
+    "menu": "Meny"
   },
   "notes": {
     "title_placeholder": "Tittel",

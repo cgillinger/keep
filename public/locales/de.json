@@ -48,7 +48,8 @@
     "network_error_check": "Netzwerkfehler. Überprüfe deine Verbindung.",
     "invalid_reset_link": "Ungültiger Zurücksetzen-Link. Fordere einen neuen an.",
     "fill_both_fields": "Beide Felder ausfüllen",
-    "resetting": "Wird zurückgesetzt…"
+    "resetting": "Wird zurückgesetzt…",
+    "show_password": "Passwort anzeigen"
   },
   "header": {
     "search_placeholder": "Notizen durchsuchen...",
@@ -58,7 +59,8 @@
     "show_active": "Aktive anzeigen",
     "logout_button": "Abmelden",
     "hide_shared": "Geteilte ausblenden",
-    "hide_archive": "Archiv ausblenden"
+    "hide_archive": "Archiv ausblenden",
+    "menu": "Menü"
   },
   "notes": {
     "title_placeholder": "Titel",
