@@ -1,7 +1,10 @@
 const fs = require('fs');
+const fsp = fs.promises;
 const path = require('path');
 const { isValidImageName } = require('./image-names');
 const { sanitizeInput, validateColor, sanitizeChecklist } = require('./note-validation');
+
+const exists = (p) => fsp.access(p).then(() => true, () => false);
 
 /**
  * Import a Kreep backup
@@ -67,11 +70,11 @@ class BackupParser {
   async validateBackup() {
     const manifestPath = path.join(this.extractedPath, 'manifest.json');
 
-    if (!fs.existsSync(manifestPath)) {
+    if (!await exists(manifestPath)) {
       throw new Error('Invalid backup: manifest.json not found');
     }
 
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    const manifest = JSON.parse(await fsp.readFile(manifestPath, 'utf8'));
 
     // Support both new 'kreep-backup' and legacy 'keep-clone-backup' formats
     if (manifest.type !== 'kreep-backup' && manifest.type !== 'keep-clone-backup') {
@@ -93,18 +96,18 @@ class BackupParser {
   async importNotes() {
     const notesDir = path.join(this.extractedPath, 'notes');
 
-    if (!fs.existsSync(notesDir)) {
+    if (!await exists(notesDir)) {
       console.log('No notes directory found in backup');
       return;
     }
 
-    const noteFiles = fs.readdirSync(notesDir).filter(f => f.endsWith('.json'));
+    const noteFiles = (await fsp.readdir(notesDir)).filter(f => f.endsWith('.json'));
     this.stats.totalNotes = noteFiles.length;
 
     for (const noteFile of noteFiles) {
       try {
         const notePath = path.join(notesDir, noteFile);
-        const noteData = JSON.parse(fs.readFileSync(notePath, 'utf8'));
+        const noteData = JSON.parse(await fsp.readFile(notePath, 'utf8'));
 
         const oldNoteId = noteData.id;
 
@@ -181,14 +184,14 @@ class BackupParser {
    * on disk. Uploads keep the `note_<userId>_<n>.webp` scheme (so the owner can
    * always view them), other images keep their extension.
    */
-  uniqueImageName(originalName, dir) {
+  async uniqueImageName(originalName, dir) {
     const ext = path.extname(originalName).toLowerCase();
     for (;;) {
       const stamp = `${Date.now()}${String(this.imageSeq++).padStart(4, '0')}`;
       const name = ext === '.webp' && originalName.startsWith('note_')
         ? `note_${this.userId}_${stamp}.webp`
         : `${stamp}_r${Math.random().toString(36).slice(2, 8)}${ext}`;
-      if (isValidImageName(name) && !fs.existsSync(path.join(dir, name))) return name;
+      if (isValidImageName(name) && !await exists(path.join(dir, name))) return name;
     }
   }
 
@@ -198,20 +201,18 @@ class BackupParser {
   async importImages() {
     const imagesDir = path.join(this.extractedPath, 'images');
 
-    if (!fs.existsSync(imagesDir)) {
+    if (!await exists(imagesDir)) {
       console.log('No images directory found in backup');
       return;
     }
 
     const noteImagesDir = path.join(this.dataDir, 'note-images');
-    if (!fs.existsSync(noteImagesDir)) {
-      fs.mkdirSync(noteImagesDir, { recursive: true });
-    }
+    await fsp.mkdir(noteImagesDir, { recursive: true });
 
-    const imageFiles = fs.readdirSync(imagesDir);
+    const imageFiles = await fsp.readdir(imagesDir);
     this.stats.totalImages = imageFiles.length;
 
-    imageFiles.forEach(imageFile => {
+    for (const imageFile of imageFiles) {
       try {
         // Only accept well-formed image names. The backup is user-supplied, so
         // without this a crafted archive could drop e.g. `evil.html` into the
@@ -222,7 +223,7 @@ class BackupParser {
         if (!isValidImageName(safeName) || safeName !== imageFile) {
           console.warn(`Skipping image with unexpected name during restore: ${imageFile}`);
           this.stats.errors.push({ file: imageFile, error: 'Invalid image filename' });
-          return;
+          continue;
         }
 
         const sourcePath = path.join(imagesDir, safeName);
@@ -230,8 +231,8 @@ class BackupParser {
         // Never reuse the name from the backup: it could collide with (and
         // overwrite or alias) another user's file, or claim another user's id
         // in the upload scheme. Mint a fresh name owned by the restoring user.
-        const newName = this.uniqueImageName(safeName, noteImagesDir);
-        fs.copyFileSync(sourcePath, path.join(noteImagesDir, newName), fs.constants.COPYFILE_EXCL);
+        const newName = await this.uniqueImageName(safeName, noteImagesDir);
+        await fsp.copyFile(sourcePath, path.join(noteImagesDir, newName), fs.constants.COPYFILE_EXCL);
         this.imageMap[safeName] = newName;
         this.stats.importedImages++;
       } catch (error) {
@@ -241,7 +242,7 @@ class BackupParser {
           error: error.message
         });
       }
-    });
+    }
   }
 
   /**
@@ -250,12 +251,12 @@ class BackupParser {
   async importShares() {
     const sharesPath = path.join(this.extractedPath, 'shares.json');
 
-    if (!fs.existsSync(sharesPath)) {
+    if (!await exists(sharesPath)) {
       console.log('No shares.json found in backup');
       return;
     }
 
-    const sharesData = JSON.parse(fs.readFileSync(sharesPath, 'utf8'));
+    const sharesData = JSON.parse(await fsp.readFile(sharesPath, 'utf8'));
 
     // Build user map (username -> user_id)
     await this.buildUserMap();
@@ -356,13 +357,6 @@ class BackupParser {
         resolve();
       }
     });
-  }
-
-  /**
-   * Get import statistics
-   */
-  getStats() {
-    return this.stats;
   }
 }
 
