@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fsp = require('fs').promises;
 const path = require('path');
 
 // Color mapping from Google Keep to our colors
@@ -16,6 +16,8 @@ const COLOR_MAP = {
   'BROWN': '#e6c9a8',
   'GRAY': '#e8eaed'
 };
+
+const exists = (p) => fsp.access(p).then(() => true, () => false);
 
 /**
  * Parse Google Keep export and convert to our format
@@ -45,12 +47,12 @@ class KeepImportParser {
    * Main parse method - returns array of notes ready to insert
    */
   async parse() {
-    if (!fs.existsSync(this.keepDir)) {
+    if (!await exists(this.keepDir)) {
       throw new Error('Invalid Google Keep export structure. Expected Takeout/Keep/ directory.');
     }
 
     // Find all files and build a mapping to handle filesystem sanitization
-    const files = fs.readdirSync(this.keepDir);
+    const files = await fsp.readdir(this.keepDir);
 
     // Build file map - map various sanitized versions to actual filenames
     for (const file of files) {
@@ -167,7 +169,7 @@ class KeepImportParser {
       throw new Error(`Invalid file path: ${jsonFile}`);
     }
 
-    const rawData = fs.readFileSync(jsonPath, 'utf8');
+    const rawData = await fsp.readFile(jsonPath, 'utf8');
     const data = JSON.parse(rawData);
 
     // Skip trashed notes
@@ -254,7 +256,7 @@ class KeepImportParser {
     }
 
     // Double-check file exists (should exist since we found it in fileMap)
-    if (!fs.existsSync(sourcePath)) {
+    if (!await exists(sourcePath)) {
       this.stats.errors.push({
         file: sourceNote,
         error: `Missing attachment: ${attachment.filePath} (mapped to ${actualFilename})`
@@ -277,14 +279,10 @@ class KeepImportParser {
       return null;
     }
 
-    // Ensure media directory exists
-    if (!fs.existsSync(this.mediaDir)) {
-      fs.mkdirSync(this.mediaDir, { recursive: true });
-    }
-
-    // Copy file
+    // Copy file (ensuring the media directory exists first)
     try {
-      fs.copyFileSync(sourcePath, destPath);
+      await fsp.mkdir(this.mediaDir, { recursive: true });
+      await fsp.copyFile(sourcePath, destPath);
 
       return {
         original_filename: attachment.filePath,
@@ -309,13 +307,6 @@ class KeepImportParser {
 
     const milliseconds = Math.floor(usec / 1000);
     return new Date(milliseconds).toISOString();
-  }
-
-  /**
-   * Get import statistics
-   */
-  getStats() {
-    return this.stats;
   }
 }
 

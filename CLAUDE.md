@@ -29,8 +29,10 @@ replaced by `csrf-csrf` (double-submit cookie, token not bound to the session id
 and `sqlite3` is on 6.x (an npm `overrides` entry makes `connect-sqlite3` share
 it). `jsdom`/`dompurify` were dropped — note text is stored verbatim and escaped
 on render — and `nodemon` was replaced by `node --watch`. `body-parser`/`cors` were dropped (`express.json`/`urlencoded` are used). `npm audit`
-(2026-11-26): 5 moderate findings remain, all `glob`/`minimatch` inside `archiver` 7;
-archiver 8 changes its API and breaks the backup export, so it needs a code port.
+(2026-11-26): clean. `archiver` is on 8.x (ESM-only, loaded with a dynamic `import()` in
+`export-generator.js`; images are streamed into the zip stored, not copied). An npm
+`overrides` entry pins `readdir-glob`'s `minimatch` to ^11, because archiver 8 still
+pulled in a vulnerable minimatch 10; drop the override once readdir-glob moves on.
 Keep the rest clean: run `npm audit` before a release and prefer updating within
 semver first.
 

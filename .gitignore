@@ -8,3 +8,4 @@ sessions/
 data/
 public/dist/
 .claude/
+.playwright-mcp/

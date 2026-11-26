@@ -190,6 +190,48 @@ const passwordResetLimiter = rateLimit({
   legacyHeaders: false
 });
 
+// Static assets and the app shell are served before body parsing, cookies and
+// the session middleware: they need none of them, and this keeps every
+// stylesheet/script/image request from costing a lookup in sessions.db.
+// (Helmet and compression above still apply.)
+// Serve the built (fingerprinted) index.html for the app root when present,
+// falling back to the source index.html in dev (no build run). index.html itself
+// is always revalidated; the hashed bundles it points to are cached immutably.
+const builtIndex = path.join(__dirname, 'public', 'dist', 'index.html');
+app.get('/', (req, res, next) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(builtIndex, (err) => {
+    if (err) next(); // no dist build -> let express.static serve source index.html
+  });
+});
+
+// Serve static files. App code, styles and translations are NOT content-hashed,
+// so they must always be revalidated (ETag) — otherwise edits never reach a
+// browser that cached them. The fingerprinted bundles under /dist/ carry a
+// content hash in their name, so they can be cached immutably forever.
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true, // Enable ETag for conditional requests (cheap 304s)
+  lastModified: true, // Enable Last-Modified header
+  setHeaders: (res, filePath) => {
+    if (filePath.includes(`${path.sep}dist${path.sep}`) && !filePath.endsWith('index.html')) {
+      // Content-hashed bundles: filename changes when content changes.
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (
+      filePath.endsWith('.html') ||
+      filePath.endsWith('.js') ||
+      filePath.endsWith('.css') ||
+      filePath.endsWith('.json')
+    ) {
+      // Always revalidate: browser checks with the server and gets 304 when
+      // unchanged, fresh content when it changed. No stale code/translations.
+      res.setHeader('Cache-Control', 'no-cache');
+    } else {
+      // Images, fonts, icons: safe to cache for a day.
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+    }
+  }
+}));
+
 // Body parsing and cookies
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
@@ -276,44 +318,6 @@ const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
   getCsrfTokenFromRequest: (req) => req.headers['csrf-token'],
 });
 const csrfProtection = doubleCsrfProtection;
-
-// Serve the built (fingerprinted) index.html for the app root when present,
-// falling back to the source index.html in dev (no build run). index.html itself
-// is always revalidated; the hashed bundles it points to are cached immutably.
-const builtIndex = path.join(__dirname, 'public', 'dist', 'index.html');
-app.get('/', (req, res, next) => {
-  res.set('Cache-Control', 'no-cache');
-  res.sendFile(builtIndex, (err) => {
-    if (err) next(); // no dist build -> let express.static serve source index.html
-  });
-});
-
-// Serve static files. App code, styles and translations are NOT content-hashed,
-// so they must always be revalidated (ETag) — otherwise edits never reach a
-// browser that cached them. The fingerprinted bundles under /dist/ carry a
-// content hash in their name, so they can be cached immutably forever.
-app.use(express.static(path.join(__dirname, 'public'), {
-  etag: true, // Enable ETag for conditional requests (cheap 304s)
-  lastModified: true, // Enable Last-Modified header
-  setHeaders: (res, filePath) => {
-    if (filePath.includes(`${path.sep}dist${path.sep}`) && !filePath.endsWith('index.html')) {
-      // Content-hashed bundles: filename changes when content changes.
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    } else if (
-      filePath.endsWith('.html') ||
-      filePath.endsWith('.js') ||
-      filePath.endsWith('.css') ||
-      filePath.endsWith('.json')
-    ) {
-      // Always revalidate: browser checks with the server and gets 304 when
-      // unchanged, fresh content when it changed. No stale code/translations.
-      res.setHeader('Cache-Control', 'no-cache');
-    } else {
-      // Images, fonts, icons: safe to cache for a day.
-      res.setHeader('Cache-Control', 'public, max-age=86400');
-    }
-  }
-}));
 
 // Log a user in on a *fresh* session id. Regenerating on login/register is the
 // standard defence against session fixation: a session id an attacker managed
@@ -486,10 +490,9 @@ function closeUserSockets(userId, sid, onlyOthers = false) {
   }
 }
 
-function broadcastToUser(userId, data) {
+function sendToUser(userId, payload) {
   const userSockets = clients.get(userId);
   if (!userSockets) return;
-  const payload = JSON.stringify(data);
   userSockets.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       try {
@@ -501,8 +504,35 @@ function broadcastToUser(userId, data) {
   });
 }
 
-function broadcastToUsers(userIds, data) {
-  userIds.forEach(userId => broadcastToUser(userId, data));
+function broadcastToUser(userId, data) {
+  if (!clients.has(userId)) return;
+  sendToUser(userId, JSON.stringify(data));
+}
+
+// Send `message` to a note's owner and to everyone the note is shared with.
+// The JSON is serialised once. Resolves once the shares have been looked up;
+// callers needn't await it (failures are logged, never thrown).
+async function broadcastToNoteAudience(noteId, ownerId, message) {
+  const payload = JSON.stringify(message);
+  sendToUser(ownerId, payload);
+  try {
+    const shares = await db.allAsync('SELECT shared_with_user_id FROM shares WHERE note_id = ?', [noteId]);
+    for (const share of shares) sendToUser(share.shared_with_user_id, payload);
+  } catch (err) {
+    logger.error('Could not look up shares for broadcast:', err);
+  }
+}
+
+// Parse the JSON columns of a notes row in place (corrupt JSON becomes []),
+// leaving empty values untouched. Passes a missing row straight through.
+function parseJsonColumn(raw) {
+  try { return JSON.parse(raw); } catch (e) { return []; }
+}
+function parseNoteRow(note) {
+  if (!note) return note;
+  if (note.checklist_items) note.checklist_items = parseJsonColumn(note.checklist_items);
+  if (note.images) note.images = parseJsonColumn(note.images);
+  return note;
 }
 
 // ===== AI COMMAND TRIGGER =====
@@ -513,32 +543,15 @@ function broadcastToUsers(userIds, data) {
 function broadcastNoteUpdate(noteId, ownerId) {
   db.get('SELECT * FROM notes WHERE id = ?', [noteId], (err, note) => {
     if (err || !note) return;
-    if (note.checklist_items) {
-      try { note.checklist_items = JSON.parse(note.checklist_items); } catch (e) { note.checklist_items = []; }
-    }
-    if (note.images) {
-      try { note.images = JSON.parse(note.images); } catch (e) { note.images = []; }
-    }
-    broadcastToUser(ownerId, { type: 'note_updated', note });
-    db.all('SELECT shared_with_user_id FROM shares WHERE note_id = ?', [noteId], (err2, shares) => {
-      if (!err2 && shares) {
-        shares.forEach(s => broadcastToUser(s.shared_with_user_id, { type: 'note_updated', note }));
-      }
-    });
+    broadcastToNoteAudience(noteId, ownerId, { type: 'note_updated', note: parseNoteRow(note) });
   });
 }
 
-function updateNoteFields(noteId, fields) {
-  return new Promise((resolve, reject) => {
-    const cols = Object.keys(fields);
-    const setClauses = cols.map(k => `${k} = ?`).join(', ');
-    const values = [...cols.map(k => fields[k]), noteId];
-    db.run(
-      `UPDATE notes SET ${setClauses}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      values,
-      err => err ? reject(err) : resolve()
-    );
-  });
+async function updateNoteFields(noteId, fields) {
+  const cols = Object.keys(fields);
+  const setClauses = cols.map(k => `${k} = ?`).join(', ');
+  const values = [...cols.map(k => fields[k]), noteId];
+  await db.runAsync(`UPDATE notes SET ${setClauses}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, values);
 }
 
 function logAiCall(userId, noteId, command, status, fields = {}) {
@@ -552,16 +565,14 @@ function logAiCall(userId, noteId, command, status, fields = {}) {
   );
 }
 
-function checkRaceState(noteId, expected) {
-  return new Promise(resolve => {
-    db.get('SELECT processing_status FROM notes WHERE id = ?', [noteId], (err, row) => {
-      if (err || !row) return resolve();
-      if (row.processing_status !== expected) {
-        logger.warn(`AI race detected: note=${noteId} expected_status=${expected} actual_status=${row.processing_status}`);
-      }
-      resolve();
-    });
-  });
+async function checkRaceState(noteId, expected) {
+  let row;
+  try {
+    row = await db.getAsync('SELECT processing_status FROM notes WHERE id = ?', [noteId]);
+  } catch (e) { return; }
+  if (row && row.processing_status !== expected) {
+    logger.warn(`AI race detected: note=${noteId} expected_status=${expected} actual_status=${row.processing_status}`);
+  }
 }
 
 async function triggerAiCommand(note, cmd, triggeredByUserId) {
@@ -569,10 +580,7 @@ async function triggerAiCommand(note, cmd, triggeredByUserId) {
   const command = cmd.command;
   const ownerId = note.user_id;
 
-  let images = [];
-  if (note.images) {
-    try { images = JSON.parse(note.images); } catch (e) { images = []; }
-  }
+  const images = note.images ? parseJsonColumn(note.images) : [];
 
   logger.info(`AI command triggered: command=${command} user=${triggeredByUserId} note=${note.id} images=${Array.isArray(images) ? images.length : 0}`);
 
@@ -730,12 +738,10 @@ function isImageReferenced(filename) {
   // Names are stored inside a JSON array, so match the quoted form; escape the
   // LIKE wildcards (`_` appears in every filename).
   const pattern = '%"' + filename.replace(/[\\%_]/g, '\\$&') + '"%';
-  return new Promise((resolve) => {
-    db.get(`SELECT 1 AS ok FROM notes WHERE images LIKE ? ESCAPE '\\' LIMIT 1`, [pattern], (err, row) => {
-      // On error assume referenced: keeping a file is the safe failure mode.
-      resolve(!!err || !!row);
-    });
-  });
+  return db.getAsync(`SELECT 1 AS ok FROM notes WHERE images LIKE ? ESCAPE '\\' LIMIT 1`, [pattern])
+    .then(row => !!row)
+    // On error assume referenced: keeping a file is the safe failure mode.
+    .catch(() => true);
 }
 
 // Move note image files to the trash folder (was: unlink). Accepts both naming
@@ -802,30 +808,25 @@ async function purgeTrashedImages() {
 // Hard-delete notes that have been in the trash past the grace period, moving
 // their images to the image trash (which is itself purged above).
 async function purgeDeletedNotes() {
-  const rows = await new Promise((resolve) => {
-    db.all(
+  let rows;
+  try {
+    rows = await db.allAsync(
       `SELECT id, images FROM notes
        WHERE deleted_at IS NOT NULL
          AND (julianday('now') - julianday(deleted_at)) * 86400000 > ?`,
-      [TRASH_GRACE_MS],
-      (err, r) => {
-        if (err) { logger.error('Note purge: query failed:', err); return resolve(null); }
-        resolve(r);
-      }
+      [TRASH_GRACE_MS]
     );
-  });
-  if (!rows || rows.length === 0) return;
+  } catch (err) {
+    logger.error('Note purge: query failed:', err);
+    return;
+  }
+  if (rows.length === 0) return;
 
   for (const row of rows) {
-    let images = [];
-    if (row.images) {
-      try { images = JSON.parse(row.images); } catch (e) { images = []; }
-    }
-    const deleted = await new Promise((resolve) => {
-      db.run('DELETE FROM notes WHERE id = ?', [row.id], (err) => {
-        if (err) logger.error(`Note purge: failed to delete note ${row.id}:`, err);
-        resolve(!err);
-      });
+    const images = row.images ? parseJsonColumn(row.images) : [];
+    const deleted = await db.runAsync('DELETE FROM notes WHERE id = ?', [row.id]).then(() => true, (err) => {
+      logger.error(`Note purge: failed to delete note ${row.id}:`, err);
+      return false;
     });
     // After the row is gone, so images shared with another note are kept.
     if (deleted && images.length > 0) await deleteNoteImageFiles(images);
@@ -849,22 +850,19 @@ async function cleanupOrphanImages() {
   }
 
   // Build the set of filenames still referenced by any note.
-  const referenced = await new Promise((resolve) => {
-    db.all('SELECT images FROM notes WHERE images IS NOT NULL', [], (err, rows) => {
-      if (err) {
-        logger.error('Orphan image sweep: query failed:', err);
-        return resolve(null); // null => skip this run rather than risk deleting live files
-      }
-      const set = new Set();
-      for (const row of rows) {
-        try {
-          for (const name of JSON.parse(row.images)) set.add(name);
-        } catch (e) { /* ignore malformed row */ }
-      }
-      resolve(set);
-    });
-  });
-  if (!referenced) return;
+  const referenced = new Set();
+  try {
+    const rows = await db.allAsync('SELECT images FROM notes WHERE images IS NOT NULL');
+    for (const row of rows) {
+      try {
+        for (const name of JSON.parse(row.images)) referenced.add(name);
+      } catch (e) { /* ignore malformed row */ }
+    }
+  } catch (err) {
+    // Skip this run rather than risk deleting live files.
+    logger.error('Orphan image sweep: query failed:', err);
+    return;
+  }
 
   const now = Date.now();
   let removed = 0;
@@ -1147,7 +1145,7 @@ app.post('/api/password-reset/request', passwordResetLimiter, csrfProtection, as
           res.json({ message: 'Om kontot finns kommer ett återställningsmail att skickas.' });
 
           // Send email asynchronously (fire-and-forget)
-          mailer.sendPasswordResetEmail(user.email, user.username, resetToken, resetUrl)
+          mailer.sendPasswordResetEmail(user.email, user.username, resetUrl)
             .then((emailSent) => {
               if (emailSent) {
                 // Log by user id, not the email address (PII), so combined logs
@@ -1482,20 +1480,7 @@ app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
   // Helper to parse JSON fields and prepare notes
   const prepareNotes = (notes, isSharedView = false) => {
     notes.forEach(note => {
-      if (note.checklist_items) {
-        try {
-          note.checklist_items = JSON.parse(note.checklist_items);
-        } catch (e) {
-          note.checklist_items = [];
-        }
-      }
-      if (note.images) {
-        try {
-          note.images = JSON.parse(note.images);
-        } catch (e) {
-          note.images = [];
-        }
-      }
+      parseNoteRow(note);
       if (isSharedView) {
         note.isShared = true;
       } else if (note.isShared !== undefined) {
@@ -1701,21 +1686,7 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, async (req, res)
 
       const noteId = this.lastID;
       db.get('SELECT * FROM notes WHERE id = ?', [noteId], (err, note) => {
-        if (note && note.checklist_items) {
-          try {
-            note.checklist_items = JSON.parse(note.checklist_items);
-          } catch (e) {
-            note.checklist_items = [];
-          }
-        }
-
-        if (note && note.images) {
-          try {
-            note.images = JSON.parse(note.images);
-          } catch (e) {
-            note.images = [];
-          }
-        }
+        parseNoteRow(note);
 
         broadcastToUser(req.session.userId, {
           type: 'note_created',
@@ -1772,14 +1743,7 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
       // Parse the note's current images first: a shared editor is allowed to keep
       // (and remove) images already on the note even though they belong to the
       // owner, but may not inject arbitrary foreign filenames.
-      let currentImages = [];
-      if (note.images) {
-        try {
-          currentImages = JSON.parse(note.images);
-        } catch (e) {
-          currentImages = [];
-        }
-      }
+      const currentImages = note.images ? parseJsonColumn(note.images) : [];
 
       // Validate and sanitize images array
       let newImages = [];
@@ -1858,39 +1822,10 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
           }
 
           db.get('SELECT * FROM notes WHERE id = ?', [id], (err, updatedNote) => {
-            if (updatedNote && updatedNote.checklist_items) {
-              try {
-                updatedNote.checklist_items = JSON.parse(updatedNote.checklist_items);
-              } catch (e) {
-                updatedNote.checklist_items = [];
-              }
-            }
+            parseNoteRow(updatedNote);
 
-            if (updatedNote && updatedNote.images) {
-              try {
-                updatedNote.images = JSON.parse(updatedNote.images);
-              } catch (e) {
-                updatedNote.images = [];
-              }
-            }
-
-            // Broadcast to owner
-            broadcastToUser(note.user_id, {
-              type: 'note_updated',
-              note: updatedNote
-            });
-
-            // Broadcast to all users this note is shared with
-            db.all('SELECT shared_with_user_id FROM shares WHERE note_id = ?', [id], (err, shares) => {
-              if (!err && shares) {
-                shares.forEach(share => {
-                  broadcastToUser(share.shared_with_user_id, {
-                    type: 'note_updated',
-                    note: updatedNote
-                  });
-                });
-              }
-            });
+            // Owner and everyone the note is shared with
+            broadcastToNoteAudience(id, note.user_id, { type: 'note_updated', note: updatedNote });
 
             res.json({ ...updatedNote, duplicatesSkipped });
             maybeTriggerAiCommand(id, req.session.userId);
@@ -1917,34 +1852,20 @@ app.delete('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res)
       return res.status(404).json({ error: 'Anteckning hittades inte eller du saknar rättigheter' });
     }
 
-    // Get all users this note is shared with so their UI removes it too
-    db.all('SELECT shared_with_user_id FROM shares WHERE note_id = ?', [id], (err, shares) => {
-      const sharedUserIds = shares ? shares.map(s => s.shared_with_user_id) : [];
+    db.run('UPDATE notes SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [id], function(err) {
+      if (err) {
+        logger.error('Delete note error:', err);
+        return res.status(500).json({ error: 'Kunde inte radera anteckning' });
+      }
 
-      db.run('UPDATE notes SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [id], function(err) {
-        if (err) {
-          logger.error('Delete note error:', err);
-          return res.status(500).json({ error: 'Kunde inte radera anteckning' });
-        }
+      // Tell the owner and everyone it was shared with (shares survive the
+      // soft delete) so their UI removes it. parseInt so the id type matches
+      // the numeric note ids the clients hold — otherwise their array filter
+      // never removes it.
+      const deletedNoteId = parseInt(id);
+      broadcastToNoteAudience(id, req.session.userId, { type: 'note_deleted', noteId: deletedNoteId });
 
-        // Broadcast to owner (parseInt so the id type matches the numeric note
-        // ids the clients hold — otherwise their array filter never removes it).
-        const deletedNoteId = parseInt(id);
-        broadcastToUser(req.session.userId, {
-          type: 'note_deleted',
-          noteId: deletedNoteId
-        });
-
-        // Broadcast to all users it was shared with
-        sharedUserIds.forEach(userId => {
-          broadcastToUser(userId, {
-            type: 'note_deleted',
-            noteId: deletedNoteId
-          });
-        });
-
-        res.json({ message: 'Anteckning raderad', noteId: deletedNoteId });
-      });
+      res.json({ message: 'Anteckning raderad', noteId: deletedNoteId });
     });
   });
 });
@@ -1974,21 +1895,9 @@ app.post('/api/notes/:id/restore', requireAuth, apiLimiter, csrfProtection, (req
         if (err || !restored) {
           return res.json({ message: 'Anteckning återställd', noteId: parseInt(id) });
         }
-        if (restored.checklist_items) {
-          try { restored.checklist_items = JSON.parse(restored.checklist_items); }
-          catch (e) { restored.checklist_items = []; }
-        }
-        if (restored.images) {
-          try { restored.images = JSON.parse(restored.images); }
-          catch (e) { restored.images = []; }
-        }
+        parseNoteRow(restored);
 
-        broadcastToUser(req.session.userId, { type: 'note_created', note: restored });
-        db.all('SELECT shared_with_user_id FROM shares WHERE note_id = ?', [id], (err, shares) => {
-          if (!err && shares) {
-            shares.forEach(s => broadcastToUser(s.shared_with_user_id, { type: 'note_created', note: restored }));
-          }
-        });
+        broadcastToNoteAudience(id, req.session.userId, { type: 'note_created', note: restored });
 
         res.json({ message: 'Anteckning återställd', note: restored });
       });
@@ -2111,21 +2020,7 @@ app.post('/api/notes/:id/share', requireAuth, apiLimiter, csrfProtection, (req, 
               }
 
               // Parse note data for WebSocket
-              const noteData = { ...note };
-              if (noteData.checklist_items) {
-                try {
-                  noteData.checklist_items = JSON.parse(noteData.checklist_items);
-                } catch (e) {
-                  noteData.checklist_items = [];
-                }
-              }
-              if (noteData.images) {
-                try {
-                  noteData.images = JSON.parse(noteData.images);
-                } catch (e) {
-                  noteData.images = [];
-                }
-              }
+              const noteData = parseNoteRow({ ...note });
 
               if (isNewShare) {
                 // Notify target user about new share (the sharer's avatar colour
@@ -2284,15 +2179,9 @@ const upload = multer({
   }
 });
 
-const dataDir = DATA_DIR;
-const uploadsDir = path.join(dataDir, 'uploads');
-const mediaDir = NOTE_IMAGES_DIR; // Use same directory as regular note images
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-if (!fs.existsSync(mediaDir)) {
-  fs.mkdirSync(mediaDir, { recursive: true });
-}
+const uploadsDir = path.join(DATA_DIR, 'uploads');
+fs.mkdirSync(uploadsDir, { recursive: true });
+fs.mkdirSync(NOTE_IMAGES_DIR, { recursive: true }); // imports share the regular note image directory
 
 // csrfProtection runs before multer: the token travels in the CSRF-Token header,
 // so it is verified before the (potentially huge) multipart body is consumed.
@@ -2336,7 +2225,7 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
     // export (Takeout/Keep/*.json) and a kreep backup made by /api/backup/export
     // (manifest.json at the root, or one folder down if the user zipped the
     // extracted folder). Detect which one it is.
-    const backupRoot = findBackupRoot(extractPath);
+    const backupRoot = await findBackupRoot(extractPath);
     let imported = 0;
     let failed = 0;
     let stats;
@@ -2353,7 +2242,7 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
     } else {
       logger.info('Parsing Google Keep data...');
       try {
-        keepParsed = await new KeepImportParser(extractPath, req.session.userId, mediaDir).parse();
+        keepParsed = await new KeepImportParser(extractPath, req.session.userId, NOTE_IMAGES_DIR).parse();
       } catch (e) {
         throw new ImportInputError(e.message);
       }
@@ -2421,7 +2310,7 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
 
     // Clean up
     try { await fsp.unlink(zipPath); } catch (e) { /* file may already be gone */ }
-    fs.rmSync(extractPath, { recursive: true, force: true });
+    await fsp.rm(extractPath, { recursive: true, force: true });
 
     res.json({
       success: true,
@@ -2436,7 +2325,7 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
     // Clean up on error
     try {
       try { await fsp.unlink(zipPath); } catch (e) { /* file may already be gone */ }
-      if (fs.existsSync(extractPath)) fs.rmSync(extractPath, { recursive: true, force: true });
+      await fsp.rm(extractPath, { recursive: true, force: true });
     } catch (cleanupError) {
       logger.error('Cleanup error:', cleanupError);
     }
@@ -2457,12 +2346,13 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
 // Locate a kreep backup inside an extracted archive: manifest.json either at the
 // root or in exactly one subfolder. Returns the folder path, or null if the
 // archive isn't a kreep backup.
-function findBackupRoot(extractPath) {
-  if (fs.existsSync(path.join(extractPath, 'manifest.json'))) return extractPath;
+async function findBackupRoot(extractPath) {
+  const hasManifest = (dir) => fsp.access(path.join(dir, 'manifest.json')).then(() => true, () => false);
+  if (await hasManifest(extractPath)) return extractPath;
   let entries = [];
-  try { entries = fs.readdirSync(extractPath, { withFileTypes: true }); } catch (e) { return null; }
+  try { entries = await fsp.readdir(extractPath, { withFileTypes: true }); } catch (e) { return null; }
   for (const entry of entries) {
-    if (entry.isDirectory() && fs.existsSync(path.join(extractPath, entry.name, 'manifest.json'))) {
+    if (entry.isDirectory() && await hasManifest(path.join(extractPath, entry.name))) {
       return path.join(extractPath, entry.name);
     }
   }
@@ -2532,7 +2422,7 @@ app.get('/api/backup/export', requireAuth, async (req, res) => {
   try {
     logger.info('Generating backup for user:', req.session.userId);
 
-    const generator = new BackupGenerator(req.session.userId, db, dataDir, outputPath);
+    const generator = new BackupGenerator(req.session.userId, db, DATA_DIR, outputPath);
     const result = await generator.generate();
 
     if (!result.success) {

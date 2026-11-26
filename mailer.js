@@ -54,11 +54,10 @@ if (isEmailConfigured()) {
  * Send password reset email
  * @param {string} email - Recipient email address
  * @param {string} username - Username
- * @param {string} resetToken - Password reset token
  * @param {string} resetUrl - Full reset URL
  * @returns {Promise<boolean>} - True if sent successfully, false otherwise
  */
-async function sendPasswordResetEmail(email, username, resetToken, resetUrl) {
+async function sendPasswordResetEmail(email, username, resetUrl) {
   if (!transporter) {
     console.log('Cannot send email - SMTP not configured');
     return false;

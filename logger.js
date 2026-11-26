@@ -80,14 +80,6 @@ logger.logAuth = (action, username, details = {}) => {
   logger.info(`AUTH: ${action}`, { username, ...details });
 };
 
-logger.logAPI = (method, path, statusCode, userId = null) => {
-  logger.info(`API: ${method} ${path} - ${statusCode}`, { userId });
-};
-
-logger.logDB = (operation, table, details = {}) => {
-  logger.info(`DB: ${operation} on ${table}`, details);
-};
-
 logger.logWS = (action, userId, details = {}) => {
   logger.info(`WS: ${action}`, { userId, ...details });
 };

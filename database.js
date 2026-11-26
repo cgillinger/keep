@@ -18,19 +18,23 @@ const db = new sqlite3.Database(dbPath);
 // import runs its transaction on a second connection to the same file).
 db.configure('busyTimeout', 5000);
 
-// Small promise wrappers so the schema setup below can run strictly in order.
-const run = (sql, params = []) => new Promise((resolve, reject) => {
+// Small promise wrappers (also exported on `db`, see the bottom of the file).
+// runAsync resolves with the statement, so callers can read lastID / changes.
+const runAsync = (sql, params = []) => new Promise((resolve, reject) => {
   db.run(sql, params, function (err) { err ? reject(err) : resolve(this); });
 });
-const all = (sql, params = []) => new Promise((resolve, reject) => {
+const getAsync = (sql, params = []) => new Promise((resolve, reject) => {
+  db.get(sql, params, (err, row) => { err ? reject(err) : resolve(row); });
+});
+const allAsync = (sql, params = []) => new Promise((resolve, reject) => {
   db.all(sql, params, (err, rows) => { err ? reject(err) : resolve(rows); });
 });
 
 // Add a column if the table doesn't have it yet (idempotent migration).
 async function ensureColumn(table, column, definition) {
-  const columns = await all(`PRAGMA table_info(${table})`);
+  const columns = await allAsync(`PRAGMA table_info(${table})`);
   if (columns.some(col => col.name === column)) return;
-  await run(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  await runAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   console.log(`Added ${column} column to ${table} table`);
 }
 
@@ -41,13 +45,13 @@ async function initialize() {
   //  - busy_timeout makes a writer wait for a held lock instead of failing
   //    immediately with SQLITE_BUSY under concurrent access.
   //  - WAL journalling lets reads proceed while a write is in progress.
-  await run('PRAGMA foreign_keys = ON');
-  await run('PRAGMA busy_timeout = 5000');
-  await run('PRAGMA journal_mode = WAL');
+  await runAsync('PRAGMA foreign_keys = ON');
+  await runAsync('PRAGMA busy_timeout = 5000');
+  await runAsync('PRAGMA journal_mode = WAL');
 
   // Base tables (the original schema; later columns are added by the
   // migrations below so existing databases upgrade in place).
-  await run(`CREATE TABLE IF NOT EXISTS users (
+  await runAsync(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
@@ -55,7 +59,7 @@ async function initialize() {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  await run(`CREATE TABLE IF NOT EXISTS notes (
+  await runAsync(`CREATE TABLE IF NOT EXISTS notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     title TEXT,
@@ -69,7 +73,7 @@ async function initialize() {
     FOREIGN KEY (user_id) REFERENCES users(id)
   )`);
 
-  await run(`CREATE TABLE IF NOT EXISTS shares (
+  await runAsync(`CREATE TABLE IF NOT EXISTS shares (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     note_id INTEGER NOT NULL,
     shared_by_user_id INTEGER NOT NULL,
@@ -83,7 +87,7 @@ async function initialize() {
   )`);
 
   // AI command audit log (no content/output is logged — only metadata)
-  await run(`CREATE TABLE IF NOT EXISTS note_ai_log (
+  await runAsync(`CREATE TABLE IF NOT EXISTS note_ai_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     note_id INTEGER,
@@ -115,15 +119,18 @@ async function initialize() {
 
   // Indexes (idempotent). Created after the migrations so they can reference
   // migrated columns on a fresh database too.
-  await run(`CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id)`);
-  await run(`CREATE INDEX IF NOT EXISTS idx_notes_archived ON notes(is_archived)`);
   // The list queries always filter on owner + archived + not-deleted together.
-  await run(`CREATE INDEX IF NOT EXISTS idx_notes_owner_state ON notes(user_id, is_archived, deleted_at)`);
+  await runAsync(`CREATE INDEX IF NOT EXISTS idx_notes_owner_state ON notes(user_id, is_archived, deleted_at)`);
   // Trash purge scans by deleted_at.
-  await run(`CREATE INDEX IF NOT EXISTS idx_notes_deleted_at ON notes(deleted_at)`);
-  await run(`CREATE INDEX IF NOT EXISTS idx_shares_shared_with ON shares(shared_with_user_id)`);
-  await run(`CREATE INDEX IF NOT EXISTS idx_shares_note_id ON shares(note_id)`);
-  await run(`CREATE INDEX IF NOT EXISTS idx_note_ai_log_user_created ON note_ai_log (user_id, created_at)`);
+  await runAsync(`CREATE INDEX IF NOT EXISTS idx_notes_deleted_at ON notes(deleted_at)`);
+  await runAsync(`CREATE INDEX IF NOT EXISTS idx_shares_shared_with ON shares(shared_with_user_id)`);
+  // Redundant indexes from earlier versions: user_id is the leading column of
+  // idx_notes_owner_state, note_id the leading column of UNIQUE(note_id,
+  // shared_with_user_id), and no query filters on is_archived alone.
+  await runAsync(`DROP INDEX IF EXISTS idx_notes_user_id`);
+  await runAsync(`DROP INDEX IF EXISTS idx_notes_archived`);
+  await runAsync(`DROP INDEX IF EXISTS idx_shares_note_id`);
+  await runAsync(`CREATE INDEX IF NOT EXISTS idx_note_ai_log_user_created ON note_ai_log (user_id, created_at)`);
 
   // One account per e-mail address, so a password reset can never go to the
   // "first" of several accounts sharing one address. Partial so that accounts
@@ -131,13 +138,13 @@ async function initialize() {
   // holds duplicates the index can't be created; log it and keep running —
   // the admin has to clean the duplicates up by hand.
   try {
-    await run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(email) WHERE email IS NOT NULL`);
+    await runAsync(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(email) WHERE email IS NOT NULL`);
   } catch (err) {
     console.error('Could not create unique e-mail index (duplicate e-mails in users table?):', err.message);
   }
 
   // One-off data migrations, tracked in schema_meta so each runs exactly once.
-  await run(`CREATE TABLE IF NOT EXISTS schema_meta (key TEXT PRIMARY KEY, value TEXT)`);
+  await runAsync(`CREATE TABLE IF NOT EXISTS schema_meta (key TEXT PRIMARY KEY, value TEXT)`);
   await decodeHtmlEntitiesOnce();
 
   console.log('Database initialized');
@@ -156,16 +163,16 @@ function decodeEntities(text) {
 }
 
 async function decodeHtmlEntitiesOnce() {
-  const done = await all(`SELECT value FROM schema_meta WHERE key = 'html_entities_decoded'`);
+  const done = await allAsync(`SELECT value FROM schema_meta WHERE key = 'html_entities_decoded'`);
   if (done.length > 0) return;
 
-  const notes = await all(
+  const notes = await allAsync(
     `SELECT id, title, content, checklist_items FROM notes
      WHERE title LIKE '%&%' OR content LIKE '%&%' OR checklist_items LIKE '%&%'`
   );
-  const users = await all(`SELECT id, username FROM users WHERE username LIKE '%&%'`);
+  const users = await allAsync(`SELECT id, username FROM users WHERE username LIKE '%&%'`);
 
-  await run('BEGIN');
+  await runAsync('BEGIN');
   try {
     let changed = 0;
     for (const n of notes) {
@@ -183,7 +190,7 @@ async function decodeHtmlEntitiesOnce() {
       }
       if (title !== n.title || content !== n.content || items !== n.checklist_items) {
         // updated_at is deliberately left alone: this is a repair, not an edit.
-        await run(`UPDATE notes SET title = ?, content = ?, checklist_items = ? WHERE id = ?`, [title, content, items, n.id]);
+        await runAsync(`UPDATE notes SET title = ?, content = ?, checklist_items = ? WHERE id = ?`, [title, content, items, n.id]);
         changed++;
       }
     }
@@ -191,7 +198,7 @@ async function decodeHtmlEntitiesOnce() {
       const username = decodeEntities(u.username);
       if (username !== u.username) {
         try {
-          await run(`UPDATE users SET username = ? WHERE id = ?`, [username, u.id]);
+          await runAsync(`UPDATE users SET username = ? WHERE id = ?`, [username, u.id]);
           changed++;
         } catch (e) {
           // Decoded name collides with an existing account; keep the encoded one.
@@ -199,11 +206,11 @@ async function decodeHtmlEntitiesOnce() {
         }
       }
     }
-    await run(`INSERT INTO schema_meta (key, value) VALUES ('html_entities_decoded', ?)`, [new Date().toISOString()]);
-    await run('COMMIT');
+    await runAsync(`INSERT INTO schema_meta (key, value) VALUES ('html_entities_decoded', ?)`, [new Date().toISOString()]);
+    await runAsync('COMMIT');
     if (changed > 0) console.log(`Decoded HTML entities in ${changed} row(s)`);
   } catch (err) {
-    await run('ROLLBACK').catch(() => {});
+    await runAsync('ROLLBACK').catch(() => {});
     throw err;
   }
 }
@@ -211,6 +218,9 @@ async function decodeHtmlEntitiesOnce() {
 // Resolves once the schema is in place. server.js awaits this before it starts
 // listening, so no request (or maintenance sweep) can hit a half-migrated
 // schema after an upgrade.
+db.runAsync = runAsync;
+db.getAsync = getAsync;
+db.allAsync = allAsync;
 db.ready = initialize();
 db.dataDir = dataDir;
 db.dbPath = dbPath;

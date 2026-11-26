@@ -5,7 +5,7 @@ const {
   parseCommand,
   buildChecklistFromItems,
   checkAiLimit,
-} = require('./command-processor');
+} = require('../command-processor');
 
 test('parseCommand returns null for non-command content', () => {
   assert.equal(parseCommand('Hej, hur mår du'), null);
