@@ -33,6 +33,7 @@ function sanitizeChecklist(isChecklist, items) {
         text: sanitizeInput(item.text, 1000),
         checked: !!item.checked
       };
+      if (item.isHeader === true) entry.isHeader = true;
       const conf = parseInt(item.confidence, 10);
       if (Number.isInteger(conf) && conf >= 1 && conf <= 10) {
         entry.confidence = conf;

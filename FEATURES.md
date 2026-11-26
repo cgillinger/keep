@@ -41,17 +41,17 @@ Keep Clone är byggd med säkerhet i första hand, lämplig för exponering via 
 
 **Säkra sessioner:**
 - HTTP-only cookies (inte åtkomliga via JavaScript)
-- SameSite: Strict (skydd mot CSRF)
+- SameSite: Lax (skydd mot CSRF)
 - 7 dagars sessionstid som standard, eller 90 dagar med "Fortsätt vara inloggad"
 - Säker WebSocket-autentisering
 
 ### 🛡️ CSRF-skydd
 
 Cross-Site Request Forgery (CSRF) protection på alla ändringsoperationer:
-- Token genereras vid varje session
+- Double-submit cookie: klienten hämtar en token från `GET /api/csrf-token`, som också sätter en httpOnly-cookie
+- Token skickas i headern `CSRF-Token` och måste matcha cookien
 - Valideras på server innan POST/PUT/DELETE
-- Tokens roteras automatiskt
-- Implementerat med `csurf` middleware
+- Implementerat med `csrf-csrf` (ersatte `csurf`)
 
 **Påverkar:**
 - Skapa/uppdatera/ta bort anteckningar
@@ -89,8 +89,9 @@ Implementerade headers för webbläsarsäkerhet:
 
 ### 🧹 Input sanitization
 
-All användarinput saneras för att förhindra XSS-attacker:
-- HTML/JavaScript-taggar rensas bort med DOMPurify
+Skydd mot XSS och ogiltig input:
+- Anteckningstext lagras som ren text (kontrolltecken tas bort och längden begränsas) och escapas vid rendering i frontend – ingen HTML-sanering på servern
+- Strikt Content-Security-Policy utan inline-script
 - Färgkoder valideras mot whitelist
 - Filnamn saneras för path traversal-skydd
 - SQL injection-skydd via parametriserade queries
@@ -297,8 +298,8 @@ Se [IMPORT-GUIDE.md](./IMPORT-GUIDE.md) för detaljerad importguide.
 **Säkerhet:**
 - Helmet för HTTP headers
 - express-rate-limit för rate limiting
-- csurf för CSRF protection
-- DOMPurify för XSS prevention
+- csrf-csrf för CSRF protection (double-submit cookie)
+- Escapning vid rendering och strikt CSP för XSS prevention
 - Sharp för säker bildbehandling
 
 ### Databas-schema

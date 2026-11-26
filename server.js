@@ -19,6 +19,7 @@ const { doubleCsrf } = require('csrf-csrf');
 const cookieParser = require('cookie-parser');
 const sharp = require('sharp');
 
+const sqlite3 = require('sqlite3');
 const db = require('./database');
 const KeepImportParser = require('./import-parser');
 const BackupParser = require('./backup-parser');
@@ -33,7 +34,8 @@ const commandProcessor = require('./command-processor');
 const app = express();
 app.use(compression({ threshold: 1024 }));
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+// The client never sends anything over the socket, so keep inbound frames tiny.
+const wss = new WebSocket.Server({ server, maxPayload: 1024 });
 
 const PORT = process.env.PORT || 3000;
 
@@ -337,7 +339,8 @@ function revokeOtherSessions(userId, keepSid) {
     `DELETE FROM sessions WHERE json_extract(sess, '$.userId') = ? AND sid != ?`,
     [userId, keepSid || ''],
     (err) => {
-      if (err) logger.error('Failed to revoke other sessions:', err);
+      if (err) return logger.error('Failed to revoke other sessions:', err);
+      closeUserSockets(userId, keepSid || '', true);
     }
   );
 }
@@ -427,6 +430,7 @@ wss.on('connection', (ws, req) => {
       clients.set(userId, userSockets);
     }
     userSockets.add(ws);
+    ws.sessionId = req.sessionID; // lets logout / session revocation close this socket
 
     // Liveness tracking for the heartbeat below: a half-open TCP connection (e.g.
     // a phone that lost signal) never fires 'close', so without this its socket
@@ -468,6 +472,19 @@ const heartbeatInterval = setInterval(() => {
   });
 }, WS_HEARTBEAT_MS);
 wss.on('close', () => clearInterval(heartbeatInterval));
+
+// Close a user's sockets whose session is `sid` (logout), or every socket of the
+// user except `keepSid` when `onlyOthers` is set (session revocation).
+function closeUserSockets(userId, sid, onlyOthers = false) {
+  const userSockets = clients.get(userId);
+  if (!userSockets) return;
+  for (const ws of [...userSockets]) {
+    const match = ws.sessionId === sid;
+    if (onlyOthers ? !match : match) {
+      try { ws.close(1008, 'Session ended'); } catch (e) { /* already closing */ }
+    }
+  }
+}
 
 function broadcastToUser(userId, data) {
   const userSockets = clients.get(userId);
@@ -706,20 +723,39 @@ function userCanAccessImage(filename, userId, callback) {
 const TRASH_GRACE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const NOTE_IMAGES_TRASH_DIR = path.join(NOTE_IMAGES_DIR, '.trash');
 
-// Move note image files to the trash folder (was: unlink).
+// Is `filename` still referenced by any note (trashed-but-restorable ones
+// included)? Callers invoke this after the referencing row has been updated or
+// deleted, so the note being edited no longer counts.
+function isImageReferenced(filename) {
+  // Names are stored inside a JSON array, so match the quoted form; escape the
+  // LIKE wildcards (`_` appears in every filename).
+  const pattern = '%"' + filename.replace(/[\\%_]/g, '\\$&') + '"%';
+  return new Promise((resolve) => {
+    db.get(`SELECT 1 AS ok FROM notes WHERE images LIKE ? ESCAPE '\\' LIMIT 1`, [pattern], (err, row) => {
+      // On error assume referenced: keeping a file is the safe failure mode.
+      resolve(!!err || !!row);
+    });
+  });
+}
+
+// Move note image files to the trash folder (was: unlink). Accepts both naming
+// schemes (uploads and imports) and leaves files alone that another note, or a
+// trashed note that can still be restored, still points at.
 async function deleteNoteImageFiles(imageFilenames) {
   if (!imageFilenames || !Array.isArray(imageFilenames)) return;
 
   const imageDir = NOTE_IMAGES_DIR;
 
-  const valid = imageFilenames.filter(filename => {
+  const valid = [];
+  for (const filename of [...new Set(imageFilenames)]) {
     // Validate filename format to prevent path traversal
-    if (!/^note_\d+_\d+\.webp$/.test(filename)) {
+    if (!isValidImageName(filename)) {
       logger.warn('Invalid image filename format, skipping deletion:', filename);
-      return false;
+      continue;
     }
-    return true;
-  });
+    if (await isImageReferenced(filename)) continue;
+    valid.push(filename);
+  }
   if (valid.length === 0) return;
 
   try {
@@ -785,13 +821,14 @@ async function purgeDeletedNotes() {
     if (row.images) {
       try { images = JSON.parse(row.images); } catch (e) { images = []; }
     }
-    if (images.length > 0) await deleteNoteImageFiles(images);
-    await new Promise((resolve) => {
+    const deleted = await new Promise((resolve) => {
       db.run('DELETE FROM notes WHERE id = ?', [row.id], (err) => {
         if (err) logger.error(`Note purge: failed to delete note ${row.id}:`, err);
-        resolve();
+        resolve(!err);
       });
     });
+    // After the row is gone, so images shared with another note are kept.
+    if (deleted && images.length > 0) await deleteNoteImageFiles(images);
   }
   logger.info(`Note purge: permanently deleted ${rows.length} expired trashed note(s)`);
 }
@@ -1009,11 +1046,14 @@ app.post('/api/login', loginLimiter, csrfProtection, (req, res) => {
 });
 
 app.post('/api/logout', requireAuth, (req, res) => {
+  const userId = req.session.userId;
+  const sid = req.sessionID;
   req.session.destroy((err) => {
     if (err) {
       logger.error('Logout error:', err);
       return res.status(500).json({ error: 'Utloggning misslyckades' });
     }
+    closeUserSockets(userId, sid);
     res.clearCookie('sessionId');
     res.json({ message: 'Utloggad' });
   });
@@ -1289,6 +1329,10 @@ app.post('/api/profile/change-password', requireAuth, apiLimiter, csrfProtection
 
 // ===== NOTE IMAGE ROUTES =====
 
+// Raised by the multer fileFilters for a file type we don't accept: a client
+// error (400), not a server fault.
+class UploadRejectedError extends Error {}
+
 const noteImageUpload = multer({
   dest: path.join(DATA_DIR, 'uploads', 'temp'),
   limits: {
@@ -1299,7 +1343,7 @@ const noteImageUpload = multer({
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Endast bilder är tillåtna'));
+      cb(new UploadRejectedError('Endast bilder är tillåtna'));
     }
   }
 });
@@ -1385,7 +1429,7 @@ app.get('/api/notes/image/:filename', requireAuth, imageLimiter, (req, res) => {
     // access is per-user — never let a shared proxy cache them across users.
     res.set({
       'Cache-Control': 'private, max-age=31536000, immutable',
-      'ETag': filename
+      'ETag': `"${filename}"`
     });
     res.sendFile(filepath, (sendErr) => {
       if (sendErr && !res.headersSent) {
@@ -1419,18 +1463,19 @@ const DEFAULT_PAGE_SIZE = 20;
 app.get('/api/notes', requireAuth, apiLimiter, (req, res) => {
   const showArchived = req.query.archived === 'true';
   const showSharedOnly = req.query.shared === 'true';
-  const limit = Math.min(parseInt(req.query.limit) || DEFAULT_PAGE_SIZE, 100); // Max 100
-  const offset = parseInt(req.query.offset) || 0;
+  const limit = Math.min(Math.max(parseInt(req.query.limit) || DEFAULT_PAGE_SIZE, 1), 100); // 1..100
+  const offset = Math.max(parseInt(req.query.offset) || 0, 0);
   const sortBy = req.query.sortBy === 'created_at' ? 'created_at' : 'updated_at';
 
-  // Optional full-text-ish search over title, body and checklist items.
+  // Optional full-text-ish search over title, body and the text of checklist items
+  // (not the raw JSON, which would make words like "text" or "checked" match every list).
   // LIKE wildcards in the user's query are escaped so they match literally.
   const q = typeof req.query.q === 'string' ? req.query.q.trim().substring(0, 200) : '';
   let searchSql = '';
   let searchParams = [];
   if (q) {
     const pattern = '%' + q.replace(/[\\%_]/g, '\\$&') + '%';
-    searchSql = ` AND (notes.title LIKE ? ESCAPE '\\' OR notes.content LIKE ? ESCAPE '\\' OR notes.checklist_items LIKE ? ESCAPE '\\')`;
+    searchSql = ` AND (notes.title LIKE ? ESCAPE '\\' OR notes.content LIKE ? ESCAPE '\\' OR (json_valid(notes.checklist_items) AND EXISTS (SELECT 1 FROM json_each(notes.checklist_items) WHERE json_extract(json_each.value, '$.text') LIKE ? ESCAPE '\\')))`;
     searchParams = [pattern, pattern, pattern];
   }
 
@@ -1739,6 +1784,7 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
       // Validate and sanitize images array
       let newImages = [];
       let duplicatesSkipped = 0;
+      let duplicateImages = [];
       if (images && Array.isArray(images)) {
         const rawImages = filterAttachableImages(images, req.session.userId, currentImages);
 
@@ -1749,7 +1795,7 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
         if (rawImages.length > 0 && addsImages) {
           const { kept, duplicates } = await dedupImagesByHash(rawImages);
           if (duplicates.length > 0) {
-            deleteNoteImageFiles(duplicates);
+            duplicateImages = duplicates;
             duplicatesSkipped = duplicates.length;
             logger.info(`Dedup: removed ${duplicates.length} duplicate image(s) on note update (user=${req.session.userId} note=${id})`);
           }
@@ -1761,17 +1807,21 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
 
       const imagesData = newImages.length > 0 ? JSON.stringify(newImages) : null;
 
-      // Find and delete removed images
+      // Removed images (and dedup losers) are only moved to the trash once the
+      // UPDATE has succeeded, so a conflict or error never costs the user files.
       const removedImages = currentImages.filter(img => !newImages.includes(img));
-      if (removedImages.length > 0) {
-        deleteNoteImageFiles(removedImages);
-      }
+      const imagesToTrash = [...removedImages, ...duplicateImages];
+
+      // With expected_updated_at the write is conditional on the row still
+      // carrying that timestamp, closing the gap between the check above and
+      // this statement.
+      const guarded = typeof expected_updated_at === 'string' && expected_updated_at !== '';
 
       db.run(
         `UPDATE notes
          SET title = ?, content = ?, color = ?, is_checklist = ?, checklist_items = ?,
              is_archived = ?, images = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
+         WHERE id = ?${guarded ? ' AND updated_at = ?' : ''}`,
         [
           sanitizedTitle,
           sanitizedContent,
@@ -1780,12 +1830,31 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
           checklistData,
           is_archived ? 1 : 0,
           imagesData,
-          id
+          id,
+          ...(guarded ? [expected_updated_at] : [])
         ],
         function(err) {
           if (err) {
             logger.error('Update note error:', err);
             return res.status(500).json({ error: 'Kunde inte uppdatera anteckning' });
+          }
+
+          if (guarded && this.changes === 0) {
+            // Someone saved between the check and the UPDATE (or the note is gone).
+            return db.get('SELECT updated_at FROM notes WHERE id = ? AND deleted_at IS NULL', [id], (e2, cur) => {
+              if (!cur) {
+                return res.status(404).json({ error: 'Anteckning hittades inte eller du saknar rättigheter' });
+              }
+              res.status(409).json({
+                error: 'Anteckningen har ändrats sedan du öppnade den',
+                conflict: true,
+                updated_at: cur.updated_at
+              });
+            });
+          }
+
+          if (imagesToTrash.length > 0) {
+            deleteNoteImageFiles(imagesToTrash).catch(e => logger.error('Image trash failed:', e));
           }
 
           db.get('SELECT * FROM notes WHERE id = ?', [id], (err, updatedNote) => {
@@ -2059,16 +2128,19 @@ app.post('/api/notes/:id/share', requireAuth, apiLimiter, csrfProtection, (req, 
               }
 
               if (isNewShare) {
-                // Notify target user about new share
-                broadcastToUser(userId, {
-                  type: 'note_shared',
-                  note: {
-                    ...noteData,
-                    owner_username: req.session.username,
-                    owner_avatar_color: req.session.avatarColor || '#1a73e8',
-                    permission: validatedPermission,
-                    isShared: true
-                  }
+                // Notify target user about new share (the sharer's avatar colour
+                // is not kept in the session, so read it from the users table)
+                db.get('SELECT avatar_color FROM users WHERE id = ?', [req.session.userId], (colorErr, sharer) => {
+                  broadcastToUser(userId, {
+                    type: 'note_shared',
+                    note: {
+                      ...noteData,
+                      owner_username: req.session.username,
+                      owner_avatar_color: (sharer && sharer.avatar_color) || '#1a73e8',
+                      permission: validatedPermission,
+                      isShared: true
+                    }
+                  });
                 });
 
                 // Notify owner that share count changed
@@ -2207,7 +2279,7 @@ const upload = multer({
     if (file.mimetype === 'application/zip' || file.originalname.endsWith('.zip')) {
       cb(null, true);
     } else {
-      cb(new Error('Endast ZIP-filer är tillåtna'));
+      cb(new UploadRejectedError('Endast ZIP-filer är tillåtna'));
     }
   }
 });
@@ -2230,11 +2302,20 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
   }
 
   const zipPath = req.file.path;
-  const extractPath = path.join(uploadsDir, `extract_${Date.now()}_${req.session.userId}`);
+  const extractPath = path.join(uploadsDir, `extract_${Date.now()}_${req.session.userId}_${crypto.randomBytes(4).toString('hex')}`);
+
+  // Anything that can fail on bad user input (unzip, manifest, Keep parsing)
+  // happens before the transaction opens and is answered with a 4xx.
+  class ImportInputError extends Error {}
 
   try {
     logger.info('Extracting zip file...');
-    const zip = new AdmZip(zipPath);
+    let zip;
+    try {
+      zip = new AdmZip(zipPath);
+    } catch (e) {
+      throw new ImportInputError('Filen är inte ett giltigt ZIP-arkiv.');
+    }
 
     // Guard against zip bombs: refuse to extract if the total uncompressed size
     // exceeds the cap (a small compressed archive can expand to many GB and fill
@@ -2242,8 +2323,7 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
     const MAX_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
     const totalUncompressed = zip.getEntries().reduce((sum, e) => sum + (e.header.size || 0), 0);
     if (totalUncompressed > MAX_UNCOMPRESSED_BYTES) {
-      try { await fsp.unlink(zipPath); } catch (e) { /* ignore */ }
-      return res.status(400).json({ error: 'Arkivet är för stort när det packas upp.' });
+      throw new ImportInputError('Arkivet är för stort när det packas upp.');
     }
 
     // Async extraction so a large Takeout archive doesn't block the event loop
@@ -2260,57 +2340,84 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
     let imported = 0;
     let failed = 0;
     let stats;
+    let keepParsed = null;
+
+    // Validate and parse everything that can throw on bad input BEFORE the
+    // transaction, so a bad archive never touches the database.
+    if (backupRoot) {
+      try {
+        await new BackupParser(backupRoot, req.session.userId, null, DATA_DIR).validateBackup();
+      } catch (e) {
+        throw new ImportInputError(e.message);
+      }
+    } else {
+      logger.info('Parsing Google Keep data...');
+      try {
+        keepParsed = await new KeepImportParser(extractPath, req.session.userId, mediaDir).parse();
+      } catch (e) {
+        throw new ImportInputError(e.message);
+      }
+    }
 
     // One transaction for the whole batch: without it every INSERT is its own
     // fsync'd commit, which makes a few thousand notes take minutes instead
     // of seconds. A failing note is skipped, not rolled back, so a partially
-    // valid export still imports what it can.
-    await dbRun('BEGIN');
-    try {
-      if (backupRoot) {
-        logger.info('Restoring kreep backup...');
-        const restorer = new BackupParser(backupRoot, req.session.userId, db, DATA_DIR);
-        const result = await restorer.parse();
-        imported = result.stats.importedNotes;
-        failed = result.stats.skippedNotes;
-        // Same shape as the Keep import so the UI can show it unchanged.
-        stats = {
-          source: 'kreep-backup',
-          totalNotes: result.stats.totalNotes,
-          importedNotes: result.stats.importedNotes,
-          skippedNotes: result.stats.skippedNotes,
-          checklistNotes: 0,
-          attachments: result.stats.importedImages,
-          missingAttachments: Math.max(0, result.stats.totalImages - result.stats.importedImages),
-          shares: result.stats.importedShares,
-          errors: result.stats.errors
-        };
-      } else {
-        logger.info('Parsing Google Keep data...');
-        const parser = new KeepImportParser(extractPath, req.session.userId, mediaDir);
-        const parsed = await parser.parse();
-        stats = parsed.stats;
-        stats.source = 'google-keep';
-        logger.info(`Importing ${parsed.notes.length} notes...`);
-        for (const note of parsed.notes) {
-          try {
-            await importNote(note);
-            imported++;
-          } catch (error) {
-            failed++;
-            logger.error('Import note error:', error);
-            stats.errors.push({
-              note: note.title || note.source_file,
-              error: error.message
-            });
+    // valid export still imports what it can. The transaction runs on its own
+    // connection (the shared one would pull other users' concurrent writes into
+    // it) and imports are serialised so two never overlap.
+    await runExclusiveImport(async () => {
+      const conn = new sqlite3.Database(db.dbPath);
+      try {
+        conn.configure('busyTimeout', 5000);
+        await connRun(conn, 'PRAGMA foreign_keys = ON');
+        await connRun(conn, 'BEGIN IMMEDIATE');
+        try {
+          if (backupRoot) {
+            logger.info('Restoring kreep backup...');
+            const restorer = new BackupParser(backupRoot, req.session.userId, conn, DATA_DIR);
+            const result = await restorer.parse();
+            imported = result.stats.importedNotes;
+            failed = result.stats.skippedNotes;
+            // Same shape as the Keep import so the UI can show it unchanged.
+            stats = {
+              source: 'kreep-backup',
+              totalNotes: result.stats.totalNotes,
+              importedNotes: result.stats.importedNotes,
+              skippedNotes: result.stats.skippedNotes,
+              checklistNotes: 0,
+              attachments: result.stats.importedImages,
+              missingAttachments: Math.max(0, result.stats.totalImages - result.stats.importedImages),
+              shares: result.stats.importedShares,
+              errors: result.stats.errors
+            };
+          } else {
+            const parsed = keepParsed;
+            stats = parsed.stats;
+            stats.source = 'google-keep';
+            logger.info(`Importing ${parsed.notes.length} notes...`);
+            for (const note of parsed.notes) {
+              try {
+                await importNote(note, conn);
+                imported++;
+              } catch (error) {
+                failed++;
+                logger.error('Import note error:', error);
+                stats.errors.push({
+                  note: note.title || note.source_file,
+                  error: error.message
+                });
+              }
+            }
           }
+          await connRun(conn, 'COMMIT');
+        } catch (error) {
+          await connRun(conn, 'ROLLBACK').catch(() => {});
+          throw error;
         }
+      } finally {
+        await new Promise((resolve) => conn.close(() => resolve()));
       }
-      await dbRun('COMMIT');
-    } catch (error) {
-      await dbRun('ROLLBACK').catch(() => {});
-      throw error;
-    }
+    });
 
     // Clean up
     try { await fsp.unlink(zipPath); } catch (e) { /* file may already be gone */ }
@@ -2334,6 +2441,12 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
       logger.error('Cleanup error:', cleanupError);
     }
 
+    if (error instanceof ImportInputError) {
+      return res.status(400).json({
+        error: 'Import misslyckades',
+        message: error.message
+      });
+    }
     res.status(500).json({
       error: 'Import misslyckades',
       message: 'Ett fel uppstod vid import. Kontrollera att filen är en giltig Google Takeout export.'
@@ -2356,13 +2469,22 @@ function findBackupRoot(extractPath) {
   return null;
 }
 
-function dbRun(sql, params = []) {
+function connRun(conn, sql, params = []) {
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) { err ? reject(err) : resolve(this); });
+    conn.run(sql, params, function (err) { err ? reject(err) : resolve(this); });
   });
 }
 
-function importNote(note) {
+// Imports run one at a time: each holds a write transaction on its own
+// connection, and a second one would only sit waiting on the lock.
+let importQueue = Promise.resolve();
+function runExclusiveImport(fn) {
+  const result = importQueue.then(fn);
+  importQueue = result.catch(() => {});
+  return result;
+}
+
+function importNote(note, conn = db) {
   return new Promise((resolve, reject) => {
     const checklistData = note.is_checklist && note.checklist_items
       ? JSON.stringify(note.checklist_items)
@@ -2373,7 +2495,7 @@ function importNote(note) {
       ? JSON.stringify(note.attachments.map(att => att.stored_filename))
       : null;
 
-    db.run(
+    conn.run(
       `INSERT INTO notes (user_id, title, content, color, is_checklist, checklist_items, is_archived, is_pinned, images, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -2461,6 +2583,10 @@ app.use((err, req, res, next) => {
 
   if (err.code === 'EBADCSRFTOKEN') {
     return res.status(403).json({ error: 'Ogiltig förfrågan. Ladda om sidan och försök igen.' });
+  }
+
+  if (err instanceof UploadRejectedError) {
+    return res.status(400).json({ error: err.message });
   }
 
   if (err instanceof multer.MulterError) {
