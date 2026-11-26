@@ -3391,9 +3391,14 @@ async function exportBackup() {
 // ===== UTILITY =====
 function escapeHtml(text) {
   if (typeof text !== 'string') return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  // Also escapes quotes: the result is used inside attribute values
+  // (value="${escapeHtml(...)}"), where a bare " would truncate the text.
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // Convert URLs in text to clickable links
@@ -3403,9 +3408,12 @@ function linkify(text) {
   // First escape HTML to prevent XSS
   let escaped = escapeHtml(text);
 
-  // Regex to match URLs
+  // Regex to match URLs in the already-escaped text.
   // Matches: http://..., https://..., www....
-  const urlRegex = /(?:(?:https?:\/\/)|(?:www\.))[^\s<>]+/gi;
+  // A bare "&" only occurs as part of an entity, so the URL may contain "&amp;"
+  // (query strings) but stops before any other entity such as &quot; / &#39; /
+  // &lt; / &gt;, keeping surrounding quotes and brackets out of the link.
+  const urlRegex = /(?:(?:https?:\/\/)|(?:www\.))(?:[^\s<>&]|&amp;)+/gi;
 
   // Replace URLs with clickable links
   escaped = escaped.replace(urlRegex, (url) => {
