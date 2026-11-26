@@ -19,6 +19,7 @@ const { doubleCsrf } = require('csrf-csrf');
 const cookieParser = require('cookie-parser');
 const sharp = require('sharp');
 
+const sqlite3 = require('sqlite3');
 const db = require('./database');
 const KeepImportParser = require('./import-parser');
 const BackupParser = require('./backup-parser');
@@ -2232,9 +2233,18 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
   const zipPath = req.file.path;
   const extractPath = path.join(uploadsDir, `extract_${Date.now()}_${req.session.userId}`);
 
+  // Anything that can fail on bad user input (unzip, manifest, Keep parsing)
+  // happens before the transaction opens and is answered with a 4xx.
+  class ImportInputError extends Error {}
+
   try {
     logger.info('Extracting zip file...');
-    const zip = new AdmZip(zipPath);
+    let zip;
+    try {
+      zip = new AdmZip(zipPath);
+    } catch (e) {
+      throw new ImportInputError('Filen är inte ett giltigt ZIP-arkiv.');
+    }
 
     // Guard against zip bombs: refuse to extract if the total uncompressed size
     // exceeds the cap (a small compressed archive can expand to many GB and fill
@@ -2242,8 +2252,7 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
     const MAX_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
     const totalUncompressed = zip.getEntries().reduce((sum, e) => sum + (e.header.size || 0), 0);
     if (totalUncompressed > MAX_UNCOMPRESSED_BYTES) {
-      try { await fsp.unlink(zipPath); } catch (e) { /* ignore */ }
-      return res.status(400).json({ error: 'Arkivet är för stort när det packas upp.' });
+      throw new ImportInputError('Arkivet är för stort när det packas upp.');
     }
 
     // Async extraction so a large Takeout archive doesn't block the event loop
@@ -2260,57 +2269,84 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
     let imported = 0;
     let failed = 0;
     let stats;
+    let keepParsed = null;
+
+    // Validate and parse everything that can throw on bad input BEFORE the
+    // transaction, so a bad archive never touches the database.
+    if (backupRoot) {
+      try {
+        await new BackupParser(backupRoot, req.session.userId, null, DATA_DIR).validateBackup();
+      } catch (e) {
+        throw new ImportInputError(e.message);
+      }
+    } else {
+      logger.info('Parsing Google Keep data...');
+      try {
+        keepParsed = await new KeepImportParser(extractPath, req.session.userId, mediaDir).parse();
+      } catch (e) {
+        throw new ImportInputError(e.message);
+      }
+    }
 
     // One transaction for the whole batch: without it every INSERT is its own
     // fsync'd commit, which makes a few thousand notes take minutes instead
     // of seconds. A failing note is skipped, not rolled back, so a partially
-    // valid export still imports what it can.
-    await dbRun('BEGIN');
-    try {
-      if (backupRoot) {
-        logger.info('Restoring kreep backup...');
-        const restorer = new BackupParser(backupRoot, req.session.userId, db, DATA_DIR);
-        const result = await restorer.parse();
-        imported = result.stats.importedNotes;
-        failed = result.stats.skippedNotes;
-        // Same shape as the Keep import so the UI can show it unchanged.
-        stats = {
-          source: 'kreep-backup',
-          totalNotes: result.stats.totalNotes,
-          importedNotes: result.stats.importedNotes,
-          skippedNotes: result.stats.skippedNotes,
-          checklistNotes: 0,
-          attachments: result.stats.importedImages,
-          missingAttachments: Math.max(0, result.stats.totalImages - result.stats.importedImages),
-          shares: result.stats.importedShares,
-          errors: result.stats.errors
-        };
-      } else {
-        logger.info('Parsing Google Keep data...');
-        const parser = new KeepImportParser(extractPath, req.session.userId, mediaDir);
-        const parsed = await parser.parse();
-        stats = parsed.stats;
-        stats.source = 'google-keep';
-        logger.info(`Importing ${parsed.notes.length} notes...`);
-        for (const note of parsed.notes) {
-          try {
-            await importNote(note);
-            imported++;
-          } catch (error) {
-            failed++;
-            logger.error('Import note error:', error);
-            stats.errors.push({
-              note: note.title || note.source_file,
-              error: error.message
-            });
+    // valid export still imports what it can. The transaction runs on its own
+    // connection (the shared one would pull other users' concurrent writes into
+    // it) and imports are serialised so two never overlap.
+    await runExclusiveImport(async () => {
+      const conn = new sqlite3.Database(db.dbPath);
+      try {
+        conn.configure('busyTimeout', 5000);
+        await connRun(conn, 'PRAGMA foreign_keys = ON');
+        await connRun(conn, 'BEGIN IMMEDIATE');
+        try {
+          if (backupRoot) {
+            logger.info('Restoring kreep backup...');
+            const restorer = new BackupParser(backupRoot, req.session.userId, conn, DATA_DIR);
+            const result = await restorer.parse();
+            imported = result.stats.importedNotes;
+            failed = result.stats.skippedNotes;
+            // Same shape as the Keep import so the UI can show it unchanged.
+            stats = {
+              source: 'kreep-backup',
+              totalNotes: result.stats.totalNotes,
+              importedNotes: result.stats.importedNotes,
+              skippedNotes: result.stats.skippedNotes,
+              checklistNotes: 0,
+              attachments: result.stats.importedImages,
+              missingAttachments: Math.max(0, result.stats.totalImages - result.stats.importedImages),
+              shares: result.stats.importedShares,
+              errors: result.stats.errors
+            };
+          } else {
+            const parsed = keepParsed;
+            stats = parsed.stats;
+            stats.source = 'google-keep';
+            logger.info(`Importing ${parsed.notes.length} notes...`);
+            for (const note of parsed.notes) {
+              try {
+                await importNote(note, conn);
+                imported++;
+              } catch (error) {
+                failed++;
+                logger.error('Import note error:', error);
+                stats.errors.push({
+                  note: note.title || note.source_file,
+                  error: error.message
+                });
+              }
+            }
           }
+          await connRun(conn, 'COMMIT');
+        } catch (error) {
+          await connRun(conn, 'ROLLBACK').catch(() => {});
+          throw error;
         }
+      } finally {
+        await new Promise((resolve) => conn.close(() => resolve()));
       }
-      await dbRun('COMMIT');
-    } catch (error) {
-      await dbRun('ROLLBACK').catch(() => {});
-      throw error;
-    }
+    });
 
     // Clean up
     try { await fsp.unlink(zipPath); } catch (e) { /* file may already be gone */ }
@@ -2334,6 +2370,12 @@ app.post('/api/import/keep', requireAuth, importLimiter, csrfProtection, upload.
       logger.error('Cleanup error:', cleanupError);
     }
 
+    if (error instanceof ImportInputError) {
+      return res.status(400).json({
+        error: 'Import misslyckades',
+        message: error.message
+      });
+    }
     res.status(500).json({
       error: 'Import misslyckades',
       message: 'Ett fel uppstod vid import. Kontrollera att filen är en giltig Google Takeout export.'
@@ -2356,13 +2398,22 @@ function findBackupRoot(extractPath) {
   return null;
 }
 
-function dbRun(sql, params = []) {
+function connRun(conn, sql, params = []) {
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) { err ? reject(err) : resolve(this); });
+    conn.run(sql, params, function (err) { err ? reject(err) : resolve(this); });
   });
 }
 
-function importNote(note) {
+// Imports run one at a time: each holds a write transaction on its own
+// connection, and a second one would only sit waiting on the lock.
+let importQueue = Promise.resolve();
+function runExclusiveImport(fn) {
+  const result = importQueue.then(fn);
+  importQueue = result.catch(() => {});
+  return result;
+}
+
+function importNote(note, conn = db) {
   return new Promise((resolve, reject) => {
     const checklistData = note.is_checklist && note.checklist_items
       ? JSON.stringify(note.checklist_items)
@@ -2373,7 +2424,7 @@ function importNote(note) {
       ? JSON.stringify(note.attachments.map(att => att.stored_filename))
       : null;
 
-    db.run(
+    conn.run(
       `INSERT INTO notes (user_id, title, content, color, is_checklist, checklist_items, is_archived, is_pinned, images, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [

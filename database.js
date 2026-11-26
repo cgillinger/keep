@@ -14,6 +14,9 @@ if (!fs.existsSync(dataDir)) {
 
 const dbPath = path.join(dataDir, 'keep.db');
 const db = new sqlite3.Database(dbPath);
+// Wait for a held write lock instead of failing at once with SQLITE_BUSY (the
+// import runs its transaction on a second connection to the same file).
+db.configure('busyTimeout', 5000);
 
 // Small promise wrappers so the schema setup below can run strictly in order.
 const run = (sql, params = []) => new Promise((resolve, reject) => {
@@ -210,5 +213,6 @@ async function decodeHtmlEntitiesOnce() {
 // schema after an upgrade.
 db.ready = initialize();
 db.dataDir = dataDir;
+db.dbPath = dbPath;
 
 module.exports = db;
