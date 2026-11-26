@@ -291,6 +291,7 @@ let currentUser = null;
 let notes = [];
 let currentEditingNote = null;
 let originalEditState = null; // Store original values to detect changes
+let editingColor = null; // Colour chosen in the edit modal; only written to the note on save
 let snapshotLocked = false; // Prevent false-positive dirty detection during initialization
 let selectedColor = '#ffffff';
 let isChecklistMode = false;
@@ -317,7 +318,13 @@ const notesCache = {
   timestamp: {}
 };
 const CACHE_TTL = 90000; // Cache valid for 90 seconds (WebSocket invalidates on changes)
-let isLoadingNotes = false; // Prevent multiple simultaneous loads
+// Every non-append loadNotes() takes a sequence number; only the newest one may
+// apply its result (a view switch / search / WS refresh supersedes older calls
+// instead of being dropped). isLoadingNotes is true while the newest one runs;
+// isLoadingMore guards the infinite-scroll append so those never run in parallel.
+let notesLoadSeq = 0;
+let isLoadingNotes = false;
+let isLoadingMore = false;
 // In-flight guards so a slow NAS round-trip can't be double-submitted into
 // duplicate writes when an impatient user clicks again.
 let isSavingNote = false;
@@ -325,7 +332,6 @@ let isUpdatingNote = false;
 let isDeletingNote = false;
 let isPinningNote = false;
 let isArchivingNote = false;
-let currentOffset = 0; // Current pagination offset
 let hasMoreNotes = true; // Whether there are more notes to load
 let scrollObserver = null; // Intersection Observer for infinite scroll
 
@@ -741,9 +747,10 @@ function resetClientState() {
 
   invalidateNotesCache();
   notes = [];
-  currentOffset = 0;
   hasMoreNotes = true;
+  notesLoadSeq++;
   isLoadingNotes = false;
+  isLoadingMore = false;
   if (scrollObserver) { scrollObserver.disconnect(); scrollObserver = null; }
 
   // Notes grids, pinned section
@@ -773,6 +780,7 @@ function resetClientState() {
   // New-note form and editor state
   currentEditingNote = null;
   originalEditState = null;
+  editingColor = null;
   snapshotLocked = false;
   selectedColor = '#ffffff';
   isChecklistMode = false;
@@ -1010,10 +1018,22 @@ let wsReconnectTimer = null;
 let authEpoch = 0; // bumped on logout; stale async loads compare against it
 let wsHasConnectedBefore = false;
 function connectWebSocket() {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${protocol}//${window.location.host}`);
+  // Never keep two connections: cancel a pending reconnect and replace any
+  // socket that is open or still connecting. Handlers of a replaced socket
+  // check `socket !== ws` and bail out, so its close can't trigger a reconnect.
+  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    const old = ws;
+    ws = null;
+    old.close();
+  }
 
-  ws.onopen = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const socket = new WebSocket(`${protocol}//${window.location.host}`);
+  ws = socket;
+
+  socket.onopen = () => {
+    if (socket !== ws) return;
     console.log('WebSocket connected');
     wsReconnectDelay = 2000;
     if (wsHasConnectedBefore) {
@@ -1024,20 +1044,30 @@ function connectWebSocket() {
     wsHasConnectedBefore = true;
   };
 
-  ws.onmessage = (event) => {
+  socket.onmessage = (event) => {
+    if (socket !== ws) return;
     try {
       const data = JSON.parse(event.data);
 
       if (data.type === 'note_created' || data.type === 'note_updated') {
-        // If the note's archived state no longer matches the current view, drop
-        // it (e.g. the owner archived a shared note in another session).
-        const archived = !!data.note.is_archived;
-        if ((archived && !showingArchived) || (!archived && showingArchived)) {
-          notes = notes.filter(n => n.id !== data.note.id);
-          removeSingleNote(data.note.id);
+        const incoming = data.note;
+        const existingIndex = notes.findIndex(n => n.id === incoming.id);
+        // Drop notes that don't belong in the current view (e.g. the owner
+        // archived a shared note in another session, or an own note arrives
+        // while the "shared" view is open).
+        if (!noteBelongsInCurrentView(incoming)) {
+          notes = notes.filter(n => n.id !== incoming.id);
+          removeSingleNote(incoming.id);
+          syncCurrentViewCache();
           return;
         }
-        const existingIndex = notes.findIndex(n => n.id === data.note.id);
+        // A foreign note we don't hold yet lacks the derived fields (owner,
+        // permission, isShared) the broadcast row doesn't carry: refetch
+        // instead of inserting a half-formed card.
+        if (existingIndex < 0 && currentUser && incoming.user_id !== undefined && incoming.user_id !== currentUser.id) {
+          if (data.type === 'note_created') loadNotes({ forceRefresh: true, showLoading: false });
+          return;
+        }
         let merged;
         if (existingIndex >= 0) {
           // MERGE rather than replace: broadcasts send raw DB rows without the
@@ -1045,7 +1075,7 @@ function connectWebSocket() {
           // owner_avatar_color, share_count). Replacing would make a recipient's
           // shared note look like their own (wrong buttons) and drop the owner's
           // "shared with N" badge. Spreading the existing note first preserves them.
-          merged = { ...notes[existingIndex], ...data.note };
+          merged = { ...notes[existingIndex], ...incoming };
           // Pin is per-user for shared notes: the owner's broadcast carries
           // their own is_pinned, which must not clobber our per-user pin.
           if (notes[existingIndex].isShared) {
@@ -1053,11 +1083,19 @@ function connectWebSocket() {
           }
           notes[existingIndex] = merged;
         } else {
-          merged = data.note;
+          merged = incoming;
           notes.unshift(merged);
+        }
+        // During a search the list only holds matches: drop what no longer matches
+        if (!noteMatchesSearch(merged)) {
+          notes = notes.filter(n => n.id !== merged.id);
+          removeSingleNote(merged.id);
+          syncCurrentViewCache();
+          return;
         }
         // Use incremental update for better performance
         updateSingleNote(merged);
+        syncCurrentViewCache();
       } else if (data.type === 'note_pinned') {
         // Our own pin toggled from another tab/device (pins are per-user).
         const idx = notes.findIndex(n => n.id === data.noteId);
@@ -1070,31 +1108,34 @@ function connectWebSocket() {
           }
         }
       } else if (data.type === 'note_deleted' || data.type === 'note_unshared') {
-        notes = notes.filter(n => n.id !== data.noteId);
-        removeSingleNote(data.noteId);
+        applyLocalNoteRemoval(data.noteId);
       } else if (data.type === 'note_shared') {
         // A note was shared with us. It shows up in both the default and the
         // "shared" views, so refresh whenever we're not in the archived view.
+        // The cached lists are stale now, so bypass them.
         showToast(t('share.new_share_notification'), 'info');
+        invalidateNotesCache();
         if (!showingArchived) {
-          loadNotes();
+          loadNotes({ forceRefresh: true, showLoading: false });
         }
       } else if (data.type === 'share_count_updated') {
         // Our note's share count changed - reload to update the indicator
+        invalidateNotesCache();
         if (!showingShared && !showingArchived) {
-          loadNotes();
+          loadNotes({ forceRefresh: true, showLoading: false });
         }
       } else if (data.type === 'permission_changed') {
         // Our permission on a shared note changed
         const noteIndex = notes.findIndex(n => n.id === data.noteId);
         if (noteIndex >= 0) {
           notes[noteIndex].permission = data.permission;
-          // If we're currently editing this note, update the UI
+          // If we're currently editing this note, refresh only the permission-
+          // dependent UI; what the user has typed must stay as it is.
           if (currentEditingNote && currentEditingNote.id === data.noteId) {
             currentEditingNote.permission = data.permission;
-            // Re-render edit modal to reflect new permissions
-            openEditModal(data.noteId);
+            applyEditPermissionUI(currentEditingNote);
           }
+          syncCurrentViewCache();
           showToast(`${t('share.permission_changed_to')}: ${data.permission === 'edit' ? t('share.can_edit') : t('share.can_view')}`, 'info');
         }
       }
@@ -1103,7 +1144,8 @@ function connectWebSocket() {
     }
   };
 
-  ws.onclose = (event) => {
+  socket.onclose = (event) => {
+    if (socket !== ws) return; // replaced or signed out: not our business anymore
     console.log('WebSocket disconnected', event.code, event.reason);
     // Don't reconnect if server rejected (auth error)
     if (event.code === 1008) {
@@ -1123,7 +1165,8 @@ function connectWebSocket() {
     }
   };
 
-  ws.onerror = (error) => {
+  socket.onerror = (error) => {
+    if (socket !== ws) return;
     console.error('WebSocket error:', error);
   };
 }
@@ -1295,9 +1338,9 @@ function applyBackgroundTheme(theme) {
 
   // Update modal content color if open
   if (currentEditingNote) {
-    const modalContent = document.querySelector('.modal-content');
+    const modalContent = document.getElementById('modal-content');
     if (modalContent) {
-      modalContent.style.backgroundColor = getThemeAwareColor(currentEditingNote.color);
+      modalContent.style.backgroundColor = getThemeAwareColor(editingColor || currentEditingNote.color);
     }
   }
 }
@@ -1418,15 +1461,41 @@ function formatCreatedDate(dateString) {
 // ===== NOTES FUNCTIONS =====
 
 // Incremental update: Update or add a single note without full re-render
+// Does a note belong in the list the current view shows? Mirrors the server
+// (GET /api/notes): "archived" = own archived notes, "shared" = non-archived
+// notes shared WITH us (not our own), default = every non-archived note.
+function noteBelongsInCurrentView(note) {
+  const archived = !!note.is_archived;
+  if (showingArchived) return archived && isOwnNote(note);
+  if (archived) return false;
+  if (showingShared) return !isOwnNote(note);
+  return true;
+}
+
+function isOwnNote(note) {
+  if (note.user_id !== undefined && currentUser) return note.user_id === currentUser.id;
+  const held = notes.find(n => n.id === note.id);
+  return !(note.isShared || (held && held.isShared));
+}
+
+// Used for notes that arrive after the list was fetched (WebSocket, local
+// saves) while a search is active. The server already filtered the fetched
+// pages, so those are never filtered again. Like the server, it matches title,
+// body and checklist item text.
+function noteMatchesSearch(note) {
+  const q = currentSearchQuery().toLowerCase();
+  if (!q) return true;
+  if ((note.title || '').toLowerCase().includes(q)) return true;
+  if ((note.content || '').toLowerCase().includes(q)) return true;
+  let items = note.checklist_items;
+  if (typeof items === 'string') {
+    try { items = JSON.parse(items); } catch (e) { items = []; }
+  }
+  return Array.isArray(items) && items.some(item => String(item && item.text || '').toLowerCase().includes(q));
+}
+
 function updateSingleNote(note) {
-  const searchTerm = document.getElementById('search-input').value.toLowerCase();
-
-  // Check if note matches current search/filter
-  const matchesSearch = !searchTerm ||
-    note.title.toLowerCase().includes(searchTerm) ||
-    note.content.toLowerCase().includes(searchTerm);
-
-  if (!matchesSearch) {
+  if (!noteMatchesSearch(note)) {
     removeSingleNote(note.id);
     return;
   }
@@ -1613,13 +1682,22 @@ function renderNoteHTML(note) {
 async function loadNotes(options = {}) {
   const { forceRefresh = false, showLoading = true, append = false } = options;
 
+  // Infinite-scroll pages never run in parallel, nor while a replacing load is
+  // in flight (that load is about to swap the list the page would extend).
+  if (append && (isLoadingMore || isLoadingNotes)) return;
+
   // Determine which cache key to use
   const cacheKey = showingArchived ? 'archived' : showingShared ? 'shared' : 'all';
 
-  // Reset pagination when not appending
-  if (!append) {
-    currentOffset = 0;
-  }
+  // The newest non-append call wins: it supersedes any older in-flight load
+  // (whose result is then ignored). An append belongs to the list it was
+  // started on, so it just remembers the current sequence number.
+  const seq = append ? notesLoadSeq : ++notesLoadSeq;
+  const epoch = authEpoch;
+
+  // Append continues after the notes already held (not a counter of fetched
+  // pages), so local creates/deletes can't cause duplicates or skipped notes.
+  const offset = append ? notes.length : 0;
 
   // Build URL with pagination
   let url = showingArchived
@@ -1630,7 +1708,7 @@ async function loadNotes(options = {}) {
 
   // Add pagination params (use ? or & depending on existing params)
   const separator = url.includes('?') ? '&' : '?';
-  url += `${separator}limit=${PAGE_SIZE}&offset=${currentOffset}`;
+  url += `${separator}limit=${PAGE_SIZE}&offset=${offset}`;
   if (showCreatedDate) {
     url += '&sortBy=created_at';
   }
@@ -1648,7 +1726,8 @@ async function loadNotes(options = {}) {
   const cacheValid = !searchQuery && cachedData.notes.length > 0 && (Date.now() - cacheTime < CACHE_TTL) && !forceRefresh && !append;
 
   if (cacheValid) {
-    // Use cached data immediately
+    // Use cached data immediately (this call superseded any in-flight load)
+    isLoadingNotes = false;
     notes = cachedData.notes;
     hasMoreNotes = cachedData.hasMore;
     renderNotes();
@@ -1656,10 +1735,10 @@ async function loadNotes(options = {}) {
     return;
   }
 
-  // Prevent multiple simultaneous loads
-  if (isLoadingNotes) return;
-  isLoadingNotes = true;
-  const epoch = authEpoch;
+  if (append) isLoadingMore = true; else isLoadingNotes = true;
+
+  // A result is only applied if nobody signed out or started a newer load
+  const isStale = () => epoch !== authEpoch || seq !== notesLoadSeq;
 
   // Show loading indicator
   if (showLoading && !append) {
@@ -1670,21 +1749,21 @@ async function loadNotes(options = {}) {
 
   try {
     const response = await apiFetch(url);
-    if (epoch !== authEpoch) return; // signed out meanwhile: drop stale result
+    if (isStale()) return;
     if (response.ok) {
       const data = await response.json();
-      if (epoch !== authEpoch) return;
+      if (isStale()) return;
 
       if (append) {
-        // Append new notes to existing
-        notes = [...notes, ...data.notes];
+        // Append new notes to existing, skipping any we already hold
+        const have = new Set(notes.map(n => n.id));
+        notes = [...notes, ...data.notes.filter(n => !have.has(n.id))];
       } else {
         // Replace notes
         notes = data.notes;
       }
 
       hasMoreNotes = data.hasMore;
-      currentOffset += data.notes.length;
 
       // Update cache (search results are not cached)
       if (!searchQuery) {
@@ -1700,20 +1779,28 @@ async function loadNotes(options = {}) {
       renderNotes();
     }
   } catch (error) {
+    if (isStale()) return;
     console.error('Failed to load notes:', error);
     if (!append) {
       showToast(t('messages.load_notes_failed'), 'error');
       renderNotes();
     }
   } finally {
-    if (epoch === authEpoch) isLoadingNotes = false;
-    hideLoadingMore();
+    if (epoch === authEpoch) {
+      if (append) {
+        isLoadingMore = false;
+        hideLoadingMore();
+      } else if (seq === notesLoadSeq) {
+        isLoadingNotes = false;
+        hideLoadingMore();
+      }
+    }
   }
 }
 
 // Load more notes (called by infinite scroll)
 async function loadMoreNotes() {
-  if (!hasMoreNotes || isLoadingNotes) return;
+  if (!hasMoreNotes || isLoadingNotes || isLoadingMore) return;
   await loadNotes({ append: true, showLoading: false });
 }
 
@@ -1767,7 +1854,7 @@ function setupScrollObserver() {
 
   scrollObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
-      if (entry.isIntersecting && hasMoreNotes && !isLoadingNotes) {
+      if (entry.isIntersecting && hasMoreNotes && !isLoadingNotes && !isLoadingMore) {
         loadMoreNotes();
       }
     });
@@ -1784,8 +1871,7 @@ function setupScrollObserver() {
 // arrives afterwards and is idempotent. Other views' caches are dropped so
 // they refetch on next switch; the current view's cache is kept in sync.
 function applyLocalNoteChange(note) {
-  const archived = !!note.is_archived;
-  const inView = showingArchived ? archived : !archived;
+  const inView = noteBelongsInCurrentView(note) && noteMatchesSearch(note);
   const idx = notes.findIndex(n => n.id === note.id);
   if (!inView) {
     if (idx >= 0) notes.splice(idx, 1);
@@ -1815,7 +1901,8 @@ function syncCurrentViewCache() {
   for (const key of ['all', 'archived', 'shared']) {
     if (key !== current) invalidateNotesCache(key);
   }
-  if (!currentSearchQuery()) {
+  // While a view switch is still loading, `notes` belongs to the previous view.
+  if (!currentSearchQuery() && !isLoadingNotes) {
     notesCache[current] = { notes, hasMore: hasMoreNotes, total: notesCache[current].total };
     notesCache.timestamp[current] = Date.now();
   }
@@ -1857,16 +1944,9 @@ function renderNotes(options = {}) {
   const pinnedContainer = document.getElementById('pinned-notes-grid');
   const pinnedSection = document.getElementById('pinned-section');
   const otherLabel = document.getElementById('other-label');
-  const searchTerm = document.getElementById('search-input').value.toLowerCase();
-
-  const filteredNotes = notes.filter(note => {
-    if (searchTerm) {
-      const titleMatch = note.title.toLowerCase().includes(searchTerm);
-      const contentMatch = note.content.toLowerCase().includes(searchTerm);
-      return titleMatch || contentMatch;
-    }
-    return true;
-  });
+  // `notes` is already what the server returned for the current search (which
+  // also covers checklist items), so it is not filtered again here.
+  const filteredNotes = notes;
 
   // Separate pinned and regular notes
   const pinnedNotes = filteredNotes.filter(note => note.is_pinned);
@@ -2035,6 +2115,8 @@ function openEditModal(noteId) {
   if (!note) return;
 
   currentEditingNote = note;
+  // The picked colour lives here until the note is saved; the list object stays untouched.
+  editingColor = note.color;
 
   document.getElementById('edit-note-title').value = note.title || '';
   document.getElementById('edit-note-content').value = note.content || '';
@@ -2042,19 +2124,7 @@ function openEditModal(noteId) {
 
   // Show/hide edit options based on permission
   const canEdit = !note.isShared || note.permission === 'edit';
-  const canDelete = !note.isShared; // Only owner can delete
-  const canShare = !note.isShared; // Only owner can share
-
-  document.getElementById('edit-note-title').disabled = !canEdit;
-  document.getElementById('edit-note-content').disabled = !canEdit;
-  document.getElementById('edit-checklist-toggle').disabled = !canEdit;
-  document.getElementById('update-note-btn').style.display = canEdit ? 'inline-block' : 'none';
-  document.getElementById('delete-note-btn').style.display = canDelete ? 'inline-block' : 'none';
-  document.getElementById('archive-note-btn').style.display = canEdit ? 'inline-block' : 'none';
-  document.getElementById('share-note-btn').style.display = canShare ? 'inline-block' : 'none';
-
-  // Dismiss share button - only for recipients of shared notes
-  document.getElementById('dismiss-share-btn').style.display = note.isShared ? 'inline-block' : 'none';
+  applyEditPermissionUI(note);
 
   // Pin button - available to everyone; pin is per-user, so a recipient can
   // pin/unpin a shared note in their own view without affecting the owner.
@@ -2080,7 +2150,7 @@ function openEditModal(noteId) {
         return `
       <div class="checklist-item checklist-header" data-header="true">
         <input type="text" value="${escapeHtml(item.text)}" ${!canEdit ? 'disabled' : ''}>
-        ${canEdit ? `<button data-action="removeEditChecklistItem">×</button>` : ''}
+        <button data-action="removeEditChecklistItem"${canEdit ? '' : ' style="display:none"'}>×</button>
       </div>
     `;
       }
@@ -2090,7 +2160,7 @@ function openEditModal(noteId) {
         <input type="checkbox" ${item.checked ? 'checked' : ''} ${!canEdit ? 'disabled' : ''}>
         <input type="text" value="${escapeHtml(item.text)}" ${!canEdit ? 'disabled' : ''}>
         ${confidenceBadgeHTML(item.confidence)}
-        ${canEdit ? `<button data-action="removeEditChecklistItem">×</button>` : ''}
+        <button data-action="removeEditChecklistItem"${canEdit ? '' : ' style="display:none"'}>×</button>
       </div>
     `;
     }).join('');
@@ -2124,11 +2194,41 @@ function openEditModal(noteId) {
         content: document.getElementById('edit-note-content').value,
         isChecklist: document.getElementById('edit-checklist-container').style.display !== 'none',
         checklistItems: JSON.stringify(getChecklistItems('edit-checklist-items')),
-        images: [...editNoteImages]
+        images: [...editNoteImages],
+        color: note.color
       };
       snapshotLocked = true;
     });
   });
+}
+
+// Permission-dependent parts of the edit modal (enabled/disabled fields and
+// buttons). Separate from openEditModal so a permission_changed event can
+// refresh them without touching what the user has typed.
+function applyEditPermissionUI(note) {
+  const canEdit = !note.isShared || note.permission === 'edit';
+  const canDelete = !note.isShared; // Only owner can delete
+  const canShare = !note.isShared; // Only owner can share
+
+  document.getElementById('edit-note-title').disabled = !canEdit;
+  document.getElementById('edit-note-content').disabled = !canEdit;
+  document.getElementById('edit-checklist-toggle').disabled = !canEdit;
+  document.getElementById('update-note-btn').style.display = canEdit ? 'inline-block' : 'none';
+  document.getElementById('delete-note-btn').style.display = canDelete ? 'inline-block' : 'none';
+  document.getElementById('archive-note-btn').style.display = canEdit ? 'inline-block' : 'none';
+  document.getElementById('share-note-btn').style.display = canShare ? 'inline-block' : 'none';
+
+  // Dismiss share button - only for recipients of shared notes
+  document.getElementById('dismiss-share-btn').style.display = note.isShared ? 'inline-block' : 'none';
+
+  // Checklist rows: inputs and per-row remove buttons
+  document.querySelectorAll('#edit-checklist-items input').forEach(input => { input.disabled = !canEdit; });
+  document.querySelectorAll('#edit-checklist-items button[data-action="removeEditChecklistItem"]').forEach(btn => { btn.style.display = canEdit ? '' : 'none'; });
+
+  // Image remove buttons
+  if (document.getElementById('edit-images-container').style.display !== 'none') {
+    renderImagePreview('edit-images-preview', editNoteImages, canEdit);
+  }
 }
 
 // Check if there are unsaved changes in the edit modal
@@ -2143,6 +2243,9 @@ function hasUnsavedChanges() {
   // Check title and content
   if (currentTitle !== originalEditState.title) return true;
   if (currentContent !== originalEditState.content) return true;
+
+  // Check colour
+  if (editingColor !== originalEditState.color) return true;
 
   // Check checklist mode
   if (isChecklist !== originalEditState.isChecklist) return true;
@@ -2184,6 +2287,7 @@ function forceCloseEditModal() {
   document.getElementById('edit-modal').classList.remove('active');
   currentEditingNote = null;
   originalEditState = null;
+  editingColor = null;
   snapshotLocked = false;
 }
 
@@ -2232,6 +2336,8 @@ async function saveChangesAndClose() {
 async function updateNote(options = {}) {
   if (!currentEditingNote) return;
   const { force = false } = options;
+  // The conflict toast's "overwrite" must only ever act on this note
+  const noteId = currentEditingNote.id;
 
   const title = document.getElementById('edit-note-title').value.trim();
   const content = document.getElementById('edit-note-content').value.trim();
@@ -2258,7 +2364,7 @@ async function updateNote(options = {}) {
       body: JSON.stringify({
         title,
         content,
-        color: currentEditingNote.color,
+        color: editingColor || currentEditingNote.color,
         is_checklist: isChecklist,
         checklist_items: checklistItems,
         is_archived: currentEditingNote.is_archived,
@@ -2288,7 +2394,10 @@ async function updateNote(options = {}) {
       showToast(t('messages.conflict_changed_elsewhere'), 'error', {
         label: t('messages.overwrite'),
         duration: 10000,
-        onClick: () => updateNote({ force: true })
+        onClick: () => {
+          // Do nothing if the editor was closed or another note opened since
+          if (currentEditingNote && currentEditingNote.id === noteId) updateNote({ force: true });
+        }
       });
     } else if (response.status === 403) {
       await fetchCSRFToken();
@@ -2421,6 +2530,10 @@ async function togglePinNote() {
 
     if (response.ok) {
       const data = await response.json();
+      // Work from the note as the list holds it now (a WS update may have
+      // replaced the object the editor was opened with), not a stale copy.
+      const pinnedId = currentEditingNote.id;
+      const listed = notes.find(n => n.id === pinnedId);
       currentEditingNote.is_pinned = data.is_pinned;
 
       // Update pin button icon in modal
@@ -2429,7 +2542,7 @@ async function togglePinNote() {
         pinBtn.title = data.is_pinned ? t('notes.unpin_title') : t('notes.pin_title');
       }
 
-      applyLocalNoteChange({ ...currentEditingNote, is_pinned: data.is_pinned });
+      if (listed) applyLocalNoteChange({ ...listed, is_pinned: data.is_pinned });
       showToast(data.is_pinned ? t('messages.note_pinned') : t('messages.note_unpinned'), 'success');
     } else if (response.status === 403) {
       await fetchCSRFToken();
@@ -2455,10 +2568,14 @@ async function toggleArchiveNote() {
   setBtnBusy(archiveBtn);
 
   const willArchive = currentEditingNote.is_archived ? 0 : 1;
-  currentEditingNote.is_archived = willArchive;
+  const noteId = currentEditingNote.id;
+
+  // Archive the note as it currently looks in the editor, so unsaved edits are
+  // saved along with it instead of being thrown away.
+  const isChecklist = document.getElementById('edit-checklist-container').style.display !== 'none';
 
   try {
-    const response = await apiFetch(`/api/notes/${currentEditingNote.id}`, {
+    const response = await apiFetch(`/api/notes/${noteId}`, {
       method: 'PUT',
       credentials: 'include',
       headers: {
@@ -2466,13 +2583,13 @@ async function toggleArchiveNote() {
         ...getCSRFHeaders()
       },
       body: JSON.stringify({
-        title: currentEditingNote.title,
-        content: currentEditingNote.content,
-        color: currentEditingNote.color,
-        is_checklist: currentEditingNote.is_checklist ? 1 : 0,
-        checklist_items: currentEditingNote.checklist_items,
+        title: document.getElementById('edit-note-title').value.trim(),
+        content: document.getElementById('edit-note-content').value.trim(),
+        color: editingColor || currentEditingNote.color,
+        is_checklist: isChecklist ? 1 : 0,
+        checklist_items: isChecklist ? getChecklistItems('edit-checklist-items') : null,
         is_archived: willArchive,
-        images: currentEditingNote.images || [],
+        images: editNoteImages,
         expected_updated_at: currentEditingNote.updated_at
       })
     });
@@ -2483,18 +2600,14 @@ async function toggleArchiveNote() {
       applyLocalNoteChange(result);
       showToast(willArchive ? t('messages.note_archived') : t('messages.note_unarchived'), 'success');
     } else if (response.status === 409) {
-      currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
       showToast(t('messages.conflict_reopen'), 'error');
     } else if (response.status === 403) {
-      currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
       await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
-      currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
       showToast(t('messages.archive_note_failed'), 'error');
     }
   } catch (error) {
-    currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
     console.error('Failed to archive note:', error);
     showToast(t('messages.archive_note_failed'), 'error');
   } finally {
@@ -3231,9 +3344,10 @@ function setupColorPickers() {
       const color = btn.getAttribute('data-color');
 
       if (btn.classList.contains('edit-color-btn')) {
-        if (currentEditingNote) {
-          currentEditingNote.color = color;
-          document.querySelector('.modal-content').style.backgroundColor = getThemeAwareColor(color);
+        // Only remembered in editingColor; the note itself is updated on save
+        if (currentEditingNote && (!currentEditingNote.isShared || currentEditingNote.permission === 'edit')) {
+          editingColor = color;
+          document.getElementById('modal-content').style.backgroundColor = getThemeAwareColor(color);
         }
       } else {
         selectedColor = color;
@@ -3517,13 +3631,21 @@ document.addEventListener('keydown', (e) => {
     register();
   }
   if (e.key === 'Escape') {
-    closeEditModal();
-    closeImportModal();
-    closeProfileModal();
-    closeShareModal();
-    closeImageModal();
+    closeTopmostModal();
   }
 });
+
+// Escape closes only the topmost layer, through the same functions the close
+// buttons use (so unsaved-changes / pending-share checks still apply).
+function closeTopmostModal() {
+  const isOpen = (id) => document.getElementById(id)?.classList.contains('active');
+  if (isOpen('image-modal')) closeImageModal();
+  else if (document.getElementById('unsaved-changes-dialog')) closeUnsavedChangesDialog();
+  else if (isOpen('share-modal')) cancelShareModal();
+  else if (isOpen('import-modal')) closeImportModal();
+  else if (isOpen('profile-modal')) closeProfileModal();
+  else if (isOpen('edit-modal')) closeEditModal();
+}
 
 // ===== IMAGE HANDLING =====
 
@@ -3771,9 +3893,7 @@ document.addEventListener('keydown', function(e) {
   const modal = document.getElementById('image-modal');
   if (!modal.classList.contains('active')) return;
 
-  if (e.key === 'Escape') {
-    closeImageModal();
-  } else if (e.key === 'ArrowLeft') {
+  if (e.key === 'ArrowLeft') {
     navigateImage(-1);
   } else if (e.key === 'ArrowRight') {
     navigateImage(1);
