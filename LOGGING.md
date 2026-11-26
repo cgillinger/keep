@@ -35,7 +35,7 @@ YYYY-MM-DD HH:mm:ss [LEVEL]: message {metadata}
 2026-01-24 16:30:15 [INFO]: AUTH: User logged in {"username":"christian","sessionId":"abc123"}
 2026-01-24 16:30:16 [INFO]: WS: Connection authenticated {"userId":1}
 2026-01-24 16:30:20 [ERROR]: DB: Create note error {"message":"SQLITE_CONSTRAINT"}
-2026-01-24 16:31:05 [WARN]: SECURITY: Using default session secret {"message":"Set SESSION_SECRET environment variable in production"}
+2026-01-24 16:31:05 [WARN]: SESSION_SECRET is not set; generated a random one and saved it to /app/data/.session-secret. Existing logins are invalidated once. Set SESSION_SECRET in .env to silence this.
 ```
 
 ## Loggkategorier

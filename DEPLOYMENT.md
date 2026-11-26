@@ -12,8 +12,8 @@ Keep Clone kan köras i olika miljöer med olika säkerhetskrav. Denna guide hj�
 |-------|------------|----------------|----------------|
 | **Lokal utveckling** | HTTP | `secure: false` | ✅ Nuvarande config |
 | **Hemmanätverk** | HTTP | `secure: false` | ✅ OK med VPN/firewall |
-| **Bakom reverse proxy** | HTTPS (proxy) + HTTP (app) | `secure: false` | ⚠️ Läs "Reverse Proxy" |
-| **Direkt exponerad** | HTTPS | `secure: true` | ⚠️ Kräver certifikat |
+| **Bakom reverse proxy** | HTTPS (proxy) + HTTP (app) | `FORCE_HTTPS=true` | ⚠️ Läs "Reverse Proxy" |
+| **Direkt exponerad** | HTTPS | ej inbyggt (se avsnitt 4) | ⚠️ Använd proxy |
 | **Produktion (internet)** | HTTPS | `secure: true` | ⚠️ OBLIGATORISKT |
 
 ---
@@ -30,7 +30,7 @@ Keep Clone kan köras i olika miljöer med olika säkerhetskrav. Denna guide hj�
 **`server.js`:**
 ```javascript
 cookie: {
-  secure: false,        // ✅ Tillåter HTTP
+  secure: isHttps,      // ✅ false som standard (tillåter HTTP); true när FORCE_HTTPS=true
   httpOnly: true,       // ✅ Skydd mot XSS
   sameSite: 'lax',      // ✅ CSRF-skydd
   maxAge: 7 * 24 * 60 * 60 * 1000
@@ -41,7 +41,7 @@ cookie: {
 
 ```bash
 node server.js
-# Servern körs på http://localhost:8097
+# Servern körs på http://localhost:3000
 ```
 
 ### ✅ Fördelar:
@@ -74,17 +74,9 @@ cookie: {
 }
 ```
 
-### Starta servern på specifik IP:
+### Starta servern:
 
-**`server.js`:** (lägg till före `server.listen`)
-```javascript
-const HOST = '0.0.0.0';  // Lyssna på alla interfaces
-const PORT = process.env.PORT || 8097;
-
-server.listen(PORT, HOST, () => {
-  logger.info(`Keep Clone running on http://0.0.0.0:${PORT}`);
-});
-```
+Servern lyssnar på alla nätverksgränssnitt (`server.listen(PORT)`), så ingen kodändring behövs. Byt port med miljövariabeln `PORT` (standard 3000).
 
 ### Åtkomst från andra enheter:
 
@@ -94,7 +86,7 @@ ip addr show  # Linux
 ifconfig      # macOS
 
 # Anslut från annan enhet på samma nätverk
-http://192.168.1.100:8097
+http://192.168.1.100:3000
 ```
 
 ### ✅ Fördelar:
@@ -128,7 +120,7 @@ http://192.168.1.100:8097
 ```
 Internet → HTTPS (443) → Reverse Proxy (nginx/Caddy/Traefik)
                               ↓
-                         HTTP (8097) → Keep Clone
+                         HTTP (3000) → Keep Clone
 ```
 
 ### 3A. Med Caddy (Enklast)
@@ -148,7 +140,7 @@ sudo apt install caddy
 
 ```caddy
 keep.example.com {
-    reverse_proxy localhost:8097
+    reverse_proxy localhost:3000
 
     # Automatisk HTTPS via Let's Encrypt
     # Inget mer behövs!
@@ -164,14 +156,7 @@ sudo systemctl status caddy
 
 #### Keep Clone Konfiguration:
 
-**Behåll `secure: false`** eftersom Keep Clone får HTTP från Caddy:
-
-```javascript
-cookie: {
-  secure: false,  // ✅ App får HTTP från Caddy
-  sameSite: 'lax'
-}
-```
+Sätt `FORCE_HTTPS=true` i `.env` (aktiverar HSTS, `Secure`-cookies och `trust proxy` = 1). Det fungerar eftersom webbläsaren når appen över HTTPS via Caddy, även om Caddy pratar HTTP med appen.
 
 #### ✅ Caddy fördelar:
 - **Automatisk HTTPS** (Let's Encrypt)
@@ -220,7 +205,7 @@ server {
 
     # Reverse Proxy
     location / {
-        proxy_pass http://localhost:8097;
+        proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -236,7 +221,7 @@ server {
 
     # Static files caching
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
-        proxy_pass http://localhost:8097;
+        proxy_pass http://localhost:3000;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
@@ -265,8 +250,6 @@ sudo certbot renew --dry-run
 #### docker-compose.yml:
 
 ```yaml
-version: '3.8'
-
 services:
   traefik:
     image: traefik:v2.10
@@ -292,38 +275,34 @@ services:
       - "traefik.http.routers.keep.rule=Host(`keep.example.com`)"
       - "traefik.http.routers.keep.entrypoints=websecure"
       - "traefik.http.routers.keep.tls.certresolver=letsencrypt"
-      - "traefik.http.services.keep.loadbalancer.server.port=8097"
+      - "traefik.http.services.keep.loadbalancer.server.port=3000"
 ```
 
 ---
 
 ### ⚠️ VIKTIGT för Reverse Proxy:
 
-#### Trust Proxy Settings
+#### Proxy-inställningar
 
-**I `server.js`, lägg till:**
+Appen konfigureras med miljövariabler, ingen kodändring behövs:
 
-```javascript
-// Trust proxy (nginx/Caddy sätter X-Forwarded-* headers)
-app.set('trust proxy', 1);
-
-// Session config
-const sessionConfig = {
-  // ... existing config ...
-  cookie: {
-    secure: false,  // App får HTTP, proxy hanterar HTTPS
-    sameSite: 'lax',
-    // ... rest ...
-  },
-  proxy: true  // ✅ Viktigt för reverse proxy
-};
+```bash
+FORCE_HTTPS=true    # HSTS + Secure-cookies (webbläsaren når appen över HTTPS)
+TRUST_PROXY=1       # antal proxy-hopp; standard 1 när FORCE_HTTPS=true
 ```
 
-#### Varför `secure: false`?
+`TRUST_PROXY` behövs för att rate limiting ska se klientens riktiga IP i stället för proxyns. Proxyn måste skicka `X-Forwarded-For`/`X-Forwarded-Proto` (Caddy och exemplen nedan gör det) och vidarebefordra WebSocket-uppgraderingar.
 
 ```
 Internet ----HTTPS----> Proxy ----HTTP----> Keep Clone
-                       (443)               (8097)
+                       (443)               (3000)
+```
+
+- Keep Clone får **HTTP** från proxyn, men `Secure`-cookies fungerar eftersom webbläsaren ser HTTPS
+- Sätt **inte** `FORCE_HTTPS=true` om du når appen över ren HTTP – då fungerar inte inloggningen
+
+----HTTPS----> Proxy ----HTTP----> Keep Clone
+                       (443)               (3000)
 ```
 
 - Keep Clone får **HTTP** från proxyn
@@ -333,6 +312,8 @@ Internet ----HTTPS----> Proxy ----HTTP----> Keep Clone
 ---
 
 ## 4. Direkt HTTPS (Utan Proxy)
+
+> ⚠️ **Obs:** `server.js` har inget inbyggt TLS-stöd (inget `https.createServer`, inga `SSL_CERT_PATH`/`HTTPS_ENABLED`). Exemplen i detta avsnitt är kodändringar du själv måste göra och stöds inte av repot. Använd hellre en reverse proxy (avsnitt 3).
 
 ### När detta passar:
 - Ingen reverse proxy tillgänglig
@@ -469,7 +450,7 @@ sudo systemctl enable wg-quick@wg0
 #### Anslut till Keep Clone via VPN:
 
 ```
-VPN ansluten → http://192.168.1.100:8097
+VPN ansluten → http://192.168.1.100:3000
 ```
 
 ### ✅ Fördelar:
@@ -489,9 +470,9 @@ VPN ansluten → http://192.168.1.100:8097
 | **HTTP (hemmanät)** | false | lax | true | ⚠️ Medium (okrypterad LAN) |
 | **HTTP (internet)** | false | lax | true | 🔴 HÖG - UNDVIK! |
 | **HTTPS (direkt)** | true | lax | true | ✅ Låg |
-| **HTTPS (via proxy)** | false* | lax | true | ✅ Låg (proxy hanterar TLS) |
+| **HTTPS (via proxy)** | true (`FORCE_HTTPS=true`) | lax | true | ✅ Låg (proxy hanterar TLS) |
 
-*\*App får HTTP från proxy, men användare får HTTPS*
+*I appen styrs `secure` av `FORCE_HTTPS`.*
 
 ### Cookie Attributes Förklaring
 
@@ -539,20 +520,20 @@ app.use(helmet.hsts({
 #### Lokal Development:
 ```bash
 NODE_ENV=development
-PORT=8097
+PORT=3000
 SESSION_SECRET=dev-secret-change-me
 LOG_LEVEL=debug
 ```
 
-#### Produktion (med HTTPS):
+#### Produktion (bakom reverse proxy med HTTPS):
 ```bash
 NODE_ENV=production
-PORT=8097
+PORT=3000
 SESSION_SECRET=<long-random-string-from-openssl>
 LOG_LEVEL=info
-HTTPS_ENABLED=true
-SSL_CERT_PATH=/etc/letsencrypt/live/keep.example.com/fullchain.pem
-SSL_KEY_PATH=/etc/letsencrypt/live/keep.example.com/privkey.pem
+BASE_URL=https://keep.example.com
+FORCE_HTTPS=true
+# TRUST_PROXY=1   # standard när FORCE_HTTPS=true
 ```
 
 #### Generera säker SESSION_SECRET:
@@ -570,7 +551,7 @@ openssl rand -hex 64
 
 - [ ] Välj deployment-miljö (se tabell överst)
 - [ ] Sätt `SESSION_SECRET` i .env
-- [ ] Konfigurera `cookie.secure` korrekt
+- [ ] Sätt `FORCE_HTTPS=true` om appen nås över HTTPS (styr `cookie.secure`)
 - [ ] Installera SSL-certifikat (om HTTPS)
 - [ ] Konfigurera firewall (port 80/443 eller VPN)
 - [ ] Sätt upp automatisk certifikat-förnyelse
@@ -695,7 +676,7 @@ sudo systemctl start kreep
 | **Hemmanät + VPN** | HTTP + WireGuard | ⭐⭐ Medium | ✅ Bra |
 | **Caddy proxy** | HTTPS via Caddy, app HTTP | ⭐⭐ Medium | ✅ Utmärkt |
 | **Nginx proxy** | HTTPS via nginx, app HTTP | ⭐⭐⭐ Medium-Hög | ✅ Utmärkt |
-| **Direkt HTTPS** | App hanterar HTTPS | ⭐⭐⭐⭐ Hög | ✅ Bra |
+| **Direkt HTTPS** | Ej inbyggt – kräver egna kodändringar | ⭐⭐⭐⭐ Hög | ✅ Bra |
 
 **Rekommendation**: Använd **Caddy som reverse proxy** för enklast och säkrast produktion-setup.
 
