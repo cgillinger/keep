@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver');
+const { isValidImageName } = require('./image-names');
 
 /**
  * Generate a complete backup of user's notes
@@ -102,7 +103,7 @@ class BackupGenerator {
           images,
           created_at, updated_at
         FROM notes
-        WHERE user_id = ?
+        WHERE user_id = ? AND deleted_at IS NULL
         ORDER BY created_at DESC
       `;
 
@@ -125,6 +126,9 @@ class BackupGenerator {
           if (note.images && typeof note.images === 'string') {
             try { note.images = JSON.parse(note.images); }
             catch (e) { note.images = []; }
+          }
+          if (Array.isArray(note.images)) {
+            note.images = note.images.filter(img => typeof img === 'string' && img === path.basename(img) && isValidImageName(img));
           }
 
           // Convert boolean fields
@@ -200,7 +204,7 @@ class BackupGenerator {
   async exportImages() {
     return new Promise((resolve, reject) => {
       // Get all image filenames from notes
-      const query = `SELECT images FROM notes WHERE user_id = ? AND images IS NOT NULL`;
+      const query = `SELECT images FROM notes WHERE user_id = ? AND images IS NOT NULL AND deleted_at IS NULL`;
 
       this.db.all(query, [this.userId], (err, notes) => {
         if (err) return reject(err);
@@ -216,12 +220,18 @@ class BackupGenerator {
         // Collect all unique image filenames
         notes.forEach(note => {
           if (note.images) {
-            const images = typeof note.images === 'string'
-              ? JSON.parse(note.images)
-              : note.images;
+            let images = note.images;
+            if (typeof images === 'string') {
+              try { images = JSON.parse(images); } catch (e) { images = []; }
+            }
 
             if (Array.isArray(images)) {
-              images.forEach(img => allImages.add(img));
+              // Defence in depth: never let a stored name escape note-images.
+              images.forEach(img => {
+                if (typeof img === 'string' && img === path.basename(img) && isValidImageName(img)) {
+                  allImages.add(img);
+                }
+              });
             }
           }
         });

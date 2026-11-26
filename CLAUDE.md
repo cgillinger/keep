@@ -22,14 +22,16 @@ Keep clone: Express + WebSocket + SQLite backend, vanilla-JS frontend).
 - Deploy is to the Synology NAS (see the deploy note in Claude's memory), from
   `main` after the PR is merged.
 
-## Dependency / security status (updated 2026-10-10)
+## Dependency / security status (updated 2026-11-26)
 
 The two deferred items from the 2026-07-02 hardening pass are done: `csurf` was
 replaced by `csrf-csrf` (double-submit cookie, token not bound to the session id)
 and `sqlite3` is on 6.x (an npm `overrides` entry makes `connect-sqlite3` share
 it). `jsdom`/`dompurify` were dropped — note text is stored verbatim and escaped
-on render — and `nodemon` was replaced by `node --watch`. `npm audit` is clean.
-Keep it that way: run `npm audit` before a release and prefer updating within
+on render — and `nodemon` was replaced by `node --watch`. `body-parser`/`cors` were dropped (`express.json`/`urlencoded` are used). `npm audit`
+(2026-11-26): 5 moderate findings remain, all `glob`/`minimatch` inside `archiver` 7;
+archiver 8 changes its API and breaks the backup export, so it needs a code port.
+Keep the rest clean: run `npm audit` before a release and prefer updating within
 semver first.
 
 Other things to know before changing the server:

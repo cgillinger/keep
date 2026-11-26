@@ -724,10 +724,82 @@ async function logout() {
   await apiFetch('/api/logout', {
     method: 'POST'
   });
-  if (ws) ws.close();
-  currentUser = null;
-  notes = [];
+  resetClientState();
   showAuthScreen();
+}
+
+// Drop everything that belongs to the signed-out user so the next login (maybe
+// a different account) starts from a clean slate: caches, rendered notes, view
+// flags, search, open modals/dialogs and the WebSocket (incl. a pending reconnect).
+function resetClientState() {
+  authEpoch++; // makes any in-flight loadNotes() discard its result
+  currentUser = null;
+  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+  if (ws) { ws.close(); ws = null; }
+  wsReconnectDelay = 2000;
+  wsHasConnectedBefore = false;
+
+  invalidateNotesCache();
+  notes = [];
+  currentOffset = 0;
+  hasMoreNotes = true;
+  isLoadingNotes = false;
+  if (scrollObserver) { scrollObserver.disconnect(); scrollObserver = null; }
+
+  // Notes grids, pinned section
+  ['notes-grid', 'pinned-notes-grid'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+  const pinnedSection = document.getElementById('pinned-section');
+  if (pinnedSection) pinnedSection.style.display = 'none';
+  const otherLabel = document.getElementById('other-label');
+  if (otherLabel) otherLabel.style.display = 'none';
+
+  // View flags and their toggle labels
+  showingArchived = false;
+  showingShared = false;
+  const archiveText = document.getElementById('archive-toggle-text');
+  if (archiveText) archiveText.textContent = t('header.show_archive');
+  const sharedText = document.getElementById('shared-toggle-text');
+  if (sharedText) sharedText.textContent = t('header.show_shared');
+
+  // Search
+  clearTimeout(searchTimeout);
+  lastSearchQuery = '';
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) searchInput.value = '';
+
+  // New-note form and editor state
+  currentEditingNote = null;
+  originalEditState = null;
+  snapshotLocked = false;
+  selectedColor = '#ffffff';
+  isChecklistMode = false;
+  newNoteImages = [];
+  newNoteRemovedImages = [];
+  editNoteImages = [];
+  editNoteRemovedImages = [];
+  const resetField = (id, fn) => { const el = document.getElementById(id); if (el) fn(el); };
+  resetField('new-note-title', el => { el.value = ''; });
+  resetField('new-note-content', el => { el.value = ''; });
+  resetField('checklist-container', el => { el.style.display = 'none'; });
+  resetField('images-container', el => { el.style.display = 'none'; });
+  resetField('images-preview', el => { el.innerHTML = ''; });
+  resetField('checklist-items', el => { el.innerHTML = ''; });
+
+  // Modals and dialogs
+  ['edit-modal', 'import-modal', 'profile-modal', 'share-modal', 'image-modal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  document.getElementById('image-modal')?.classList.remove('has-nav');
+  document.body.style.overflow = '';
+  document.getElementById('unsaved-changes-dialog')?.remove();
+  resetShareModalState();
+  selectedImportFile = null;
+  imageModalImages = [];
+  imageModalIndex = 0;
 }
 
 function showAuthError(message) {
@@ -934,6 +1006,8 @@ async function resetPassword() {
 
 // ===== WEBSOCKET =====
 let wsReconnectDelay = 2000; // grows up to 30 s between attempts
+let wsReconnectTimer = null;
+let authEpoch = 0; // bumped on logout; stale async loads compare against it
 let wsHasConnectedBefore = false;
 function connectWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1042,7 +1116,7 @@ function connectWebSocket() {
     // down doesn't get hammered every few seconds by every open tab.
     if (currentUser) {
       console.log(`Reconnecting in ${wsReconnectDelay / 1000} seconds...`);
-      setTimeout(connectWebSocket, wsReconnectDelay);
+      wsReconnectTimer = setTimeout(() => { wsReconnectTimer = null; connectWebSocket(); }, wsReconnectDelay);
       wsReconnectDelay = Math.min(wsReconnectDelay * 2, 30000);
     } else {
       console.log('Not reconnecting - user not logged in');
@@ -1585,6 +1659,7 @@ async function loadNotes(options = {}) {
   // Prevent multiple simultaneous loads
   if (isLoadingNotes) return;
   isLoadingNotes = true;
+  const epoch = authEpoch;
 
   // Show loading indicator
   if (showLoading && !append) {
@@ -1595,8 +1670,10 @@ async function loadNotes(options = {}) {
 
   try {
     const response = await apiFetch(url);
+    if (epoch !== authEpoch) return; // signed out meanwhile: drop stale result
     if (response.ok) {
       const data = await response.json();
+      if (epoch !== authEpoch) return;
 
       if (append) {
         // Append new notes to existing
@@ -1629,7 +1706,7 @@ async function loadNotes(options = {}) {
       renderNotes();
     }
   } finally {
-    isLoadingNotes = false;
+    if (epoch === authEpoch) isLoadingNotes = false;
     hideLoadingMore();
   }
 }
@@ -3391,9 +3468,14 @@ async function exportBackup() {
 // ===== UTILITY =====
 function escapeHtml(text) {
   if (typeof text !== 'string') return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  // Also escapes quotes: the result is used inside attribute values
+  // (value="${escapeHtml(...)}"), where a bare " would truncate the text.
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // Convert URLs in text to clickable links
@@ -3403,9 +3485,12 @@ function linkify(text) {
   // First escape HTML to prevent XSS
   let escaped = escapeHtml(text);
 
-  // Regex to match URLs
+  // Regex to match URLs in the already-escaped text.
   // Matches: http://..., https://..., www....
-  const urlRegex = /(?:(?:https?:\/\/)|(?:www\.))[^\s<>]+/gi;
+  // A bare "&" only occurs as part of an entity, so the URL may contain "&amp;"
+  // (query strings) but stops before any other entity such as &quot; / &#39; /
+  // &lt; / &gt;, keeping surrounding quotes and brackets out of the link.
+  const urlRegex = /(?:(?:https?:\/\/)|(?:www\.))(?:[^\s<>&]|&amp;)+/gi;
 
   // Replace URLs with clickable links
   escaped = escaped.replace(urlRegex, (url) => {

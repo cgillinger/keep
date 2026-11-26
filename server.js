@@ -3,7 +3,6 @@ require('dotenv').config();
 
 const express = require('express');
 const compression = require('compression');
-const bodyParser = require('body-parser');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const path = require('path');
@@ -23,6 +22,8 @@ const sharp = require('sharp');
 const db = require('./database');
 const KeepImportParser = require('./import-parser');
 const BackupParser = require('./backup-parser');
+const { isValidImageName, imageOwnerId } = require('./image-names');
+const { sanitizeInput, validateColor, sanitizeChecklist } = require('./note-validation');
 const BackupGenerator = require('./export-generator');
 const mailer = require('./mailer');
 const crypto = require('crypto');
@@ -188,8 +189,8 @@ const passwordResetLimiter = rateLimit({
 });
 
 // Body parsing and cookies
-app.use(bodyParser.json({ limit: '1mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
 // The session secret signs every session cookie. With a known/default value
@@ -364,31 +365,10 @@ function validatePassword(password) {
   return null;
 }
 
-// Notes are plain text, stored verbatim and escaped by the frontend at render
-// time (escapeHtml/linkify, textContent, value=). The old DOMPurify pass here
-// HTML-serialised the text, so "2 < 3" was stored as "2 &lt; 3" and shown that
-// way, and anything tag-shaped like "<anna@example.se>" vanished. We now only
-// drop control characters (except tab/newline) and enforce the length cap.
-function sanitizeInput(input, maxLength = 10000) {
-  if (input === undefined || input === null) return '';
-  return String(input)
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
-    .substring(0, maxLength);
-}
-
 // Usernames are shown in many places (cards, share lists, avatar initials) and
 // used as the login key, so keep them to letters, digits, space, dot, dash and
 // underscore. Existing accounts are unaffected; this only gates new ones.
 const USERNAME_RE = /^[\p{L}\p{N} ._-]{3,50}$/u;
-
-function validateColor(color) {
-  const validColors = [
-    '#ffffff', '#f28b82', '#fbbc04', '#fff475', '#ccff90',
-    '#a7ffeb', '#cbf0f8', '#aecbfa', '#d7aefb', '#fdcfe8',
-    '#e6c9a8', '#e8eaed'
-  ];
-  return validColors.includes(color) ? color : '#ffffff';
-}
 
 // ===== WEBSOCKET WITH SECURE AUTHENTICATION =====
 
@@ -681,29 +661,6 @@ function maybeTriggerAiCommand(noteId, triggeredByUserId) {
       });
     });
   });
-}
-
-// Two valid note-image naming schemes exist on disk:
-//  1. Uploads   — note_<userId>_<timestamp>.webp   (owner id embedded)
-//  2. Imports   — <timestamp>_<random>.<ext>        (from Google Keep Takeout /
-//                 backup import; keeps the original extension, no owner id)
-// The uploader's id can only be read off scheme 1; imported images carry no
-// owner, so access to them is gated solely by the note that references them.
-const UPLOADED_IMAGE_RE = /^note_(\d+)_\d+\.webp$/;
-const IMPORTED_IMAGE_RE = /^\d+_[a-zA-Z0-9]+\.(webp|jpe?g|png|gif|heic|heif|bmp|avif)$/i;
-
-// Is `name` a well-formed, servable note-image filename (either scheme)? Used to
-// validate before touching disk/DB and to scope the orphan sweep. Path traversal
-// is already prevented by path.basename() at the call sites.
-function isValidImageName(name) {
-  return UPLOADED_IMAGE_RE.test(name) || IMPORTED_IMAGE_RE.test(name);
-}
-
-// Return the uploader's user id encoded in an image filename, or null if the
-// name isn't an upload (`note_<userId>_<timestamp>.webp`) — e.g. imported images.
-function imageOwnerId(filename) {
-  const m = UPLOADED_IMAGE_RE.exec(filename);
-  return m ? parseInt(m[1], 10) : null;
 }
 
 // Filter a client-supplied images array down to filenames the user is allowed to
@@ -1667,24 +1624,7 @@ app.post('/api/notes', requireAuth, apiLimiter, csrfProtection, async (req, res)
   const sanitizedContent = sanitizeInput(content, 50000);
   const validatedColor = validateColor(color);
 
-  let checklistData = null;
-  if (is_checklist && checklist_items && Array.isArray(checklist_items)) {
-    // Validate and sanitize checklist items
-    const sanitizedItems = checklist_items
-      .slice(0, 100) // Max 100 items
-      .map(item => {
-        const entry = {
-          text: sanitizeInput(item.text, 1000),
-          checked: !!item.checked
-        };
-        const conf = parseInt(item.confidence, 10);
-        if (Number.isInteger(conf) && conf >= 1 && conf <= 10) {
-          entry.confidence = conf;
-        }
-        return entry;
-      });
-    checklistData = JSON.stringify(sanitizedItems);
-  }
+  const checklistData = sanitizeChecklist(is_checklist, checklist_items);
 
   // Validate and sanitize images array
   let imagesData = null;
@@ -1782,23 +1722,7 @@ app.put('/api/notes/:id', requireAuth, apiLimiter, csrfProtection, (req, res) =>
       const sanitizedContent = sanitizeInput(content, 50000);
       const validatedColor = validateColor(color);
 
-      let checklistData = null;
-      if (is_checklist && checklist_items && Array.isArray(checklist_items)) {
-        const sanitizedItems = checklist_items
-          .slice(0, 100)
-          .map(item => {
-            const entry = {
-              text: sanitizeInput(item.text, 1000),
-              checked: !!item.checked
-            };
-            const conf = parseInt(item.confidence, 10);
-            if (Number.isInteger(conf) && conf >= 1 && conf <= 10) {
-              entry.confidence = conf;
-            }
-            return entry;
-          });
-        checklistData = JSON.stringify(sanitizedItems);
-      }
+      const checklistData = sanitizeChecklist(is_checklist, checklist_items);
 
       // Parse the note's current images first: a shared editor is allowed to keep
       // (and remove) images already on the note even though they belong to the

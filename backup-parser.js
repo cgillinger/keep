@@ -1,5 +1,7 @@
 const fs = require('fs');
 const path = require('path');
+const { isValidImageName } = require('./image-names');
+const { sanitizeInput, validateColor, sanitizeChecklist } = require('./note-validation');
 
 /**
  * Import a Kreep backup
@@ -26,6 +28,8 @@ class BackupParser {
 
     this.noteIdMap = {}; // Map old note IDs to new note IDs
     this.userMap = {}; // Map usernames to user IDs for shares
+    this.imageMap = {}; // Map image names in the backup to the names they got on disk
+    this.imageSeq = 0;
   }
 
   /**
@@ -36,11 +40,12 @@ class BackupParser {
       // 1. Validate backup structure
       await this.validateBackup();
 
-      // 2. Import notes
-      await this.importNotes();
-
-      // 3. Import images
+      // 2. Import images first: notes may only reference files that were
+      //    actually restored, under the (new) names they received on disk.
       await this.importImages();
+
+      // 3. Import notes
+      await this.importNotes();
 
       // 4. Import shares (requires note ID mapping)
       await this.importShares();
@@ -136,16 +141,30 @@ class BackupParser {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
+      // Same sanitising as POST /api/notes. The backup is user-supplied.
+      const isChecklist = !!noteData.is_checklist;
+      const checklistData = sanitizeChecklist(isChecklist, noteData.checklist_items);
+
+      // Keep only images that this restore itself copied into note-images,
+      // translated to their new on-disk names.
+      const images = [];
+      if (Array.isArray(noteData.images)) {
+        for (const img of noteData.images) {
+          if (typeof img !== 'string' || img !== path.basename(img) || !isValidImageName(img)) continue;
+          if (Object.prototype.hasOwnProperty.call(this.imageMap, img)) images.push(this.imageMap[img]);
+        }
+      }
+
       const values = [
         this.userId,
-        noteData.title || '',
-        noteData.content || '',
-        noteData.color || '#ffffff',
-        noteData.is_checklist ? 1 : 0,
-        noteData.checklist_items ? JSON.stringify(noteData.checklist_items) : null,
+        sanitizeInput(noteData.title, 500),
+        sanitizeInput(noteData.content, 50000),
+        validateColor(noteData.color),
+        isChecklist ? 1 : 0,
+        checklistData,
         noteData.is_archived ? 1 : 0,
         noteData.is_pinned ? 1 : 0,
-        noteData.images ? JSON.stringify(noteData.images) : null,
+        images.length ? JSON.stringify([...new Set(images)]) : null,
         noteData.created_at || new Date().toISOString(),
         noteData.updated_at || new Date().toISOString()
       ];
@@ -155,6 +174,22 @@ class BackupParser {
         resolve(this.lastID);
       });
     });
+  }
+
+  /**
+   * Pick a fresh, valid image name for the restoring user that does not exist
+   * on disk. Uploads keep the `note_<userId>_<n>.webp` scheme (so the owner can
+   * always view them), other images keep their extension.
+   */
+  uniqueImageName(originalName, dir) {
+    const ext = path.extname(originalName).toLowerCase();
+    for (;;) {
+      const stamp = `${Date.now()}${String(this.imageSeq++).padStart(4, '0')}`;
+      const name = ext === '.webp' && originalName.startsWith('note_')
+        ? `note_${this.userId}_${stamp}.webp`
+        : `${stamp}_r${Math.random().toString(36).slice(2, 8)}${ext}`;
+      if (isValidImageName(name) && !fs.existsSync(path.join(dir, name))) return name;
+    }
   }
 
   /**
@@ -184,25 +219,21 @@ class BackupParser {
         // Two naming schemes exist (see server.js): uploads and files that
         // came in through a Google Keep import.
         const safeName = path.basename(imageFile);
-        const isUpload = /^note_\d+_\d+\.webp$/.test(safeName);
-        const isImported = /^\d+_[a-zA-Z0-9]+\.(webp|jpe?g|png|gif|heic|heif|bmp|avif)$/i.test(safeName);
-        if (!isUpload && !isImported) {
+        if (!isValidImageName(safeName) || safeName !== imageFile) {
           console.warn(`Skipping image with unexpected name during restore: ${imageFile}`);
           this.stats.errors.push({ file: imageFile, error: 'Invalid image filename' });
           return;
         }
 
         const sourcePath = path.join(imagesDir, safeName);
-        const destPath = path.join(noteImagesDir, safeName);
 
-        // Skip if file already exists (avoid overwriting)
-        if (!fs.existsSync(destPath)) {
-          fs.copyFileSync(sourcePath, destPath);
-          this.stats.importedImages++;
-        } else {
-          console.log(`Image ${imageFile} already exists, skipping`);
-          this.stats.importedImages++; // Count as imported
-        }
+        // Never reuse the name from the backup: it could collide with (and
+        // overwrite or alias) another user's file, or claim another user's id
+        // in the upload scheme. Mint a fresh name owned by the restoring user.
+        const newName = this.uniqueImageName(safeName, noteImagesDir);
+        fs.copyFileSync(sourcePath, path.join(noteImagesDir, newName), fs.constants.COPYFILE_EXCL);
+        this.imageMap[safeName] = newName;
+        this.stats.importedImages++;
       } catch (error) {
         console.error(`Failed to import image ${imageFile}:`, error);
         this.stats.errors.push({
