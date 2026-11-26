@@ -291,6 +291,7 @@ let currentUser = null;
 let notes = [];
 let currentEditingNote = null;
 let originalEditState = null; // Store original values to detect changes
+let editingColor = null; // Colour chosen in the edit modal; only written to the note on save
 let snapshotLocked = false; // Prevent false-positive dirty detection during initialization
 let selectedColor = '#ffffff';
 let isChecklistMode = false;
@@ -317,7 +318,13 @@ const notesCache = {
   timestamp: {}
 };
 const CACHE_TTL = 90000; // Cache valid for 90 seconds (WebSocket invalidates on changes)
-let isLoadingNotes = false; // Prevent multiple simultaneous loads
+// Every non-append loadNotes() takes a sequence number; only the newest one may
+// apply its result (a view switch / search / WS refresh supersedes older calls
+// instead of being dropped). isLoadingNotes is true while the newest one runs;
+// isLoadingMore guards the infinite-scroll append so those never run in parallel.
+let notesLoadSeq = 0;
+let isLoadingNotes = false;
+let isLoadingMore = false;
 // In-flight guards so a slow NAS round-trip can't be double-submitted into
 // duplicate writes when an impatient user clicks again.
 let isSavingNote = false;
@@ -325,7 +332,6 @@ let isUpdatingNote = false;
 let isDeletingNote = false;
 let isPinningNote = false;
 let isArchivingNote = false;
-let currentOffset = 0; // Current pagination offset
 let hasMoreNotes = true; // Whether there are more notes to load
 let scrollObserver = null; // Intersection Observer for infinite scroll
 
@@ -741,9 +747,10 @@ function resetClientState() {
 
   invalidateNotesCache();
   notes = [];
-  currentOffset = 0;
   hasMoreNotes = true;
+  notesLoadSeq++;
   isLoadingNotes = false;
+  isLoadingMore = false;
   if (scrollObserver) { scrollObserver.disconnect(); scrollObserver = null; }
 
   // Notes grids, pinned section
@@ -773,6 +780,7 @@ function resetClientState() {
   // New-note form and editor state
   currentEditingNote = null;
   originalEditState = null;
+  editingColor = null;
   snapshotLocked = false;
   selectedColor = '#ffffff';
   isChecklistMode = false;
@@ -1613,13 +1621,22 @@ function renderNoteHTML(note) {
 async function loadNotes(options = {}) {
   const { forceRefresh = false, showLoading = true, append = false } = options;
 
+  // Infinite-scroll pages never run in parallel, nor while a replacing load is
+  // in flight (that load is about to swap the list the page would extend).
+  if (append && (isLoadingMore || isLoadingNotes)) return;
+
   // Determine which cache key to use
   const cacheKey = showingArchived ? 'archived' : showingShared ? 'shared' : 'all';
 
-  // Reset pagination when not appending
-  if (!append) {
-    currentOffset = 0;
-  }
+  // The newest non-append call wins: it supersedes any older in-flight load
+  // (whose result is then ignored). An append belongs to the list it was
+  // started on, so it just remembers the current sequence number.
+  const seq = append ? notesLoadSeq : ++notesLoadSeq;
+  const epoch = authEpoch;
+
+  // Append continues after the notes already held (not a counter of fetched
+  // pages), so local creates/deletes can't cause duplicates or skipped notes.
+  const offset = append ? notes.length : 0;
 
   // Build URL with pagination
   let url = showingArchived
@@ -1630,7 +1647,7 @@ async function loadNotes(options = {}) {
 
   // Add pagination params (use ? or & depending on existing params)
   const separator = url.includes('?') ? '&' : '?';
-  url += `${separator}limit=${PAGE_SIZE}&offset=${currentOffset}`;
+  url += `${separator}limit=${PAGE_SIZE}&offset=${offset}`;
   if (showCreatedDate) {
     url += '&sortBy=created_at';
   }
@@ -1648,7 +1665,8 @@ async function loadNotes(options = {}) {
   const cacheValid = !searchQuery && cachedData.notes.length > 0 && (Date.now() - cacheTime < CACHE_TTL) && !forceRefresh && !append;
 
   if (cacheValid) {
-    // Use cached data immediately
+    // Use cached data immediately (this call superseded any in-flight load)
+    isLoadingNotes = false;
     notes = cachedData.notes;
     hasMoreNotes = cachedData.hasMore;
     renderNotes();
@@ -1656,10 +1674,10 @@ async function loadNotes(options = {}) {
     return;
   }
 
-  // Prevent multiple simultaneous loads
-  if (isLoadingNotes) return;
-  isLoadingNotes = true;
-  const epoch = authEpoch;
+  if (append) isLoadingMore = true; else isLoadingNotes = true;
+
+  // A result is only applied if nobody signed out or started a newer load
+  const isStale = () => epoch !== authEpoch || seq !== notesLoadSeq;
 
   // Show loading indicator
   if (showLoading && !append) {
@@ -1670,21 +1688,21 @@ async function loadNotes(options = {}) {
 
   try {
     const response = await apiFetch(url);
-    if (epoch !== authEpoch) return; // signed out meanwhile: drop stale result
+    if (isStale()) return;
     if (response.ok) {
       const data = await response.json();
-      if (epoch !== authEpoch) return;
+      if (isStale()) return;
 
       if (append) {
-        // Append new notes to existing
-        notes = [...notes, ...data.notes];
+        // Append new notes to existing, skipping any we already hold
+        const have = new Set(notes.map(n => n.id));
+        notes = [...notes, ...data.notes.filter(n => !have.has(n.id))];
       } else {
         // Replace notes
         notes = data.notes;
       }
 
       hasMoreNotes = data.hasMore;
-      currentOffset += data.notes.length;
 
       // Update cache (search results are not cached)
       if (!searchQuery) {
@@ -1700,20 +1718,28 @@ async function loadNotes(options = {}) {
       renderNotes();
     }
   } catch (error) {
+    if (isStale()) return;
     console.error('Failed to load notes:', error);
     if (!append) {
       showToast(t('messages.load_notes_failed'), 'error');
       renderNotes();
     }
   } finally {
-    if (epoch === authEpoch) isLoadingNotes = false;
-    hideLoadingMore();
+    if (epoch === authEpoch) {
+      if (append) {
+        isLoadingMore = false;
+        hideLoadingMore();
+      } else if (seq === notesLoadSeq) {
+        isLoadingNotes = false;
+        hideLoadingMore();
+      }
+    }
   }
 }
 
 // Load more notes (called by infinite scroll)
 async function loadMoreNotes() {
-  if (!hasMoreNotes || isLoadingNotes) return;
+  if (!hasMoreNotes || isLoadingNotes || isLoadingMore) return;
   await loadNotes({ append: true, showLoading: false });
 }
 
@@ -1767,7 +1793,7 @@ function setupScrollObserver() {
 
   scrollObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
-      if (entry.isIntersecting && hasMoreNotes && !isLoadingNotes) {
+      if (entry.isIntersecting && hasMoreNotes && !isLoadingNotes && !isLoadingMore) {
         loadMoreNotes();
       }
     });
