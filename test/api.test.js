@@ -280,3 +280,68 @@ test('a kreep backup can be restored through the import endpoint', async () => {
   assert.equal(list.checklist_items[0].checked, true);
   assert.equal(list.color, '#ccff90');
 });
+
+const AdmZipLib = () => require(path.join(repoRoot, 'node_modules', 'adm-zip'));
+
+async function restoreBackup(c, zip) {
+  const fd = new FormData();
+  fd.append('zipfile', new Blob([zip.toBuffer()], { type: 'application/zip' }), 'kreep-backup.zip');
+  return c.req('/api/import/keep', { method: 'POST', body: fd });
+}
+
+test('restore ignores traversal image names, so export cannot leak the database', async () => {
+  const { c } = await newUser('trav');
+  const AdmZip = AdmZipLib();
+  const z = new AdmZip();
+  z.addFile('manifest.json', Buffer.from(JSON.stringify({ type: 'kreep-backup', version: '1', created_at: 'x', username: 'evil' })));
+  z.addFile('notes/n1.json', Buffer.from(JSON.stringify({
+    id: 1, title: 'evil', content: 'c', color: 'url(javascript:1)',
+    images: ['../keep.db', '../sessions.db', 'note_1_1.webp', 42, null]
+  })));
+  await expectStatus(await restoreBackup(c, z), 200, 'restore');
+
+  const d = await (await c.req('/api/notes')).json();
+  assert.equal(d.notes.length, 1);
+  assert.deepEqual(d.notes[0].images || [], [], 'no image names survive');
+  assert.equal(d.notes[0].color, '#ffffff', 'bad color replaced');
+
+  const r = await c.req('/api/backup/export');
+  await expectStatus(r, 200, 'export');
+  const out = new AdmZip(Buffer.from(await r.arrayBuffer()));
+  const names = out.getEntries().map(e => e.entryName);
+  assert.ok(!names.some(n => /\.db$/.test(n)), `export must not contain a database: ${names}`);
+  assert.ok(!names.some(n => n.includes('..')), 'no traversal entries');
+
+  // Trashed notes are not exported.
+  const gone = await (await c.req('/api/notes', { method: 'POST', json: { title: 'trashme', content: 'x' } })).json();
+  await expectStatus(await c.req(`/api/notes/${gone.id}`, { method: 'DELETE' }), 200, 'trash');
+  const r2 = await c.req('/api/backup/export');
+  await expectStatus(r2, 200, 'second export');
+  const out2 = new AdmZip(Buffer.from(await r2.arrayBuffer()));
+  const titles = out2.getEntries().filter(e => e.entryName.startsWith('notes/') && e.entryName.endsWith('.json')).map(e => JSON.parse(e.getData().toString()).title);
+  assert.deepEqual(titles, ['evil'], 'trashed note absent from export');
+});
+
+test('restore gives images fresh names and never overwrites an existing file', async () => {
+  const { c: victim, user: vu } = await newUser('vic');
+  const { c: attacker } = await newUser('att');
+  const fd0 = new FormData();
+  fd0.append('image', new Blob([await png()], { type: 'image/png' }), 'a.png');
+  const { filename } = await (await victim.req('/api/notes/image', { method: 'POST', body: fd0 })).json();
+  await expectStatus(await victim.req(`/api/notes/image/${filename}`), 200, 'victim sees own image');
+
+  const AdmZip = AdmZipLib();
+  const z = new AdmZip();
+  z.addFile('manifest.json', Buffer.from(JSON.stringify({ type: 'kreep-backup', version: '1', created_at: 'x', username: 'a' })));
+  z.addFile('notes/n1.json', Buffer.from(JSON.stringify({ id: 1, title: 't', images: [filename] })));
+  z.addFile(`images/${filename}`, Buffer.from('not the victim image'));
+  await expectStatus(await restoreBackup(attacker, z), 200, 'restore');
+
+  const d = await (await attacker.req('/api/notes')).json();
+  const img = d.notes[0].images[0];
+  assert.notEqual(img, filename, 'imported file got a new name');
+  await expectStatus(await attacker.req(`/api/notes/image/${img}`), 200, 'attacker can view own copy');
+  const r = await victim.req(`/api/notes/image/${filename}`);
+  await expectStatus(r, 200, 'victim file still served');
+  assert.ok((await r.arrayBuffer()).byteLength > 100, 'victim file not overwritten');
+});
