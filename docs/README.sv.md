@@ -4,7 +4,7 @@
 
 ### En privat, självhostad Google Keep-alternativ
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue?style=for-the-badge)](https://github.com/cgillinger/keep/releases)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue?style=for-the-badge)](https://github.com/cgillinger/keep/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](../LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.17--339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/docker-supported-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/)
@@ -1213,6 +1213,28 @@ Total kodbas: ~7,000 rader (utan dependencies)
 
 ## 📝 Changelog
 
+### Version 1.5.0 (2026-11-26)
+
+Årlig kodgenomgång.
+
+**Säkerhet och dataskydd:**
+- 🔒 En återställd backup kan inte längre peka på filer utanför bildmappen eller på andra användares bilder
+- 🔒 Utloggning tömmer alla cachade anteckningar i webbläsaren, så nästa konto på en delad enhet börjar rent
+- 🛡️ Checklistpunkter med citattecken klipps inte längre av vid redigering
+- 🗑️ Anteckningar i papperskorgen följer inte med i backuper; importerade bilder hamnar i papperskorgen i stället för att raderas
+- 📦 Beroenden uppdaterade, `npm audit` visar 0 sårbarheter
+
+**Rättningar:**
+- 🔄 En import kan inte längre störa andra användares sparningar; konfliktkontrollen vid sparning är atomär
+- 🔍 Sökning matchar texten i checklistpunkter (inte den lagrade JSON:en) och tappas inte längre under pågående laddning
+- ⚡ Listorna håller sig synkade efter realtidsuppdateringar, vybyten och paginering
+
+**Förbättringar:**
+- 🚀 Snabbare backup-export, statiska filer utan sessionsuppslag, mindre layoutarbete när kort ritas
+- ♿ Tangentbordsåtkomst till anteckningskort, dialogroller och etiketter för skärmläsare
+- 🧪 Testsviten har vuxit från 31 till 56 tester
+- 📖 README uppdelad per språk ([English](../README.md))
+
 ### Version 1.1.0 (2026-01-23)
 
 **Förbättringar:**
@@ -1327,7 +1349,7 @@ Keep Clone är särskilt designad för familjer som vill:
 
 **Byggd med ❤️ för familjer som värdesätter integritet och enkelhet.**
 
-**v1.1.0** · [Changelog](#-changelog) · [Licens](../LICENSE) · [Dokumentation](#-dokumentation)
+**v1.5.0** · [Changelog](#-changelog) · [Licens](../LICENSE) · [Dokumentation](#-dokumentation)
 
 [⬆ Tillbaka till toppen](#keep-clone---svenska) · [🇬🇧 English](../README.md)
 

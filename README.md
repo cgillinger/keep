@@ -4,7 +4,7 @@
 
 ### A Private, Self-Hosted Google Keep Alternative
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue?style=for-the-badge)](https://github.com/cgillinger/keep/releases)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue?style=for-the-badge)](https://github.com/cgillinger/keep/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.17--339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/docker-supported-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/)
@@ -1257,6 +1257,28 @@ Total codebase: ~7,000 lines (excluding dependencies)
 
 ## 📝 Changelog
 
+### Version 1.5.0 (2026-11-26)
+
+Annual code review. See "Upgrading an existing installation" for versions 1.2–1.4.
+
+**Security and data safety:**
+- 🔒 Restoring a backup can no longer reference files outside the note image folder or another user's images
+- 🔒 Logging out clears all cached notes in the browser, so the next account on a shared device starts clean
+- 🛡️ Checklist items containing quotation marks are no longer truncated when edited
+- 🗑️ Notes in the trash are no longer included in backups; imported images go to the trash instead of being deleted
+- 📦 Dependencies updated, `npm audit` reports 0 vulnerabilities
+
+**Fixes:**
+- 🔄 An import can no longer interfere with other users' saves; conflict detection on save is atomic
+- 🔍 Search matches the text of checklist items (not the stored JSON) and is no longer dropped while a load is in progress
+- ⚡ Lists stay in sync after real-time updates, view switches and pagination
+
+**Improvements:**
+- 🚀 Faster backup export, static files served without a session lookup, less layout work when rendering cards
+- ♿ Keyboard access to note cards, dialog roles and labels for screen readers
+- 🧪 Test suite grown from 31 to 56 tests
+- 📖 README split by language ([Svenska](./docs/README.sv.md))
+
 ### Version 1.1.0 (2026-01-23)
 
 **Improvements:**
@@ -1371,7 +1393,7 @@ Keep Clone is specially designed for families who want to:
 
 **Built with ❤️ for families who value privacy and simplicity.**
 
-**v1.1.0** · [Changelog](#-changelog) · [License](./LICENSE) · [Documentation](#-documentation)
+**v1.5.0** · [Changelog](#-changelog) · [License](./LICENSE) · [Documentation](#-documentation)
 
 [⬆ Back to top](#keep-clone)
 
