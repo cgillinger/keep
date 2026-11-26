@@ -1116,12 +1116,13 @@ function connectWebSocket() {
         const noteIndex = notes.findIndex(n => n.id === data.noteId);
         if (noteIndex >= 0) {
           notes[noteIndex].permission = data.permission;
-          // If we're currently editing this note, update the UI
+          // If we're currently editing this note, refresh only the permission-
+          // dependent UI; what the user has typed must stay as it is.
           if (currentEditingNote && currentEditingNote.id === data.noteId) {
             currentEditingNote.permission = data.permission;
-            // Re-render edit modal to reflect new permissions
-            openEditModal(data.noteId);
+            applyEditPermissionUI(currentEditingNote);
           }
+          syncCurrentViewCache();
           showToast(`${t('share.permission_changed_to')}: ${data.permission === 'edit' ? t('share.can_edit') : t('share.can_view')}`, 'info');
         }
       }
@@ -1322,9 +1323,9 @@ function applyBackgroundTheme(theme) {
 
   // Update modal content color if open
   if (currentEditingNote) {
-    const modalContent = document.querySelector('.modal-content');
+    const modalContent = document.getElementById('modal-content');
     if (modalContent) {
-      modalContent.style.backgroundColor = getThemeAwareColor(currentEditingNote.color);
+      modalContent.style.backgroundColor = getThemeAwareColor(editingColor || currentEditingNote.color);
     }
   }
 }
@@ -2099,6 +2100,8 @@ function openEditModal(noteId) {
   if (!note) return;
 
   currentEditingNote = note;
+  // The picked colour lives here until the note is saved; the list object stays untouched.
+  editingColor = note.color;
 
   document.getElementById('edit-note-title').value = note.title || '';
   document.getElementById('edit-note-content').value = note.content || '';
@@ -2106,19 +2109,7 @@ function openEditModal(noteId) {
 
   // Show/hide edit options based on permission
   const canEdit = !note.isShared || note.permission === 'edit';
-  const canDelete = !note.isShared; // Only owner can delete
-  const canShare = !note.isShared; // Only owner can share
-
-  document.getElementById('edit-note-title').disabled = !canEdit;
-  document.getElementById('edit-note-content').disabled = !canEdit;
-  document.getElementById('edit-checklist-toggle').disabled = !canEdit;
-  document.getElementById('update-note-btn').style.display = canEdit ? 'inline-block' : 'none';
-  document.getElementById('delete-note-btn').style.display = canDelete ? 'inline-block' : 'none';
-  document.getElementById('archive-note-btn').style.display = canEdit ? 'inline-block' : 'none';
-  document.getElementById('share-note-btn').style.display = canShare ? 'inline-block' : 'none';
-
-  // Dismiss share button - only for recipients of shared notes
-  document.getElementById('dismiss-share-btn').style.display = note.isShared ? 'inline-block' : 'none';
+  applyEditPermissionUI(note);
 
   // Pin button - available to everyone; pin is per-user, so a recipient can
   // pin/unpin a shared note in their own view without affecting the owner.
@@ -2144,7 +2135,7 @@ function openEditModal(noteId) {
         return `
       <div class="checklist-item checklist-header" data-header="true">
         <input type="text" value="${escapeHtml(item.text)}" ${!canEdit ? 'disabled' : ''}>
-        ${canEdit ? `<button data-action="removeEditChecklistItem">×</button>` : ''}
+        <button data-action="removeEditChecklistItem"${canEdit ? '' : ' style="display:none"'}>×</button>
       </div>
     `;
       }
@@ -2154,7 +2145,7 @@ function openEditModal(noteId) {
         <input type="checkbox" ${item.checked ? 'checked' : ''} ${!canEdit ? 'disabled' : ''}>
         <input type="text" value="${escapeHtml(item.text)}" ${!canEdit ? 'disabled' : ''}>
         ${confidenceBadgeHTML(item.confidence)}
-        ${canEdit ? `<button data-action="removeEditChecklistItem">×</button>` : ''}
+        <button data-action="removeEditChecklistItem"${canEdit ? '' : ' style="display:none"'}>×</button>
       </div>
     `;
     }).join('');
@@ -2188,11 +2179,41 @@ function openEditModal(noteId) {
         content: document.getElementById('edit-note-content').value,
         isChecklist: document.getElementById('edit-checklist-container').style.display !== 'none',
         checklistItems: JSON.stringify(getChecklistItems('edit-checklist-items')),
-        images: [...editNoteImages]
+        images: [...editNoteImages],
+        color: note.color
       };
       snapshotLocked = true;
     });
   });
+}
+
+// Permission-dependent parts of the edit modal (enabled/disabled fields and
+// buttons). Separate from openEditModal so a permission_changed event can
+// refresh them without touching what the user has typed.
+function applyEditPermissionUI(note) {
+  const canEdit = !note.isShared || note.permission === 'edit';
+  const canDelete = !note.isShared; // Only owner can delete
+  const canShare = !note.isShared; // Only owner can share
+
+  document.getElementById('edit-note-title').disabled = !canEdit;
+  document.getElementById('edit-note-content').disabled = !canEdit;
+  document.getElementById('edit-checklist-toggle').disabled = !canEdit;
+  document.getElementById('update-note-btn').style.display = canEdit ? 'inline-block' : 'none';
+  document.getElementById('delete-note-btn').style.display = canDelete ? 'inline-block' : 'none';
+  document.getElementById('archive-note-btn').style.display = canEdit ? 'inline-block' : 'none';
+  document.getElementById('share-note-btn').style.display = canShare ? 'inline-block' : 'none';
+
+  // Dismiss share button - only for recipients of shared notes
+  document.getElementById('dismiss-share-btn').style.display = note.isShared ? 'inline-block' : 'none';
+
+  // Checklist rows: inputs and per-row remove buttons
+  document.querySelectorAll('#edit-checklist-items input').forEach(input => { input.disabled = !canEdit; });
+  document.querySelectorAll('#edit-checklist-items button[data-action="removeEditChecklistItem"]').forEach(btn => { btn.style.display = canEdit ? '' : 'none'; });
+
+  // Image remove buttons
+  if (document.getElementById('edit-images-container').style.display !== 'none') {
+    renderImagePreview('edit-images-preview', editNoteImages, canEdit);
+  }
 }
 
 // Check if there are unsaved changes in the edit modal
@@ -2207,6 +2228,9 @@ function hasUnsavedChanges() {
   // Check title and content
   if (currentTitle !== originalEditState.title) return true;
   if (currentContent !== originalEditState.content) return true;
+
+  // Check colour
+  if (editingColor !== originalEditState.color) return true;
 
   // Check checklist mode
   if (isChecklist !== originalEditState.isChecklist) return true;
@@ -2248,6 +2272,7 @@ function forceCloseEditModal() {
   document.getElementById('edit-modal').classList.remove('active');
   currentEditingNote = null;
   originalEditState = null;
+  editingColor = null;
   snapshotLocked = false;
 }
 
@@ -2296,6 +2321,8 @@ async function saveChangesAndClose() {
 async function updateNote(options = {}) {
   if (!currentEditingNote) return;
   const { force = false } = options;
+  // The conflict toast's "overwrite" must only ever act on this note
+  const noteId = currentEditingNote.id;
 
   const title = document.getElementById('edit-note-title').value.trim();
   const content = document.getElementById('edit-note-content').value.trim();
@@ -2322,7 +2349,7 @@ async function updateNote(options = {}) {
       body: JSON.stringify({
         title,
         content,
-        color: currentEditingNote.color,
+        color: editingColor || currentEditingNote.color,
         is_checklist: isChecklist,
         checklist_items: checklistItems,
         is_archived: currentEditingNote.is_archived,
@@ -2352,7 +2379,10 @@ async function updateNote(options = {}) {
       showToast(t('messages.conflict_changed_elsewhere'), 'error', {
         label: t('messages.overwrite'),
         duration: 10000,
-        onClick: () => updateNote({ force: true })
+        onClick: () => {
+          // Do nothing if the editor was closed or another note opened since
+          if (currentEditingNote && currentEditingNote.id === noteId) updateNote({ force: true });
+        }
       });
     } else if (response.status === 403) {
       await fetchCSRFToken();
@@ -2485,6 +2515,10 @@ async function togglePinNote() {
 
     if (response.ok) {
       const data = await response.json();
+      // Work from the note as the list holds it now (a WS update may have
+      // replaced the object the editor was opened with), not a stale copy.
+      const pinnedId = currentEditingNote.id;
+      const listed = notes.find(n => n.id === pinnedId);
       currentEditingNote.is_pinned = data.is_pinned;
 
       // Update pin button icon in modal
@@ -2493,7 +2527,7 @@ async function togglePinNote() {
         pinBtn.title = data.is_pinned ? t('notes.unpin_title') : t('notes.pin_title');
       }
 
-      applyLocalNoteChange({ ...currentEditingNote, is_pinned: data.is_pinned });
+      if (listed) applyLocalNoteChange({ ...listed, is_pinned: data.is_pinned });
       showToast(data.is_pinned ? t('messages.note_pinned') : t('messages.note_unpinned'), 'success');
     } else if (response.status === 403) {
       await fetchCSRFToken();
@@ -2519,10 +2553,14 @@ async function toggleArchiveNote() {
   setBtnBusy(archiveBtn);
 
   const willArchive = currentEditingNote.is_archived ? 0 : 1;
-  currentEditingNote.is_archived = willArchive;
+  const noteId = currentEditingNote.id;
+
+  // Archive the note as it currently looks in the editor, so unsaved edits are
+  // saved along with it instead of being thrown away.
+  const isChecklist = document.getElementById('edit-checklist-container').style.display !== 'none';
 
   try {
-    const response = await apiFetch(`/api/notes/${currentEditingNote.id}`, {
+    const response = await apiFetch(`/api/notes/${noteId}`, {
       method: 'PUT',
       credentials: 'include',
       headers: {
@@ -2530,13 +2568,13 @@ async function toggleArchiveNote() {
         ...getCSRFHeaders()
       },
       body: JSON.stringify({
-        title: currentEditingNote.title,
-        content: currentEditingNote.content,
-        color: currentEditingNote.color,
-        is_checklist: currentEditingNote.is_checklist ? 1 : 0,
-        checklist_items: currentEditingNote.checklist_items,
+        title: document.getElementById('edit-note-title').value.trim(),
+        content: document.getElementById('edit-note-content').value.trim(),
+        color: editingColor || currentEditingNote.color,
+        is_checklist: isChecklist ? 1 : 0,
+        checklist_items: isChecklist ? getChecklistItems('edit-checklist-items') : null,
         is_archived: willArchive,
-        images: currentEditingNote.images || [],
+        images: editNoteImages,
         expected_updated_at: currentEditingNote.updated_at
       })
     });
@@ -2547,18 +2585,14 @@ async function toggleArchiveNote() {
       applyLocalNoteChange(result);
       showToast(willArchive ? t('messages.note_archived') : t('messages.note_unarchived'), 'success');
     } else if (response.status === 409) {
-      currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
       showToast(t('messages.conflict_reopen'), 'error');
     } else if (response.status === 403) {
-      currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
       await fetchCSRFToken();
       showToast(t('messages.session_expired'), 'error');
     } else {
-      currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
       showToast(t('messages.archive_note_failed'), 'error');
     }
   } catch (error) {
-    currentEditingNote.is_archived = willArchive ? 0 : 1; // revert optimistic change
     console.error('Failed to archive note:', error);
     showToast(t('messages.archive_note_failed'), 'error');
   } finally {
@@ -3295,9 +3329,10 @@ function setupColorPickers() {
       const color = btn.getAttribute('data-color');
 
       if (btn.classList.contains('edit-color-btn')) {
-        if (currentEditingNote) {
-          currentEditingNote.color = color;
-          document.querySelector('.modal-content').style.backgroundColor = getThemeAwareColor(color);
+        // Only remembered in editingColor; the note itself is updated on save
+        if (currentEditingNote && (!currentEditingNote.isShared || currentEditingNote.permission === 'edit')) {
+          editingColor = color;
+          document.getElementById('modal-content').style.backgroundColor = getThemeAwareColor(color);
         }
       } else {
         selectedColor = color;
